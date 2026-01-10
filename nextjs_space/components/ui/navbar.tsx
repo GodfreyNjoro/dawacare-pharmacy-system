@@ -9,6 +9,8 @@ import {
   LogOut,
   Pill,
   User,
+  ShoppingCart,
+  Receipt,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 
@@ -24,7 +26,9 @@ export function Navbar() {
 
   const navLinks = [
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+    { href: "/pos", label: "POS", icon: ShoppingCart },
     { href: "/inventory", label: "Inventory", icon: Package },
+    { href: "/sales", label: "Sales", icon: Receipt },
   ];
 
   if (!mounted || !session) return null;

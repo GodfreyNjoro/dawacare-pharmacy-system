@@ -31,9 +31,47 @@ model Medicine {
   category      String
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
+  saleItems     SaleItem[]
 
   @@index([name])
   @@index([category])
   @@index([batchNumber])
   @@index([expiryDate])
+}
+
+model Sale {
+  id            String    @id @default(cuid())
+  invoiceNumber String    @unique
+  customerName  String?
+  customerPhone String?
+  subtotal      Float
+  discount      Float     @default(0)
+  total         Float
+  paymentMethod String    // CASH, CARD, MPESA, OTHER
+  paymentStatus String    @default("PAID") // PAID, PENDING, PARTIAL
+  notes         String?
+  soldBy        String?   // User who made the sale
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  items         SaleItem[]
+
+  @@index([invoiceNumber])
+  @@index([createdAt])
+  @@index([paymentMethod])
+}
+
+model SaleItem {
+  id            String    @id @default(cuid())
+  saleId        String
+  medicineId    String
+  medicineName  String    // Store name at time of sale
+  batchNumber   String    // Store batch at time of sale
+  quantity      Int
+  unitPrice     Float     // Store price at time of sale
+  total         Float
+  sale          Sale      @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  medicine      Medicine  @relation(fields: [medicineId], references: [id])
+
+  @@index([saleId])
+  @@index([medicineId])
 }
