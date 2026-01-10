@@ -149,101 +149,78 @@ export default function SalesContent() {
         {/* Stats Cards */}
         {stats && (
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-            >
-              <Card>
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-emerald-100 rounded-lg">
-                      <TrendingUp className="w-5 h-5 text-emerald-600" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-600">Today</p>
-                      <p className="text-lg font-bold text-gray-900">
-                        KES {stats.today.total.toFixed(2)}
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        {stats.today.count} sales
-                      </p>
-                    </div>
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-emerald-100 rounded-lg">
+                    <TrendingUp className="w-5 h-5 text-emerald-600" />
                   </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 }}
-            >
-              <Card>
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-blue-100 rounded-lg">
-                      <Calendar className="w-5 h-5 text-blue-600" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-600">This Week</p>
-                      <p className="text-lg font-bold text-gray-900">
-                        KES {stats.week.total.toFixed(2)}
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        {stats.week.count} sales
-                      </p>
-                    </div>
+                  <div>
+                    <p className="text-sm text-gray-600">Today</p>
+                    <p className="text-lg font-bold text-gray-900">
+                      KES {stats.today.total.toFixed(2)}
+                    </p>
+                    <p className="text-xs text-gray-600">
+                      {stats.today.count} sales
+                    </p>
                   </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-            >
-              <Card>
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-purple-100 rounded-lg">
-                      <Banknote className="w-5 h-5 text-purple-600" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-600">This Month</p>
-                      <p className="text-lg font-bold text-gray-900">
-                        KES {stats.month.total.toFixed(2)}
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        {stats.month.count} sales
-                      </p>
-                    </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-blue-100 rounded-lg">
+                    <Calendar className="w-5 h-5 text-blue-600" />
                   </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 }}
-            >
-              <Card>
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-amber-100 rounded-lg">
-                      <Receipt className="w-5 h-5 text-amber-600" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-600">All Time</p>
-                      <p className="text-lg font-bold text-gray-900">
-                        KES {stats.allTime.total.toFixed(2)}
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        {stats.allTime.count} sales
-                      </p>
-                    </div>
+                  <div>
+                    <p className="text-sm text-gray-600">This Week</p>
+                    <p className="text-lg font-bold text-gray-900">
+                      KES {stats.week.total.toFixed(2)}
+                    </p>
+                    <p className="text-xs text-gray-600">
+                      {stats.week.count} sales
+                    </p>
                   </div>
-                </CardContent>
-              </Card>
-            </motion.div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-purple-100 rounded-lg">
+                    <Banknote className="w-5 h-5 text-purple-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">This Month</p>
+                    <p className="text-lg font-bold text-gray-900">
+                      KES {stats.month.total.toFixed(2)}
+                    </p>
+                    <p className="text-xs text-gray-600">
+                      {stats.month.count} sales
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-amber-100 rounded-lg">
+                    <Receipt className="w-5 h-5 text-amber-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">All Time</p>
+                    <p className="text-lg font-bold text-gray-900">
+                      KES {stats.allTime.total.toFixed(2)}
+                    </p>
+                    <p className="text-xs text-gray-600">
+                      {stats.allTime.count} sales
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         )}
 

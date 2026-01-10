@@ -16,6 +16,7 @@ import {
   Building2,
   FileText,
   ClipboardCheck,
+  BarChart3,
 } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 
@@ -46,6 +47,7 @@ export function Navbar() {
     { href: "/pos", label: "POS", icon: ShoppingCart },
     { href: "/inventory", label: "Inventory", icon: Package },
     { href: "/sales", label: "Sales", icon: Receipt },
+    { href: "/reports", label: "Reports", icon: BarChart3 },
   ];
 
   const procurementLinks = [
