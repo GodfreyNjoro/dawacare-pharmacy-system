@@ -31,6 +31,10 @@ export async function GET(
         name: true,
         role: true,
         status: true,
+        branchId: true,
+        branch: {
+          select: { id: true, name: true, code: true },
+        },
         createdAt: true,
         updatedAt: true,
       },
@@ -68,7 +72,7 @@ export async function PUT(
     }
 
     const body = await request.json();
-    const { email, name, password, role, status } = body;
+    const { email, name, password, role, status, branchId } = body;
 
     // Validate role if provided
     const validRoles = ["ADMIN", "PHARMACIST", "CASHIER"];
@@ -127,6 +131,7 @@ export async function PUT(
     if (name !== undefined) updateData.name = name;
     if (role) updateData.role = role;
     if (status) updateData.status = status;
+    if (branchId !== undefined) updateData.branchId = branchId || null;
 
     // Hash password if provided
     if (password && password.length >= 6) {
@@ -142,6 +147,10 @@ export async function PUT(
         name: true,
         role: true,
         status: true,
+        branchId: true,
+        branch: {
+          select: { id: true, name: true, code: true },
+        },
         createdAt: true,
         updatedAt: true,
       },

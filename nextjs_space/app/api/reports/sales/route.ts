@@ -17,22 +17,36 @@ export async function GET(request: NextRequest) {
     const startDate = searchParams.get("startDate");
     const endDate = searchParams.get("endDate");
     const groupBy = searchParams.get("groupBy") || "day"; // day, week, month
+    const branchId = searchParams.get("branchId");
+    const allBranches = searchParams.get("allBranches") === "true";
 
-    const dateFilter: { createdAt?: { gte?: Date; lte?: Date } } = {};
+    const whereFilter: { createdAt?: { gte?: Date; lte?: Date }; branchId?: string } = {};
     if (startDate) {
-      dateFilter.createdAt = { ...dateFilter.createdAt, gte: new Date(startDate) };
+      whereFilter.createdAt = { ...whereFilter.createdAt, gte: new Date(startDate) };
     }
     if (endDate) {
       const end = new Date(endDate);
       end.setHours(23, 59, 59, 999);
-      dateFilter.createdAt = { ...dateFilter.createdAt, lte: end };
+      whereFilter.createdAt = { ...whereFilter.createdAt, lte: end };
+    }
+
+    // Branch filtering - admins can view all branches with allBranches=true
+    const isAdmin = session.user?.role === "ADMIN";
+    if (!allBranches || !isAdmin) {
+      const targetBranchId = branchId || session.user?.branchId;
+      if (targetBranchId) {
+        whereFilter.branchId = targetBranchId;
+      }
     }
 
     // Get all sales in the date range
     const sales = await prisma.sale.findMany({
-      where: dateFilter,
+      where: whereFilter,
       include: {
         items: true,
+        branch: {
+          select: { id: true, name: true, code: true },
+        },
       },
       orderBy: { createdAt: "asc" },
     });
@@ -66,7 +80,7 @@ export async function GET(request: NextRequest) {
     // Payment method breakdown
     const paymentBreakdown = await prisma.sale.groupBy({
       by: ["paymentMethod"],
-      where: dateFilter,
+      where: whereFilter,
       _sum: { total: true },
       _count: true,
     });

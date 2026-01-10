@@ -19,6 +19,8 @@ export async function GET(request: Request) {
     const sortOrder = searchParams.get("sortOrder") ?? "asc";
     const page = parseInt(searchParams.get("page") ?? "1");
     const limit = parseInt(searchParams.get("limit") ?? "10");
+    const branchId = searchParams.get("branchId");
+    const allBranches = searchParams.get("allBranches") === "true";
 
     const where: Record<string, unknown> = {};
 
@@ -34,10 +36,25 @@ export async function GET(request: Request) {
       where.category = category;
     }
 
+    // Branch filtering: admins can see all branches if allBranches=true
+    // Otherwise filter by specific branchId or user's branch
+    const isAdmin = session.user?.role === "ADMIN";
+    if (!allBranches || !isAdmin) {
+      const targetBranchId = branchId || session.user?.branchId;
+      if (targetBranchId) {
+        where.branchId = targetBranchId;
+      }
+    }
+
     const total = await prisma.medicine.count({ where });
 
     const medicines = await prisma.medicine.findMany({
       where,
+      include: {
+        branch: {
+          select: { id: true, name: true, code: true },
+        },
+      },
       orderBy: { [sortBy]: sortOrder },
       skip: (page - 1) * limit,
       take: limit,
@@ -79,6 +96,7 @@ export async function POST(request: Request) {
       reorderLevel,
       unitPrice,
       category,
+      branchId,
     } = body ?? {};
 
     // Validation
@@ -111,6 +129,9 @@ export async function POST(request: Request) {
       );
     }
 
+    // Use provided branchId or default to user's branch
+    const targetBranchId = branchId || session.user?.branchId;
+
     const medicine = await prisma.medicine.create({
       data: {
         name,
@@ -122,6 +143,7 @@ export async function POST(request: Request) {
         reorderLevel: reorderLevel ? parseInt(reorderLevel.toString()) : 10,
         unitPrice: parseFloat(unitPrice.toString()),
         category,
+        branchId: targetBranchId || null,
       },
     });
 

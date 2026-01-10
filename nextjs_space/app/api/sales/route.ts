@@ -27,6 +27,8 @@ export async function GET(request: NextRequest) {
     const paymentMethod = searchParams.get("paymentMethod") || "";
     const startDate = searchParams.get("startDate");
     const endDate = searchParams.get("endDate");
+    const branchId = searchParams.get("branchId");
+    const allBranches = searchParams.get("allBranches") === "true";
 
     const skip = (page - 1) * limit;
 
@@ -56,11 +58,23 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // Branch filtering
+    const isAdmin = session.user?.role === "ADMIN";
+    if (!allBranches || !isAdmin) {
+      const targetBranchId = branchId || session.user?.branchId;
+      if (targetBranchId) {
+        where.branchId = targetBranchId;
+      }
+    }
+
     const [sales, totalCount] = await Promise.all([
       prisma.sale.findMany({
         where,
         include: {
           items: true,
+          branch: {
+            select: { id: true, name: true, code: true },
+          },
         },
         orderBy: { createdAt: "desc" },
         skip,
@@ -244,6 +258,7 @@ export async function POST(request: NextRequest) {
           paymentStatus: paymentMethod === "CREDIT" ? "PENDING" : "PAID",
           notes: notes || null,
           soldBy: session.user?.name || session.user?.email || "Unknown",
+          branchId: session.user?.branchId || null,
           items: {
             create: saleItems,
           },

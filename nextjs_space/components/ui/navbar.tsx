@@ -19,19 +19,32 @@ import {
   Users,
   UserCog,
   Shield,
+  Globe,
 } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { hasPermission } from "@/lib/permissions";
 import { Badge } from "@/components/ui/badge";
+import { useBranch } from "@/lib/branch-context";
 
 export function Navbar() {
   const [mounted, setMounted] = useState(false);
   const [procurementOpen, setProcurementOpen] = useState(false);
+  const [branchDropdownOpen, setBranchDropdownOpen] = useState(false);
   const procurementRef = useRef<HTMLDivElement>(null);
+  const branchRef = useRef<HTMLDivElement>(null);
   const sessionData = useSession();
   const session = sessionData?.data;
   const pathname = usePathname();
   const userRole = session?.user?.role;
+  
+  const { 
+    selectedBranch, 
+    branches, 
+    setSelectedBranchId, 
+    isAdmin, 
+    viewAllBranches, 
+    setViewAllBranches 
+  } = useBranch();
 
   useEffect(() => {
     setMounted(true);
@@ -41,6 +54,9 @@ export function Navbar() {
     function handleClickOutside(event: MouseEvent) {
       if (procurementRef.current && !procurementRef.current.contains(event.target as Node)) {
         setProcurementOpen(false);
+      }
+      if (branchRef.current && !branchRef.current.contains(event.target as Node)) {
+        setBranchDropdownOpen(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -167,6 +183,67 @@ export function Navbar() {
           </div>
 
           <div className="flex items-center gap-4">
+            {/* Branch Switcher - Admin Only */}
+            {isAdmin && branches.length > 0 && (
+              <div className="relative" ref={branchRef}>
+                <button
+                  onClick={() => setBranchDropdownOpen(!branchDropdownOpen)}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"
+                >
+                  <Building2 className="w-4 h-4" />
+                  <span className="hidden md:inline">
+                    {viewAllBranches ? "All Branches" : selectedBranch?.name || "Select Branch"}
+                  </span>
+                  <ChevronDown className={`w-4 h-4 transition-transform ${branchDropdownOpen ? "rotate-180" : ""}`} />
+                </button>
+                {branchDropdownOpen && (
+                  <div className="absolute top-full right-0 mt-1 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
+                    <button
+                      onClick={() => {
+                        setViewAllBranches(true);
+                        setBranchDropdownOpen(false);
+                      }}
+                      className={`flex items-center gap-2 w-full px-4 py-2 text-left transition-colors ${
+                        viewAllBranches
+                          ? "bg-blue-50 text-blue-700"
+                          : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                      }`}
+                    >
+                      <Globe className="w-4 h-4" />
+                      All Branches
+                    </button>
+                    <div className="border-t my-1" />
+                    {branches.map((branch) => (
+                      <button
+                        key={branch.id}
+                        onClick={() => {
+                          setSelectedBranchId(branch.id);
+                          setBranchDropdownOpen(false);
+                        }}
+                        className={`flex items-center gap-2 w-full px-4 py-2 text-left transition-colors ${
+                          !viewAllBranches && selectedBranch?.id === branch.id
+                            ? "bg-blue-50 text-blue-700"
+                            : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                        }`}
+                      >
+                        <Building2 className="w-4 h-4" />
+                        {branch.name}
+                        <span className="text-xs text-gray-400">({branch.code})</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+            
+            {/* Non-admin branch display */}
+            {!isAdmin && selectedBranch && (
+              <Badge variant="outline" className="hidden sm:flex items-center gap-1 border-blue-500 text-blue-700">
+                <Building2 className="w-3 h-3" />
+                {selectedBranch.name}
+              </Badge>
+            )}
+
             <div className="hidden sm:flex items-center gap-2">
               <Badge className={`${getRoleBadgeColor(userRole)} flex items-center gap-1`}>
                 <Shield className="w-3 h-3" />

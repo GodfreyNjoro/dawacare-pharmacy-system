@@ -22,6 +22,12 @@ model Branch {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   users         User[]
+  medicines     Medicine[]
+  sales         Sale[]
+  purchaseOrders PurchaseOrder[]
+  grns          GoodsReceivedNote[]
+  stockTransfersFrom StockTransfer[] @relation("FromBranch")
+  stockTransfersTo   StockTransfer[] @relation("ToBranch")
 
   @@index([code])
   @@index([status])
@@ -55,6 +61,8 @@ model Medicine {
   reorderLevel  Int       @default(10)
   unitPrice     Float
   category      String
+  branchId      String?
+  branch        Branch?   @relation(fields: [branchId], references: [id])
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   saleItems     SaleItem[]
@@ -63,6 +71,7 @@ model Medicine {
   @@index([category])
   @@index([batchNumber])
   @@index([expiryDate])
+  @@index([branchId])
 }
 
 // Customer Management
@@ -138,6 +147,8 @@ model Sale {
   paymentStatus String    @default("PAID") // PAID, PENDING, PARTIAL
   notes         String?
   soldBy        String?   // User who made the sale
+  branchId      String?
+  branch        Branch?   @relation(fields: [branchId], references: [id])
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   items         SaleItem[]
@@ -146,6 +157,7 @@ model Sale {
   @@index([customerId])
   @@index([createdAt])
   @@index([paymentMethod])
+  @@index([branchId])
 }
 
 model SaleItem {
@@ -193,6 +205,8 @@ model PurchaseOrder {
   notes         String?
   expectedDate  DateTime?
   createdBy     String?
+  branchId      String?
+  branch        Branch?   @relation(fields: [branchId], references: [id])
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   items         PurchaseOrderItem[]
@@ -202,6 +216,7 @@ model PurchaseOrder {
   @@index([supplierId])
   @@index([status])
   @@index([createdAt])
+  @@index([branchId])
 }
 
 model PurchaseOrderItem {
@@ -228,6 +243,8 @@ model GoodsReceivedNote {
   receivedBy      String?
   notes           String?
   status          String    @default("RECEIVED") // RECEIVED, PARTIAL, REJECTED
+  branchId        String?
+  branch          Branch?   @relation(fields: [branchId], references: [id])
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
   items           GRNItem[]
@@ -235,6 +252,7 @@ model GoodsReceivedNote {
   @@index([grnNumber])
   @@index([purchaseOrderId])
   @@index([receivedDate])
+  @@index([branchId])
 }
 
 model GRNItem {
@@ -250,4 +268,42 @@ model GRNItem {
   addedToInventory Boolean  @default(false)
 
   @@index([grnId])
+}
+
+// Stock Transfer between branches
+model StockTransfer {
+  id              String    @id @default(cuid())
+  transferNumber  String    @unique
+  fromBranchId    String
+  fromBranch      Branch    @relation("FromBranch", fields: [fromBranchId], references: [id])
+  toBranchId      String
+  toBranch        Branch    @relation("ToBranch", fields: [toBranchId], references: [id])
+  status          String    @default("PENDING") // PENDING, IN_TRANSIT, COMPLETED, CANCELLED
+  notes           String?
+  createdBy       String?
+  completedBy     String?
+  createdAt       DateTime  @default(now())
+  completedAt     DateTime?
+  updatedAt       DateTime  @updatedAt
+  items           StockTransferItem[]
+
+  @@index([transferNumber])
+  @@index([fromBranchId])
+  @@index([toBranchId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model StockTransferItem {
+  id              String    @id @default(cuid())
+  transferId      String
+  transfer        StockTransfer @relation(fields: [transferId], references: [id], onDelete: Cascade)
+  medicineId      String
+  medicineName    String
+  batchNumber     String
+  quantity        Int
+  unitPrice       Float
+
+  @@index([transferId])
+  @@index([medicineId])
 }

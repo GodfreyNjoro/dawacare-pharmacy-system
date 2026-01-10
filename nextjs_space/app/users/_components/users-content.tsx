@@ -7,11 +7,11 @@ import {
   Plus,
   Search,
   Edit2,
-  Trash2,
   Shield,
   UserCheck,
   UserX,
   RefreshCw,
+  Building2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,12 +34,20 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 
+interface Branch {
+  id: string;
+  name: string;
+  code: string;
+}
+
 interface User {
   id: string;
   email: string;
   name: string | null;
   role: string;
   status: string;
+  branchId: string | null;
+  branch: Branch | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -52,6 +60,7 @@ const ROLES = [
 
 export default function UsersContent() {
   const [users, setUsers] = useState<User[]>([]);
+  const [branches, setBranches] = useState<Branch[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState("");
@@ -65,8 +74,25 @@ export default function UsersContent() {
     name: "",
     password: "",
     role: "CASHIER",
+    branchId: "",
   });
   const [saving, setSaving] = useState(false);
+
+  // Fetch branches for dropdown
+  useEffect(() => {
+    const fetchBranches = async () => {
+      try {
+        const response = await fetch("/api/branches?all=true");
+        if (response.ok) {
+          const data = await response.json();
+          setBranches(data.branches || []);
+        }
+      } catch (error) {
+        console.error("Error fetching branches:", error);
+      }
+    };
+    fetchBranches();
+  }, []);
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
@@ -106,6 +132,7 @@ export default function UsersContent() {
         name: user.name || "",
         password: "",
         role: user.role,
+        branchId: user.branchId || "",
       });
     } else {
       setEditingUser(null);
@@ -114,6 +141,7 @@ export default function UsersContent() {
         name: "",
         password: "",
         role: "CASHIER",
+        branchId: branches.length > 0 ? branches[0].id : "",
       });
     }
     setIsModalOpen(true);
@@ -140,10 +168,11 @@ export default function UsersContent() {
       const url = editingUser ? `/api/users/${editingUser.id}` : "/api/users";
       const method = editingUser ? "PUT" : "POST";
 
-      const body: Record<string, string> = {
+      const body: Record<string, string | null> = {
         email: formData.email,
         name: formData.name,
         role: formData.role,
+        branchId: formData.branchId || null,
       };
 
       if (formData.password) {
@@ -331,7 +360,7 @@ export default function UsersContent() {
                           <p className="text-sm text-gray-600">{user.email}</p>
                         </div>
                       </div>
-                      <div className="flex items-center gap-3 mt-2">
+                      <div className="flex flex-wrap items-center gap-3 mt-2">
                         {getRoleBadge(user.role)}
                         <Badge
                           variant="outline"
@@ -344,6 +373,12 @@ export default function UsersContent() {
                           )}
                           {user.status}
                         </Badge>
+                        {user.branch && (
+                          <Badge variant="outline" className="border-blue-500 text-blue-700">
+                            <Building2 className="h-3 w-3 mr-1" />
+                            {user.branch.name}
+                          </Badge>
+                        )}
                         <span className="text-sm text-gray-500">
                           Created: {formatDate(user.createdAt)}
                         </span>
@@ -462,6 +497,25 @@ export default function UsersContent() {
                   {ROLES.map((role) => (
                     <SelectItem key={role.value} value={role.value}>
                       {role.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="branch">Branch</Label>
+              <Select
+                value={formData.branchId}
+                onValueChange={(v) => setFormData({ ...formData, branchId: v === "none" ? "" : v })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a branch" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No Branch Assigned</SelectItem>
+                  {branches.map((branch) => (
+                    <SelectItem key={branch.id} value={branch.id}>
+                      {branch.name} ({branch.code})
                     </SelectItem>
                   ))}
                 </SelectContent>

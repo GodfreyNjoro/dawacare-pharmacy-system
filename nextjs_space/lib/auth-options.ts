@@ -6,6 +6,8 @@ import bcrypt from "bcryptjs";
 declare module "next-auth" {
   interface User {
     role?: string;
+    branchId?: string | null;
+    branchName?: string | null;
   }
   interface Session {
     user: {
@@ -13,6 +15,8 @@ declare module "next-auth" {
       email?: string | null;
       name?: string | null;
       role?: string;
+      branchId?: string | null;
+      branchName?: string | null;
     };
   }
 }
@@ -21,6 +25,8 @@ declare module "next-auth/jwt" {
   interface JWT {
     id?: string;
     role?: string;
+    branchId?: string | null;
+    branchName?: string | null;
   }
 }
 
@@ -39,6 +45,11 @@ export const authOptions: NextAuthOptions = {
 
         const user = await prisma.user.findUnique({
           where: { email: credentials.email },
+          include: {
+            branch: {
+              select: { id: true, name: true },
+            },
+          },
         });
 
         if (!user) {
@@ -64,6 +75,8 @@ export const authOptions: NextAuthOptions = {
           email: user.email,
           name: user.name,
           role: user.role,
+          branchId: user.branchId,
+          branchName: user.branch?.name || null,
         };
       },
     }),
@@ -79,6 +92,8 @@ export const authOptions: NextAuthOptions = {
       if (user) {
         token.id = user.id;
         token.role = user.role;
+        token.branchId = user.branchId;
+        token.branchName = user.branchName;
       }
       return token;
     },
@@ -86,6 +101,8 @@ export const authOptions: NextAuthOptions = {
       if (session?.user) {
         session.user.id = token.id as string;
         session.user.role = token.role as string;
+        session.user.branchId = token.branchId as string | null;
+        session.user.branchName = token.branchName as string | null;
       }
       return session;
     },

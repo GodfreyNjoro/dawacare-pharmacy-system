@@ -426,12 +426,18 @@ async function main() {
   await prisma.medicine.deleteMany();
   console.log("Cleared existing medicines");
 
-  // Insert medicines
-  for (const medicine of medicines) {
-    await prisma.medicine.create({ data: medicine });
+  // Insert medicines - distribute between branches
+  // Main branch gets most medicines, Westlands gets some
+  for (let i = 0; i < medicines.length; i++) {
+    const medicine = medicines[i];
+    // First 18 medicines go to main branch, rest to westlands
+    const branchId = i < 18 ? mainBranch?.id : westlandsBranch?.id;
+    await prisma.medicine.create({ 
+      data: { ...medicine, branchId } 
+    });
   }
 
-  console.log(`Created ${medicines.length} medicines`);
+  console.log(`Created ${medicines.length} medicines across branches`);
 
   // Sample customers
   const customers = [

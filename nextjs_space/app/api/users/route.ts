@@ -51,6 +51,10 @@ export async function GET(request: NextRequest) {
           name: true,
           role: true,
           status: true,
+          branchId: true,
+          branch: {
+            select: { id: true, name: true, code: true },
+          },
           createdAt: true,
           updatedAt: true,
         },
@@ -92,7 +96,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { email, name, password, role } = body;
+    const { email, name, password, role, branchId } = body;
 
     // Validation
     if (!email || !password || !role) {
@@ -146,6 +150,7 @@ export async function POST(request: NextRequest) {
         password: hashedPassword,
         role,
         status: "ACTIVE",
+        branchId: branchId || null,
       },
       select: {
         id: true,
@@ -153,6 +158,10 @@ export async function POST(request: NextRequest) {
         name: true,
         role: true,
         status: true,
+        branchId: true,
+        branch: {
+          select: { id: true, name: true, code: true },
+        },
         createdAt: true,
       },
     });
