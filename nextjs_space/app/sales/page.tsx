@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth-options";
 import dynamic from "next/dynamic";
 
-const SalesContent = dynamic(() => import("./_components/sales-content"), {
+const SalesPageClient = dynamic(() => import("./_components/sales-page-client"), {
   ssr: false,
   loading: () => (
     <div className="min-h-screen flex items-center justify-center">
@@ -19,5 +19,5 @@ export default async function SalesPage() {
     redirect("/login");
   }
 
-  return <SalesContent />;
+  return <SalesPageClient />;
 }

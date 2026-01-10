@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth-options";
 import dynamic from "next/dynamic";
 
-const POSContent = dynamic(() => import("./_components/pos-content"), {
+const POSPageClient = dynamic(() => import("./_components/pos-page-client"), {
   ssr: false,
   loading: () => (
     <div className="min-h-screen flex items-center justify-center">
@@ -19,5 +19,5 @@ export default async function POSPage() {
     redirect("/login");
   }
 
-  return <POSContent />;
+  return <POSPageClient />;
 }

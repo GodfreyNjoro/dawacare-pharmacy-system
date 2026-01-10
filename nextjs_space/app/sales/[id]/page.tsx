@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth-options";
 import dynamic from "next/dynamic";
 
-const InvoiceContent = dynamic(() => import("./_components/invoice-content"), {
+const InvoicePageClient = dynamic(() => import("./_components/invoice-page-client"), {
   ssr: false,
   loading: () => (
     <div className="min-h-screen flex items-center justify-center">
@@ -25,5 +25,5 @@ export default async function InvoicePage({
 
   const { id } = await params;
 
-  return <InvoiceContent saleId={id} />;
+  return <InvoicePageClient saleId={id} />;
 }
