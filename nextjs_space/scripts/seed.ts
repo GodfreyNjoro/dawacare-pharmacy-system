@@ -6,24 +6,72 @@ const prisma = new PrismaClient();
 async function main() {
   console.log("Starting seed...");
 
-  // Create test user
+  // Create users with different roles
   const hashedPassword = await bcrypt.hash("johndoe123", 10);
   
-  const existingUser = await prisma.user.findUnique({
+  // Admin user (john@doe.com - existing user upgraded to admin)
+  const existingAdmin = await prisma.user.findUnique({
     where: { email: "john@doe.com" },
   });
 
-  if (!existingUser) {
+  if (!existingAdmin) {
     await prisma.user.create({
       data: {
         email: "john@doe.com",
         name: "John Doe",
         password: hashedPassword,
+        role: "ADMIN",
+        status: "ACTIVE",
       },
     });
-    console.log("Test user created");
+    console.log("Admin user created");
   } else {
-    console.log("Test user already exists");
+    // Update existing user to ADMIN role
+    await prisma.user.update({
+      where: { email: "john@doe.com" },
+      data: { role: "ADMIN", status: "ACTIVE" },
+    });
+    console.log("Admin user updated");
+  }
+
+  // Pharmacist user
+  const existingPharmacist = await prisma.user.findUnique({
+    where: { email: "pharmacist@dawacare.com" },
+  });
+
+  if (!existingPharmacist) {
+    await prisma.user.create({
+      data: {
+        email: "pharmacist@dawacare.com",
+        name: "Sarah Pharmacist",
+        password: hashedPassword,
+        role: "PHARMACIST",
+        status: "ACTIVE",
+      },
+    });
+    console.log("Pharmacist user created");
+  } else {
+    console.log("Pharmacist user already exists");
+  }
+
+  // Cashier user
+  const existingCashier = await prisma.user.findUnique({
+    where: { email: "cashier@dawacare.com" },
+  });
+
+  if (!existingCashier) {
+    await prisma.user.create({
+      data: {
+        email: "cashier@dawacare.com",
+        name: "Mike Cashier",
+        password: hashedPassword,
+        role: "CASHIER",
+        status: "ACTIVE",
+      },
+    });
+    console.log("Cashier user created");
+  } else {
+    console.log("Cashier user already exists");
   }
 
   // Helper to generate dates

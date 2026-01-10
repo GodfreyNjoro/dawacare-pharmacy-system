@@ -8,7 +8,6 @@ import {
   Package,
   LogOut,
   Pill,
-  User,
   ShoppingCart,
   Receipt,
   Truck,
@@ -17,8 +16,12 @@ import {
   FileText,
   ClipboardCheck,
   BarChart3,
+  Users,
+  Shield,
 } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
+import { hasPermission } from "@/lib/permissions";
+import { Badge } from "@/components/ui/badge";
 
 export function Navbar() {
   const [mounted, setMounted] = useState(false);
@@ -27,6 +30,7 @@ export function Navbar() {
   const sessionData = useSession();
   const session = sessionData?.data;
   const pathname = usePathname();
+  const userRole = session?.user?.role;
 
   useEffect(() => {
     setMounted(true);
@@ -42,12 +46,14 @@ export function Navbar() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const navLinks = [
-    { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-    { href: "/pos", label: "POS", icon: ShoppingCart },
-    { href: "/inventory", label: "Inventory", icon: Package },
-    { href: "/sales", label: "Sales", icon: Receipt },
-    { href: "/reports", label: "Reports", icon: BarChart3 },
+  // Define nav links with permissions
+  const allNavLinks = [
+    { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, permission: "VIEW_DASHBOARD" },
+    { href: "/pos", label: "POS", icon: ShoppingCart, permission: "USE_POS" },
+    { href: "/inventory", label: "Inventory", icon: Package, permission: "VIEW_INVENTORY" },
+    { href: "/sales", label: "Sales", icon: Receipt, permission: "VIEW_SALES" },
+    { href: "/reports", label: "Reports", icon: BarChart3, permission: "VIEW_REPORTS" },
+    { href: "/users", label: "Users", icon: Users, permission: "VIEW_USERS" },
   ];
 
   const procurementLinks = [
@@ -56,7 +62,27 @@ export function Navbar() {
     { href: "/procurement/grn", label: "Goods Received", icon: ClipboardCheck },
   ];
 
+  // Filter nav links based on permissions
+  const navLinks = allNavLinks.filter(link => 
+    hasPermission(userRole, link.permission as Parameters<typeof hasPermission>[1])
+  );
+
+  const canViewProcurement = hasPermission(userRole, "VIEW_PURCHASE_ORDERS");
   const isProcurementActive = pathname.startsWith("/procurement");
+  const isUsersActive = pathname === "/users";
+
+  const getRoleBadgeColor = (role: string | undefined) => {
+    switch (role) {
+      case "ADMIN":
+        return "bg-purple-100 text-purple-700";
+      case "PHARMACIST":
+        return "bg-blue-100 text-blue-700";
+      case "CASHIER":
+        return "bg-emerald-100 text-emerald-700";
+      default:
+        return "bg-gray-100 text-gray-700";
+    }
+  };
 
   if (!mounted || !session) return null;
 
@@ -94,51 +120,56 @@ export function Navbar() {
                 );
               })}
 
-              {/* Procurement Dropdown */}
-              <div className="relative" ref={procurementRef}>
-                <button
-                  onClick={() => setProcurementOpen(!procurementOpen)}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
-                    isProcurementActive
-                      ? "bg-emerald-100 text-emerald-700"
-                      : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
-                  }`}
-                >
-                  <Truck className="w-4 h-4" />
-                  Procurement
-                  <ChevronDown className={`w-4 h-4 transition-transform ${procurementOpen ? "rotate-180" : ""}`} />
-                </button>
-                {procurementOpen && (
-                  <div className="absolute top-full left-0 mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
-                    {procurementLinks.map((link) => {
-                      const Icon = link.icon;
-                      const isActive = pathname === link.href;
-                      return (
-                        <Link
-                          key={link.href}
-                          href={link.href}
-                          onClick={() => setProcurementOpen(false)}
-                          className={`flex items-center gap-2 px-4 py-2 transition-colors ${
-                            isActive
-                              ? "bg-emerald-50 text-emerald-700"
-                              : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                          }`}
-                        >
-                          <Icon className="w-4 h-4" />
-                          {link.label}
-                        </Link>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
+              {/* Procurement Dropdown - only show if user has permission */}
+              {canViewProcurement && (
+                <div className="relative" ref={procurementRef}>
+                  <button
+                    onClick={() => setProcurementOpen(!procurementOpen)}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+                      isProcurementActive
+                        ? "bg-emerald-100 text-emerald-700"
+                        : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+                    }`}
+                  >
+                    <Truck className="w-4 h-4" />
+                    Procurement
+                    <ChevronDown className={`w-4 h-4 transition-transform ${procurementOpen ? "rotate-180" : ""}`} />
+                  </button>
+                  {procurementOpen && (
+                    <div className="absolute top-full left-0 mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
+                      {procurementLinks.map((link) => {
+                        const Icon = link.icon;
+                        const isActive = pathname === link.href;
+                        return (
+                          <Link
+                            key={link.href}
+                            href={link.href}
+                            onClick={() => setProcurementOpen(false)}
+                            className={`flex items-center gap-2 px-4 py-2 transition-colors ${
+                              isActive
+                                ? "bg-emerald-50 text-emerald-700"
+                                : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                            }`}
+                          >
+                            <Icon className="w-4 h-4" />
+                            {link.label}
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
           <div className="flex items-center gap-4">
-            <div className="hidden sm:flex items-center gap-2 text-sm text-gray-600">
-              <User className="w-4 h-4" />
-              <span>{session?.user?.email ?? "User"}</span>
+            <div className="hidden sm:flex items-center gap-2">
+              <Badge className={`${getRoleBadgeColor(userRole)} flex items-center gap-1`}>
+                <Shield className="w-3 h-3" />
+                {userRole || "User"}
+              </Badge>
+              <span className="text-sm text-gray-600">{session?.user?.email}</span>
             </div>
             <button
               onClick={() => signOut({ callbackUrl: "/login" })}
@@ -172,17 +203,19 @@ export function Navbar() {
               </Link>
             );
           })}
-          <Link
-            href="/procurement/suppliers"
-            className={`flex items-center justify-center gap-1 px-3 py-2 rounded-lg font-medium transition-colors text-sm ${
-              isProcurementActive
-                ? "bg-emerald-100 text-emerald-700"
-                : "text-gray-600 hover:bg-gray-100"
-            }`}
-          >
-            <Truck className="w-4 h-4" />
-            Procurement
-          </Link>
+          {canViewProcurement && (
+            <Link
+              href="/procurement/suppliers"
+              className={`flex items-center justify-center gap-1 px-3 py-2 rounded-lg font-medium transition-colors text-sm ${
+                isProcurementActive
+                  ? "bg-emerald-100 text-emerald-700"
+                  : "text-gray-600 hover:bg-gray-100"
+              }`}
+            >
+              <Truck className="w-4 h-4" />
+              Procurement
+            </Link>
+          )}
         </div>
       </div>
     </nav>
