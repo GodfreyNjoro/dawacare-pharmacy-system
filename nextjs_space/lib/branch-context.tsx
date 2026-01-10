@@ -33,8 +33,13 @@ export function BranchProvider({ children }: { children: ReactNode }) {
   const isAdmin = session?.user?.role === "ADMIN";
   const userBranchId = session?.user?.branchId;
 
-  // Fetch branches
+  // Fetch branches only when authenticated
   useEffect(() => {
+    if (!session?.user) {
+      setLoading(false);
+      return;
+    }
+    
     const fetchBranches = async () => {
       try {
         const response = await fetch("/api/branches?all=true");
@@ -49,7 +54,7 @@ export function BranchProvider({ children }: { children: ReactNode }) {
       }
     };
     fetchBranches();
-  }, []);
+  }, [session?.user]);
 
   // Set default branch based on user's branch or first available
   useEffect(() => {
