@@ -6,6 +6,47 @@ const prisma = new PrismaClient();
 async function main() {
   console.log("Starting seed...");
 
+  // Create branches first
+  const branches = [
+    {
+      name: "DawaCare Main",
+      code: "MAIN",
+      address: "123 Kenyatta Avenue, Nairobi CBD",
+      phone: "0720123456",
+      email: "main@dawacare.co.ke",
+      isMainBranch: true,
+      status: "ACTIVE",
+    },
+    {
+      name: "DawaCare Westlands",
+      code: "WEST",
+      address: "45 Waiyaki Way, Westlands",
+      phone: "0721234567",
+      email: "westlands@dawacare.co.ke",
+      isMainBranch: false,
+      status: "ACTIVE",
+    },
+  ];
+
+  let mainBranch;
+  let westlandsBranch;
+
+  for (const branch of branches) {
+    const existing = await prisma.branch.findUnique({
+      where: { code: branch.code },
+    });
+    if (!existing) {
+      const created = await prisma.branch.create({ data: branch });
+      if (branch.code === "MAIN") mainBranch = created;
+      if (branch.code === "WEST") westlandsBranch = created;
+      console.log(`Branch ${branch.name} created`);
+    } else {
+      if (branch.code === "MAIN") mainBranch = existing;
+      if (branch.code === "WEST") westlandsBranch = existing;
+      console.log(`Branch ${branch.name} already exists`);
+    }
+  }
+
   // Create users with different roles
   const hashedPassword = await bcrypt.hash("johndoe123", 10);
   
@@ -22,14 +63,15 @@ async function main() {
         password: hashedPassword,
         role: "ADMIN",
         status: "ACTIVE",
+        branchId: mainBranch?.id,
       },
     });
     console.log("Admin user created");
   } else {
-    // Update existing user to ADMIN role
+    // Update existing user to ADMIN role with branch
     await prisma.user.update({
       where: { email: "john@doe.com" },
-      data: { role: "ADMIN", status: "ACTIVE" },
+      data: { role: "ADMIN", status: "ACTIVE", branchId: mainBranch?.id },
     });
     console.log("Admin user updated");
   }
@@ -47,11 +89,16 @@ async function main() {
         password: hashedPassword,
         role: "PHARMACIST",
         status: "ACTIVE",
+        branchId: mainBranch?.id,
       },
     });
     console.log("Pharmacist user created");
   } else {
-    console.log("Pharmacist user already exists");
+    await prisma.user.update({
+      where: { email: "pharmacist@dawacare.com" },
+      data: { branchId: mainBranch?.id },
+    });
+    console.log("Pharmacist user updated with branch");
   }
 
   // Cashier user
@@ -67,11 +114,16 @@ async function main() {
         password: hashedPassword,
         role: "CASHIER",
         status: "ACTIVE",
+        branchId: westlandsBranch?.id,
       },
     });
     console.log("Cashier user created");
   } else {
-    console.log("Cashier user already exists");
+    await prisma.user.update({
+      where: { email: "cashier@dawacare.com" },
+      data: { branchId: westlandsBranch?.id },
+    });
+    console.log("Cashier user updated with branch");
   }
 
   // Helper to generate dates

@@ -47,6 +47,10 @@ export const PERMISSIONS = {
   CREATE_USER: ["ADMIN"],
   EDIT_USER: ["ADMIN"],
   DELETE_USER: ["ADMIN"],
+  
+  // Branch Management
+  VIEW_BRANCHES: ["ADMIN"],
+  MANAGE_BRANCHES: ["ADMIN"],
 } as const;
 
 export function hasPermission(role: string | undefined, permission: keyof typeof PERMISSIONS): boolean {

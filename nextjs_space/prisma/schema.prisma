@@ -9,6 +9,24 @@ datasource db {
     url      = env("DATABASE_URL")
 }
 
+// Branch Management
+model Branch {
+  id            String    @id @default(cuid())
+  name          String
+  code          String    @unique  // Short code like "MAIN", "BR001"
+  address       String?
+  phone         String?
+  email         String?
+  isMainBranch  Boolean   @default(false)
+  status        String    @default("ACTIVE") // ACTIVE, INACTIVE
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  users         User[]
+
+  @@index([code])
+  @@index([status])
+}
+
 model User {
   id            String    @id @default(cuid())
   email         String    @unique
@@ -16,11 +34,14 @@ model User {
   password      String
   role          String    @default("CASHIER") // ADMIN, PHARMACIST, CASHIER
   status        String    @default("ACTIVE")  // ACTIVE, INACTIVE
+  branchId      String?
+  branch        Branch?   @relation(fields: [branchId], references: [id])
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
   @@index([role])
   @@index([status])
+  @@index([branchId])
 }
 
 model Medicine {
