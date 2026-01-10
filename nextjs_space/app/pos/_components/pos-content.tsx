@@ -15,11 +15,22 @@ import {
   CheckCircle,
   AlertCircle,
   X,
+  User,
+  UserPlus,
+  Star,
+  Wallet,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 
 interface Medicine {
@@ -43,6 +54,7 @@ interface Sale {
   id: string;
   invoiceNumber: string;
   total: number;
+  loyaltyPointsEarned: number;
   items: Array<{
     medicineName: string;
     quantity: number;
@@ -51,24 +63,54 @@ interface Sale {
   }>;
 }
 
+interface Customer {
+  id: string;
+  name: string;
+  phone: string;
+  email: string | null;
+  loyaltyPoints: number;
+  creditBalance: number;
+  creditLimit: number;
+}
+
 const PAYMENT_METHODS = [
   { id: "CASH", label: "Cash", icon: Banknote },
   { id: "CARD", label: "Card", icon: CreditCard },
   { id: "MPESA", label: "M-Pesa", icon: Smartphone },
+  { id: "CREDIT", label: "Credit", icon: Wallet },
 ];
+
+// Loyalty points: 1 point per 100 KES spent
+const POINTS_RATE = 100;
+// Redemption: 1 point = 1 KES discount
+const POINTS_VALUE = 1;
 
 export default function POSContent() {
   const [medicines, setMedicines] = useState<Medicine[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [customerName, setCustomerName] = useState("");
-  const [customerPhone, setCustomerPhone] = useState("");
   const [discount, setDiscount] = useState(0);
   const [paymentMethod, setPaymentMethod] = useState("CASH");
   const [notes, setNotes] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [lastSale, setLastSale] = useState<Sale | null>(null);
+
+  // Customer related state
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [customerSearch, setCustomerSearch] = useState("");
+  const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
+  const [showNewCustomerModal, setShowNewCustomerModal] = useState(false);
+  const [newCustomerData, setNewCustomerData] = useState({ name: "", phone: "", email: "" });
+
+  // Loyalty points
+  const [usePoints, setUsePoints] = useState(false);
+  const [pointsToUse, setPointsToUse] = useState(0);
+
+  // Walk-in customer info (when no customer selected)
+  const [walkInName, setWalkInName] = useState("");
+  const [walkInPhone, setWalkInPhone] = useState("");
 
   // Fetch medicines
   const fetchMedicines = useCallback(async () => {
@@ -80,7 +122,6 @@ export default function POSContent() {
       const response = await fetch(`/api/medicines?${params}`);
       if (response.ok) {
         const data = await response.json();
-        // Filter out medicines with 0 stock
         setMedicines(data.medicines.filter((m: Medicine) => m.quantity > 0));
       }
     } catch (error) {
@@ -88,10 +129,34 @@ export default function POSContent() {
     }
   }, [searchQuery]);
 
+  // Fetch customers
+  const fetchCustomers = useCallback(async () => {
+    try {
+      const response = await fetch("/api/customers?all=true");
+      if (response.ok) {
+        const data = await response.json();
+        setCustomers(data.customers);
+      }
+    } catch (error) {
+      console.error("Error fetching customers:", error);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchCustomers();
+  }, [fetchCustomers]);
+
   useEffect(() => {
     const debounce = setTimeout(fetchMedicines, 300);
     return () => clearTimeout(debounce);
   }, [fetchMedicines]);
+
+  // Filter customers based on search
+  const filteredCustomers = customers.filter(
+    (c) =>
+      c.name.toLowerCase().includes(customerSearch.toLowerCase()) ||
+      c.phone.includes(customerSearch)
+  );
 
   // Add to cart
   const addToCart = (medicine: Medicine) => {
@@ -144,12 +209,90 @@ export default function POSContent() {
     (sum, item) => sum + item.medicine.unitPrice * item.quantity,
     0
   );
-  const total = Math.max(0, subtotal - discount);
+
+  // Points discount (1 point = 1 KES)
+  const pointsDiscount = usePoints ? pointsToUse * POINTS_VALUE : 0;
+  const total = Math.max(0, subtotal - discount - pointsDiscount);
+
+  // Points that will be earned from this sale (based on total after discounts)
+  const pointsToEarn = Math.floor(total / POINTS_RATE);
+
+  // Max points customer can use
+  const maxPointsToUse = selectedCustomer
+    ? Math.min(selectedCustomer.loyaltyPoints, Math.floor(subtotal - discount))
+    : 0;
+
+  // Handle customer selection
+  const selectCustomer = (customer: Customer) => {
+    setSelectedCustomer(customer);
+    setCustomerSearch("");
+    setShowCustomerDropdown(false);
+    setWalkInName("");
+    setWalkInPhone("");
+    // Reset points when customer changes
+    setUsePoints(false);
+    setPointsToUse(0);
+  };
+
+  // Clear customer selection
+  const clearCustomer = () => {
+    setSelectedCustomer(null);
+    setUsePoints(false);
+    setPointsToUse(0);
+  };
+
+  // Create new customer
+  const createCustomer = async () => {
+    if (!newCustomerData.name || !newCustomerData.phone) {
+      toast.error("Name and phone are required");
+      return;
+    }
+
+    try {
+      const response = await fetch("/api/customers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newCustomerData),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        toast.success("Customer created successfully");
+        setShowNewCustomerModal(false);
+        setNewCustomerData({ name: "", phone: "", email: "" });
+        fetchCustomers();
+        selectCustomer(data.customer);
+      } else {
+        const error = await response.json();
+        toast.error(error.error || "Failed to create customer");
+      }
+    } catch (error) {
+      console.error("Error creating customer:", error);
+      toast.error("Failed to create customer");
+    }
+  };
+
+  // Check if credit purchase is allowed
+  const canUseCredit = () => {
+    if (!selectedCustomer) return false;
+    const availableCredit = selectedCustomer.creditLimit - selectedCustomer.creditBalance;
+    return availableCredit >= total;
+  };
 
   // Process sale
   const processSale = async () => {
     if (cart.length === 0) {
       toast.error("Cart is empty");
+      return;
+    }
+
+    if (paymentMethod === "CREDIT" && !selectedCustomer) {
+      toast.error("Please select a customer for credit purchase");
+      return;
+    }
+
+    if (paymentMethod === "CREDIT" && !canUseCredit()) {
+      toast.error("Customer has insufficient credit limit");
       return;
     }
 
@@ -163,9 +306,11 @@ export default function POSContent() {
             medicineId: item.medicine.id,
             quantity: item.quantity,
           })),
-          customerName: customerName || undefined,
-          customerPhone: customerPhone || undefined,
+          customerId: selectedCustomer?.id,
+          customerName: selectedCustomer?.name || walkInName || undefined,
+          customerPhone: selectedCustomer?.phone || walkInPhone || undefined,
           discount,
+          loyaltyPointsUsed: usePoints ? pointsToUse : 0,
           paymentMethod,
           notes: notes || undefined,
         }),
@@ -177,12 +322,16 @@ export default function POSContent() {
         setShowSuccess(true);
         // Reset cart and form
         setCart([]);
-        setCustomerName("");
-        setCustomerPhone("");
+        setSelectedCustomer(null);
+        setWalkInName("");
+        setWalkInPhone("");
         setDiscount(0);
         setNotes("");
-        // Refresh medicines list
+        setUsePoints(false);
+        setPointsToUse(0);
+        // Refresh data
         fetchMedicines();
+        fetchCustomers();
       } else {
         const error = await response.json();
         toast.error(error.error || "Failed to process sale");
@@ -239,6 +388,12 @@ export default function POSContent() {
                     <span>Total</span>
                     <span>KES {lastSale.total.toFixed(2)}</span>
                   </div>
+                  {lastSale.loyaltyPointsEarned > 0 && (
+                    <div className="mt-2 text-sm text-amber-600 flex items-center gap-1">
+                      <Star className="w-4 h-4" />
+                      Earned {lastSale.loyaltyPointsEarned} loyalty points!
+                    </div>
+                  )}
                 </div>
                 <div className="flex gap-3">
                   <Button
@@ -263,6 +418,56 @@ export default function POSContent() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* New Customer Modal */}
+      <Dialog open={showNewCustomerModal} onOpenChange={setShowNewCustomerModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add New Customer</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="newName">Name *</Label>
+              <Input
+                id="newName"
+                value={newCustomerData.name}
+                onChange={(e) =>
+                  setNewCustomerData({ ...newCustomerData, name: e.target.value })
+                }
+              />
+            </div>
+            <div>
+              <Label htmlFor="newPhone">Phone *</Label>
+              <Input
+                id="newPhone"
+                value={newCustomerData.phone}
+                onChange={(e) =>
+                  setNewCustomerData({ ...newCustomerData, phone: e.target.value })
+                }
+              />
+            </div>
+            <div>
+              <Label htmlFor="newEmail">Email (optional)</Label>
+              <Input
+                id="newEmail"
+                type="email"
+                value={newCustomerData.email}
+                onChange={(e) =>
+                  setNewCustomerData({ ...newCustomerData, email: e.target.value })
+                }
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setShowNewCustomerModal(false)}>
+                Cancel
+              </Button>
+              <Button onClick={createCustomer}>
+                Create Customer
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <div className="max-w-7xl mx-auto p-4 lg:p-6">
         <div className="mb-6">
@@ -414,7 +619,7 @@ export default function POSContent() {
                 ) : (
                   <>
                     {/* Cart Items */}
-                    <div className="space-y-3 max-h-64 overflow-y-auto">
+                    <div className="space-y-3 max-h-48 overflow-y-auto">
                       {cart.map((item) => (
                         <motion.div
                           key={item.medicine.id}
@@ -474,46 +679,207 @@ export default function POSContent() {
                       ))}
                     </div>
 
-                    {/* Customer Info */}
-                    <div className="border-t pt-4 space-y-3">
-                      <Input
-                        placeholder="Customer Name (optional)"
-                        value={customerName}
-                        onChange={(e) => setCustomerName(e.target.value)}
-                      />
-                      <Input
-                        placeholder="Phone Number (optional)"
-                        value={customerPhone}
-                        onChange={(e) => setCustomerPhone(e.target.value)}
-                      />
+                    {/* Customer Selection */}
+                    <div className="border-t pt-4">
+                      <p className="text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                        <User className="w-4 h-4" />
+                        Customer
+                      </p>
+                      {selectedCustomer ? (
+                        <div className="bg-emerald-50 rounded-lg p-3">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <p className="font-medium text-gray-900">
+                                {selectedCustomer.name}
+                              </p>
+                              <p className="text-sm text-gray-600">
+                                {selectedCustomer.phone}
+                              </p>
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 w-6 p-0"
+                              onClick={clearCustomer}
+                            >
+                              <X className="w-4 h-4" />
+                            </Button>
+                          </div>
+                          <div className="flex items-center gap-4 mt-2 text-sm">
+                            <span className="flex items-center gap-1 text-amber-600">
+                              <Star className="w-4 h-4" />
+                              {selectedCustomer.loyaltyPoints} pts
+                            </span>
+                            {selectedCustomer.creditBalance > 0 && (
+                              <span className="text-blue-600">
+                                Credit: KES {selectedCustomer.creditBalance.toFixed(2)}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          <div className="relative">
+                            <Input
+                              placeholder="Search customer by name or phone..."
+                              value={customerSearch}
+                              onChange={(e) => {
+                                setCustomerSearch(e.target.value);
+                                setShowCustomerDropdown(true);
+                              }}
+                              onFocus={() => setShowCustomerDropdown(true)}
+                            />
+                            {showCustomerDropdown && customerSearch && (
+                              <div className="absolute top-full left-0 right-0 mt-1 bg-white border rounded-lg shadow-lg z-10 max-h-40 overflow-y-auto">
+                                {filteredCustomers.length === 0 ? (
+                                  <div className="p-3 text-center text-gray-500 text-sm">
+                                    No customers found
+                                  </div>
+                                ) : (
+                                  filteredCustomers.map((customer) => (
+                                    <button
+                                      key={customer.id}
+                                      className="w-full text-left px-3 py-2 hover:bg-gray-50 flex justify-between items-center"
+                                      onClick={() => selectCustomer(customer)}
+                                    >
+                                      <div>
+                                        <p className="font-medium">{customer.name}</p>
+                                        <p className="text-sm text-gray-500">
+                                          {customer.phone}
+                                        </p>
+                                      </div>
+                                      <span className="text-amber-600 text-sm flex items-center gap-1">
+                                        <Star className="w-3 h-3" />
+                                        {customer.loyaltyPoints}
+                                      </span>
+                                    </button>
+                                  ))
+                                )}
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="flex-1"
+                              onClick={() => setShowNewCustomerModal(true)}
+                            >
+                              <UserPlus className="w-4 h-4 mr-1" />
+                              New Customer
+                            </Button>
+                          </div>
+                          {/* Walk-in customer fields */}
+                          <div className="text-xs text-gray-500 text-center">or walk-in customer:</div>
+                          <Input
+                            placeholder="Customer Name (optional)"
+                            value={walkInName}
+                            onChange={(e) => setWalkInName(e.target.value)}
+                            className="h-8 text-sm"
+                          />
+                          <Input
+                            placeholder="Phone Number (optional)"
+                            value={walkInPhone}
+                            onChange={(e) => setWalkInPhone(e.target.value)}
+                            className="h-8 text-sm"
+                          />
+                        </div>
+                      )}
                     </div>
+
+                    {/* Loyalty Points Redemption */}
+                    {selectedCustomer && selectedCustomer.loyaltyPoints > 0 && (
+                      <div className="border-t pt-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                            <input
+                              type="checkbox"
+                              checked={usePoints}
+                              onChange={(e) => {
+                                setUsePoints(e.target.checked);
+                                if (!e.target.checked) setPointsToUse(0);
+                              }}
+                              className="rounded"
+                            />
+                            <Star className="w-4 h-4 text-amber-500" />
+                            Use Loyalty Points
+                          </label>
+                          <span className="text-sm text-amber-600">
+                            {selectedCustomer.loyaltyPoints} available
+                          </span>
+                        </div>
+                        {usePoints && (
+                          <div className="flex items-center gap-2">
+                            <Input
+                              type="number"
+                              min="0"
+                              max={maxPointsToUse}
+                              value={pointsToUse || ""}
+                              onChange={(e) =>
+                                setPointsToUse(
+                                  Math.min(
+                                    parseInt(e.target.value) || 0,
+                                    maxPointsToUse
+                                  )
+                                )
+                              }
+                              className="w-24 h-8"
+                              placeholder="0"
+                            />
+                            <span className="text-sm text-gray-600">
+                              = KES {(pointsToUse * POINTS_VALUE).toFixed(2)} off
+                            </span>
+                            <Button
+                              variant="link"
+                              size="sm"
+                              className="text-xs p-0 h-auto"
+                              onClick={() => setPointsToUse(maxPointsToUse)}
+                            >
+                              Use Max
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    )}
 
                     {/* Payment Method */}
                     <div className="border-t pt-4">
                       <p className="text-sm font-medium text-gray-700 mb-2">
                         Payment Method
                       </p>
-                      <div className="grid grid-cols-3 gap-2">
-                        {PAYMENT_METHODS.map((method) => (
-                          <Button
-                            key={method.id}
-                            variant={
-                              paymentMethod === method.id
-                                ? "default"
-                                : "outline"
-                            }
-                            className={`flex-col h-auto py-3 ${
-                              paymentMethod === method.id
-                                ? "bg-emerald-600 hover:bg-emerald-700"
-                                : ""
-                            }`}
-                            onClick={() => setPaymentMethod(method.id)}
-                          >
-                            <method.icon className="w-5 h-5 mb-1" />
-                            <span className="text-xs">{method.label}</span>
-                          </Button>
-                        ))}
+                      <div className="grid grid-cols-4 gap-2">
+                        {PAYMENT_METHODS.map((method) => {
+                          const isDisabled =
+                            method.id === "CREDIT" &&
+                            (!selectedCustomer || !canUseCredit());
+                          return (
+                            <Button
+                              key={method.id}
+                              variant={
+                                paymentMethod === method.id
+                                  ? "default"
+                                  : "outline"
+                              }
+                              className={`flex-col h-auto py-2 ${
+                                paymentMethod === method.id
+                                  ? "bg-emerald-600 hover:bg-emerald-700"
+                                  : ""
+                              } ${isDisabled ? "opacity-50 cursor-not-allowed" : ""}`}
+                              onClick={() => !isDisabled && setPaymentMethod(method.id)}
+                              disabled={isDisabled}
+                            >
+                              <method.icon className="w-4 h-4 mb-1" />
+                              <span className="text-xs">{method.label}</span>
+                            </Button>
+                          );
+                        })}
                       </div>
+                      {paymentMethod === "CREDIT" && selectedCustomer && (
+                        <p className="text-xs text-blue-600 mt-2">
+                          Available credit: KES{" "}
+                          {(selectedCustomer.creditLimit - selectedCustomer.creditBalance).toFixed(2)}
+                        </p>
+                      )}
                     </div>
 
                     {/* Discount */}
@@ -556,12 +922,24 @@ export default function POSContent() {
                           <span>- KES {discount.toFixed(2)}</span>
                         </div>
                       )}
+                      {pointsDiscount > 0 && (
+                        <div className="flex justify-between text-sm text-amber-600">
+                          <span>Points Discount ({pointsToUse} pts)</span>
+                          <span>- KES {pointsDiscount.toFixed(2)}</span>
+                        </div>
+                      )}
                       <div className="flex justify-between text-lg font-bold">
                         <span>Total</span>
                         <span className="text-emerald-700">
                           KES {total.toFixed(2)}
                         </span>
                       </div>
+                      {selectedCustomer && pointsToEarn > 0 && (
+                        <div className="text-xs text-amber-600 flex items-center gap-1">
+                          <Star className="w-3 h-3" />
+                          Will earn {pointsToEarn} loyalty points
+                        </div>
+                      )}
                     </div>
 
                     {/* Complete Sale Button */}

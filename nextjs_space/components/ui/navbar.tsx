@@ -17,6 +17,7 @@ import {
   ClipboardCheck,
   BarChart3,
   Users,
+  UserCog,
   Shield,
 } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
@@ -52,8 +53,9 @@ export function Navbar() {
     { href: "/pos", label: "POS", icon: ShoppingCart, permission: "USE_POS" },
     { href: "/inventory", label: "Inventory", icon: Package, permission: "VIEW_INVENTORY" },
     { href: "/sales", label: "Sales", icon: Receipt, permission: "VIEW_SALES" },
+    { href: "/customers", label: "Customers", icon: Users, permission: "VIEW_CUSTOMERS" },
     { href: "/reports", label: "Reports", icon: BarChart3, permission: "VIEW_REPORTS" },
-    { href: "/users", label: "Users", icon: Users, permission: "VIEW_USERS" },
+    { href: "/users", label: "Users", icon: UserCog, permission: "VIEW_USERS" },
   ];
 
   const procurementLinks = [

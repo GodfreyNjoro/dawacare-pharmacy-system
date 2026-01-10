@@ -380,6 +380,77 @@ async function main() {
   }
 
   console.log(`Created ${medicines.length} medicines`);
+
+  // Sample customers
+  const customers = [
+    {
+      name: "Mary Wanjiku",
+      phone: "0722123456",
+      email: "mary.wanjiku@email.com",
+      address: "123 Moi Avenue, Nairobi",
+      gender: "FEMALE",
+      loyaltyPoints: 150,
+      creditBalance: 0,
+      creditLimit: 5000,
+      status: "ACTIVE",
+    },
+    {
+      name: "John Kamau",
+      phone: "0733987654",
+      email: "john.kamau@email.com",
+      address: "45 Uhuru Highway, Nairobi",
+      gender: "MALE",
+      loyaltyPoints: 320,
+      creditBalance: 2500,
+      creditLimit: 10000,
+      status: "ACTIVE",
+    },
+    {
+      name: "Grace Njeri",
+      phone: "0711456789",
+      email: "grace.njeri@email.com",
+      address: "78 Kenyatta Avenue, Nairobi",
+      gender: "FEMALE",
+      loyaltyPoints: 75,
+      creditBalance: 0,
+      creditLimit: 3000,
+      status: "ACTIVE",
+    },
+    {
+      name: "Peter Ochieng",
+      phone: "0745678901",
+      email: "peter.ochieng@email.com",
+      address: "12 Oginga Odinga Street, Kisumu",
+      gender: "MALE",
+      loyaltyPoints: 500,
+      creditBalance: 1200,
+      creditLimit: 8000,
+      status: "ACTIVE",
+    },
+    {
+      name: "Faith Muthoni",
+      phone: "0756789012",
+      email: null,
+      address: "56 Kimathi Street, Nakuru",
+      gender: "FEMALE",
+      loyaltyPoints: 25,
+      creditBalance: 0,
+      creditLimit: 0,
+      status: "ACTIVE",
+    },
+  ];
+
+  // Create customers if they don't exist
+  for (const customer of customers) {
+    const existing = await prisma.customer.findUnique({
+      where: { phone: customer.phone },
+    });
+    if (!existing) {
+      await prisma.customer.create({ data: customer });
+    }
+  }
+
+  console.log(`Created/verified ${customers.length} customers`);
   console.log("Seed completed successfully!");
 }
 

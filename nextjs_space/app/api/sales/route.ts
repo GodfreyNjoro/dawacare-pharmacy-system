@@ -87,6 +87,11 @@ export async function GET(request: NextRequest) {
   }
 }
 
+// Loyalty points: 1 point per 100 KES spent
+const POINTS_RATE = 100;
+// Points value: 1 point = 1 KES
+const POINTS_VALUE = 1;
+
 // POST - Create a new sale
 export async function POST(request: NextRequest) {
   try {
@@ -98,9 +103,11 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const {
       items,
+      customerId,
       customerName,
       customerPhone,
       discount = 0,
+      loyaltyPointsUsed = 0,
       paymentMethod,
       notes,
     } = body;
@@ -117,6 +124,29 @@ export async function POST(request: NextRequest) {
         { error: "Payment method is required" },
         { status: 400 }
       );
+    }
+
+    // Validate customer if customerId provided
+    type CustomerType = { id: string; name: string; phone: string; loyaltyPoints: number; creditBalance: number; creditLimit: number } | null;
+    let customer: CustomerType = null;
+    if (customerId) {
+      customer = await prisma.customer.findUnique({
+        where: { id: customerId },
+      });
+      if (!customer) {
+        return NextResponse.json(
+          { error: "Customer not found" },
+          { status: 400 }
+        );
+      }
+
+      // Validate loyalty points if being used
+      if (loyaltyPointsUsed > 0 && loyaltyPointsUsed > customer.loyaltyPoints) {
+        return NextResponse.json(
+          { error: "Insufficient loyalty points" },
+          { status: 400 }
+        );
+      }
     }
 
     // Validate stock availability
@@ -172,7 +202,29 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const total = subtotal - discount;
+    // Calculate points discount
+    const pointsDiscount = loyaltyPointsUsed * POINTS_VALUE;
+    const total = Math.max(0, subtotal - discount - pointsDiscount);
+
+    // Calculate points to earn (based on final total)
+    const pointsToEarn = customer ? Math.floor(total / POINTS_RATE) : 0;
+
+    // Validate credit purchase
+    if (paymentMethod === "CREDIT") {
+      if (!customer) {
+        return NextResponse.json(
+          { error: "Customer is required for credit purchases" },
+          { status: 400 }
+        );
+      }
+      const availableCredit = customer.creditLimit - customer.creditBalance;
+      if (availableCredit < total) {
+        return NextResponse.json(
+          { error: "Insufficient credit limit" },
+          { status: 400 }
+        );
+      }
+    }
 
     // Create sale with items and update inventory in a transaction
     const sale = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
@@ -180,12 +232,16 @@ export async function POST(request: NextRequest) {
       const newSale = await tx.sale.create({
         data: {
           invoiceNumber: generateInvoiceNumber(),
-          customerName: customerName || null,
-          customerPhone: customerPhone || null,
+          customerId: customerId || null,
+          customerName: customer?.name || customerName || null,
+          customerPhone: customer?.phone || customerPhone || null,
           subtotal,
           discount,
+          loyaltyPointsUsed,
+          loyaltyPointsEarned: pointsToEarn,
           total,
           paymentMethod,
+          paymentStatus: paymentMethod === "CREDIT" ? "PENDING" : "PAID",
           notes: notes || null,
           soldBy: session.user?.name || session.user?.email || "Unknown",
           items: {
@@ -207,6 +263,66 @@ export async function POST(request: NextRequest) {
             },
           },
         });
+      }
+
+      // Handle customer loyalty and credit if customer exists
+      if (customer && customerId) {
+        // Update loyalty points (deduct used, add earned)
+        const netPointsChange = pointsToEarn - loyaltyPointsUsed;
+        
+        await tx.customer.update({
+          where: { id: customerId },
+          data: {
+            loyaltyPoints: {
+              increment: netPointsChange,
+            },
+            // If credit purchase, increase credit balance
+            ...(paymentMethod === "CREDIT" && {
+              creditBalance: {
+                increment: total,
+              },
+            }),
+          },
+        });
+
+        // Record loyalty point transactions
+        if (loyaltyPointsUsed > 0) {
+          await tx.loyaltyTransaction.create({
+            data: {
+              customerId,
+              type: "REDEEM",
+              points: -loyaltyPointsUsed,
+              saleId: newSale.id,
+              description: `Redeemed for sale ${newSale.invoiceNumber}`,
+            },
+          });
+        }
+
+        if (pointsToEarn > 0) {
+          await tx.loyaltyTransaction.create({
+            data: {
+              customerId,
+              type: "EARN",
+              points: pointsToEarn,
+              saleId: newSale.id,
+              description: `Earned from sale ${newSale.invoiceNumber}`,
+            },
+          });
+        }
+
+        // Record credit transaction if credit purchase
+        if (paymentMethod === "CREDIT") {
+          await tx.creditTransaction.create({
+            data: {
+              customerId,
+              type: "CREDIT",
+              amount: total,
+              saleId: newSale.id,
+              description: `Credit purchase - ${newSale.invoiceNumber}`,
+              createdBy: session.user?.email || undefined,
+            },
+          });
+        }
       }
 
       return newSale;
