@@ -50,7 +50,7 @@ export default function LoginForm() {
           <div className="inline-flex items-center justify-center p-3 bg-emerald-100 rounded-2xl mb-4">
             <Pill className="w-10 h-10 text-emerald-600" />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">PharmaCare</h1>
+          <h1 className="text-2xl font-bold text-gray-900">DawaCare</h1>
           <p className="text-gray-500 mt-2">Sign in to manage your pharmacy</p>
         </div>
 

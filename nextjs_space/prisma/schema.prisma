@@ -75,3 +75,91 @@ model SaleItem {
   @@index([saleId])
   @@index([medicineId])
 }
+
+// Procurement Models
+model Supplier {
+  id            String    @id @default(cuid())
+  name          String
+  contactPerson String?
+  email         String?
+  phone         String?
+  address       String?
+  status        String    @default("ACTIVE") // ACTIVE, INACTIVE
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  purchaseOrders PurchaseOrder[]
+
+  @@index([name])
+  @@index([status])
+}
+
+model PurchaseOrder {
+  id            String    @id @default(cuid())
+  poNumber      String    @unique
+  supplierId    String
+  supplier      Supplier  @relation(fields: [supplierId], references: [id])
+  status        String    @default("DRAFT") // DRAFT, SENT, PARTIAL, RECEIVED, CANCELLED
+  subtotal      Float
+  tax           Float     @default(0)
+  total         Float
+  notes         String?
+  expectedDate  DateTime?
+  createdBy     String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  items         PurchaseOrderItem[]
+  grns          GoodsReceivedNote[]
+
+  @@index([poNumber])
+  @@index([supplierId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model PurchaseOrderItem {
+  id              String    @id @default(cuid())
+  purchaseOrderId String
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  medicineName    String
+  genericName     String?
+  quantity        Int
+  receivedQty     Int       @default(0)
+  unitCost        Float
+  total           Float
+  category        String?
+
+  @@index([purchaseOrderId])
+}
+
+model GoodsReceivedNote {
+  id              String    @id @default(cuid())
+  grnNumber       String    @unique
+  purchaseOrderId String
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id])
+  receivedDate    DateTime  @default(now())
+  receivedBy      String?
+  notes           String?
+  status          String    @default("RECEIVED") // RECEIVED, PARTIAL, REJECTED
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  items           GRNItem[]
+
+  @@index([grnNumber])
+  @@index([purchaseOrderId])
+  @@index([receivedDate])
+}
+
+model GRNItem {
+  id              String    @id @default(cuid())
+  grnId           String
+  grn             GoodsReceivedNote @relation(fields: [grnId], references: [id], onDelete: Cascade)
+  medicineName    String
+  batchNumber     String
+  expiryDate      DateTime
+  quantityReceived Int
+  unitCost        Float
+  total           Float
+  addedToInventory Boolean  @default(false)
+
+  @@index([grnId])
+}

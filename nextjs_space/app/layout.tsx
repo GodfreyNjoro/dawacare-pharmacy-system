@@ -9,14 +9,14 @@ export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXTAUTH_URL ?? "http://localhost:3000"),
-  title: "PharmaCare - Pharmacy Management System",
+  title: "DawaCare - Pharmacy Management System",
   description: "Comprehensive pharmacy inventory management system for healthcare professionals",
   icons: {
     icon: "/favicon.svg",
     shortcut: "/favicon.svg",
   },
   openGraph: {
-    title: "PharmaCare - Pharmacy Management System",
+    title: "DawaCare - Pharmacy Management System",
     description: "Comprehensive pharmacy inventory management system for healthcare professionals",
     images: ["/og-image.png"],
   },
