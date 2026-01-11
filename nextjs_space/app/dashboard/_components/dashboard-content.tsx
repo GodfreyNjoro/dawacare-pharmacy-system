@@ -136,7 +136,7 @@ export default function DashboardContent() {
           value={stats?.totalInventoryValue ?? 0}
           icon={DollarSign}
           color="green"
-          prefix="$"
+          prefix="KES "
         />
       </div>
 

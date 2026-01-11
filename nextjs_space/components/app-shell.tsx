@@ -4,6 +4,7 @@ import { useSession } from "next-auth/react";
 import { useRouter, usePathname } from "next/navigation";
 import { useEffect, useState, ReactNode } from "react";
 import { Navbar } from "@/components/ui/navbar";
+import { Sidebar } from "@/components/ui/sidebar";
 import { RefreshCw } from "lucide-react";
 
 interface AppShellProps {
@@ -17,6 +18,9 @@ export function AppShell({ children }: AppShellProps) {
   const status = sessionData?.status;
   const router = useRouter();
   const pathname = usePathname();
+
+  const userRole = session?.user?.role;
+  const isCashier = userRole === "CASHIER";
 
   useEffect(() => {
     setMounted(true);
@@ -52,10 +56,23 @@ export function AppShell({ children }: AppShellProps) {
     );
   }
 
+  // Cashiers get top navbar, others get sidebar
+  if (session && isCashier) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navbar />
+        {children}
+      </div>
+    );
+  }
+
+  // Non-cashiers get sidebar layout
   return (
     <div className="min-h-screen bg-gray-50">
-      {session && <Navbar />}
-      {children}
+      {session && <Sidebar />}
+      <div className={session ? "ml-64" : ""}>
+        {children}
+      </div>
     </div>
   );
 }

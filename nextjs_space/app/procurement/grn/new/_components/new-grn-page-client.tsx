@@ -3,7 +3,7 @@
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Navbar } from "@/components/ui/navbar";
+import { PageNav } from "@/components/ui/page-nav";
 import NewGRNContent from "./new-grn-content";
 import { RefreshCw } from "lucide-react";
 
@@ -42,7 +42,7 @@ export default function NewGRNPageClient() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Navbar />
+      <PageNav />
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <NewGRNContent />
       </main>

@@ -3,7 +3,7 @@
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Navbar } from "@/components/ui/navbar";
+import { PageNav } from "@/components/ui/page-nav";
 import InvoiceContent from "./invoice-content";
 import { RefreshCw } from "lucide-react";
 
@@ -46,7 +46,7 @@ export default function InvoicePageClient({ saleId }: InvoicePageClientProps) {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Navbar />
+      <PageNav />
       <InvoiceContent saleId={saleId} />
     </div>
   );

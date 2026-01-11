@@ -3,7 +3,7 @@
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Navbar } from "@/components/ui/navbar";
+import { PageNav } from "@/components/ui/page-nav";
 import ReportsContent from "./reports-content";
 import { RefreshCw } from "lucide-react";
 
@@ -36,7 +36,7 @@ export default function ReportsPageClient() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Navbar />
+      <PageNav />
       <main className="container mx-auto px-4 py-6">
         <ReportsContent />
       </main>

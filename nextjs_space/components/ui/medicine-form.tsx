@@ -261,7 +261,7 @@ export function MedicineForm({
         {/* Unit Price */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Unit Price ($) <span className="text-red-500">*</span>
+            Unit Price (KES) <span className="text-red-500">*</span>
           </label>
           <input
             type="number"

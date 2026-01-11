@@ -3,7 +3,7 @@
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Navbar } from "@/components/ui/navbar";
+import { PageNav } from "@/components/ui/page-nav";
 import POSContent from "./pos-content";
 import { RefreshCw } from "lucide-react";
 
@@ -42,7 +42,7 @@ export default function POSPageClient() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Navbar />
+      <PageNav />
       <POSContent />
     </div>
   );

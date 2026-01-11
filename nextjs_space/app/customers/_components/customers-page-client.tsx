@@ -4,7 +4,7 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { RefreshCw } from "lucide-react";
-import { Navbar } from "@/components/ui/navbar";
+import { PageNav } from "@/components/ui/page-nav";
 import CustomersContent from "./customers-content";
 
 export default function CustomersPageClient() {
@@ -36,7 +36,7 @@ export default function CustomersPageClient() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Navbar />
+      <PageNav />
       <main className="pt-16">
         <CustomersContent />
       </main>

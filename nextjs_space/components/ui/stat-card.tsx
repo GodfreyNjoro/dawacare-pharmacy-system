@@ -68,7 +68,7 @@ export function StatCard({
           <p className="text-sm font-medium opacity-80">{title}</p>
           <p className="text-3xl font-bold mt-2">
             {prefix}
-            {typeof displayValue === "number" && prefix === "$"
+            {typeof displayValue === "number" && (prefix === "$" || prefix === "KES " || prefix === "KES")
               ? displayValue.toLocaleString(undefined, {
                   minimumFractionDigits: 2,
                   maximumFractionDigits: 2,

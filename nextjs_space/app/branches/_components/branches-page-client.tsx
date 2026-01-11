@@ -4,7 +4,7 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { RefreshCw } from "lucide-react";
-import { Navbar } from "@/components/ui/navbar";
+import { PageNav } from "@/components/ui/page-nav";
 import BranchesContent from "./branches-content";
 
 export default function BranchesPageClient() {
@@ -36,7 +36,7 @@ export default function BranchesPageClient() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
-      <Navbar />
+      <PageNav />
       <main className="container mx-auto px-4 py-8">
         <BranchesContent />
       </main>
