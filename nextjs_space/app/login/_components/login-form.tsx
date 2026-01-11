@@ -28,7 +28,7 @@ export default function LoginForm() {
       if (result?.error) {
         setError("Invalid email or password");
       } else {
-        router.replace("/dashboard");
+        router.replace("/pos");
       }
     } catch (err) {
       console.error("Login error:", err);
