@@ -28,6 +28,7 @@ model Branch {
   grns          GoodsReceivedNote[]
   stockTransfersFrom StockTransfer[] @relation("FromBranch")
   stockTransfersTo   StockTransfer[] @relation("ToBranch")
+  exportHistory ExportHistory[]
 
   @@index([code])
   @@index([status])
@@ -306,4 +307,43 @@ model StockTransferItem {
 
   @@index([transferId])
   @@index([medicineId])
+}
+
+// Accounting Exports
+model AccountMapping {
+  id              String    @id @default(cuid())
+  accountType     String    // SALES_REVENUE, SALES_TAX, INVENTORY_ASSET, COGS, PURCHASE, CASH, BANK, ACCOUNTS_PAYABLE, ACCOUNTS_RECEIVABLE
+  accountCode     String    // Account code in accounting software (e.g., "4000", "1200")
+  accountName     String    // Descriptive name (e.g., "Sales Revenue", "Inventory Asset")
+  description     String?
+  tallyLedger     String?   // Tally ledger name mapping
+  sageLedger      String?   // Sage ledger code mapping
+  isActive        Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([accountType])
+  @@index([isActive])
+}
+
+model ExportHistory {
+  id              String    @id @default(cuid())
+  exportType      String    // SALES, PURCHASES, INVENTORY, TALLY, SAGE
+  format          String    // CSV, XML, JSON
+  dateFrom        DateTime
+  dateTo          DateTime
+  recordCount     Int       @default(0)
+  fileName        String
+  fileSize        Int?      // File size in bytes
+  status          String    @default("COMPLETED") // COMPLETED, FAILED, IN_PROGRESS
+  errorMessage    String?
+  exportedBy      String?   // User who triggered export
+  branchId        String?
+  branch          Branch?   @relation(fields: [branchId], references: [id])
+  createdAt       DateTime  @default(now())
+
+  @@index([exportType])
+  @@index([status])
+  @@index([createdAt])
+  @@index([branchId])
 }

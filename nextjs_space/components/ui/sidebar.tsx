@@ -21,6 +21,9 @@ import {
   Shield,
   Globe,
   ChevronRight,
+  Download,
+  Settings,
+  Calculator,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { hasPermission } from "@/lib/permissions";
@@ -30,6 +33,7 @@ import { useBranch } from "@/lib/branch-context";
 export function Sidebar() {
   const [mounted, setMounted] = useState(false);
   const [procurementOpen, setProcurementOpen] = useState(false);
+  const [accountingOpen, setAccountingOpen] = useState(false);
   const [branchDropdownOpen, setBranchDropdownOpen] = useState(false);
   const sessionData = useSession();
   const session = sessionData?.data;
@@ -54,6 +58,10 @@ export function Sidebar() {
     if (pathname.startsWith("/procurement")) {
       setProcurementOpen(true);
     }
+    // Auto-expand accounting dropdown if on an accounting page
+    if (pathname.startsWith("/accounting")) {
+      setAccountingOpen(true);
+    }
   }, [pathname]);
 
   // Define nav links with permissions
@@ -74,6 +82,11 @@ export function Sidebar() {
     { href: "/procurement/grn", label: "Goods Received", icon: ClipboardCheck },
   ];
 
+  const accountingLinks = [
+    { href: "/accounting/exports", label: "Data Exports", icon: Download },
+    { href: "/accounting/mappings", label: "Account Mappings", icon: Settings },
+  ];
+
   // Filter nav links based on permissions
   const navLinks = allNavLinks.filter((link) =>
     hasPermission(userRole, link.permission as Parameters<typeof hasPermission>[1])
@@ -81,6 +94,9 @@ export function Sidebar() {
 
   const canViewProcurement = hasPermission(userRole, "VIEW_PURCHASE_ORDERS");
   const isProcurementActive = pathname.startsWith("/procurement");
+  
+  const canViewAccounting = hasPermission(userRole, "VIEW_REPORTS");
+  const isAccountingActive = pathname.startsWith("/accounting");
 
   const getRoleBadgeColor = (role: string | undefined) => {
     switch (role) {
@@ -237,6 +253,50 @@ export function Sidebar() {
             {procurementOpen && (
               <div className="ml-4 mt-1 space-y-1 border-l-2 border-gray-200 pl-4">
                 {procurementLinks.map((link) => {
+                  const Icon = link.icon;
+                  const isActive = pathname === link.href;
+                  return (
+                    <Link
+                      key={link.href}
+                      href={link.href}
+                      className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        isActive
+                          ? "bg-emerald-50 text-emerald-700"
+                          : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                      }`}
+                    >
+                      <Icon className="w-4 h-4" />
+                      {link.label}
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Accounting Dropdown */}
+        {canViewAccounting && (
+          <div>
+            <button
+              onClick={() => setAccountingOpen(!accountingOpen)}
+              className={`w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg font-medium transition-colors ${
+                isAccountingActive
+                  ? "bg-emerald-100 text-emerald-700"
+                  : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <Calculator className="w-5 h-5" />
+                Accounting
+              </div>
+              <ChevronRight
+                className={`w-4 h-4 transition-transform ${accountingOpen ? "rotate-90" : ""}`}
+              />
+            </button>
+            {accountingOpen && (
+              <div className="ml-4 mt-1 space-y-1 border-l-2 border-gray-200 pl-4">
+                {accountingLinks.map((link) => {
                   const Icon = link.icon;
                   const isActive = pathname === link.href;
                   return (
