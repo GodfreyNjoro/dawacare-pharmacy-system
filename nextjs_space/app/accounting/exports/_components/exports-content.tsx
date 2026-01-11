@@ -30,6 +30,7 @@ import { useSession } from "next-auth/react";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -69,7 +70,7 @@ export default function ExportsContent() {
       .split("T")[0]
   );
   const [dateTo, setDateTo] = useState(new Date().toISOString().split("T")[0]);
-  const [selectedBranch, setSelectedBranch] = useState<string>("");
+  const [selectedBranch, setSelectedBranch] = useState<string>("all");
   const [format, setFormat] = useState("csv");
 
   const fetchHistory = useCallback(async () => {
@@ -146,7 +147,7 @@ export default function ExportsContent() {
           return;
       }
 
-      if (selectedBranch) {
+      if (selectedBranch && selectedBranch !== "all") {
         url += `&branchId=${selectedBranch}`;
       }
 
@@ -439,6 +440,9 @@ export default function ExportsContent() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{getExportLabel(exportType)}</DialogTitle>
+            <DialogDescription>
+              Configure export parameters and download your data
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             {exportType !== "inventory" && (
@@ -473,7 +477,7 @@ export default function ExportsContent() {
                     <SelectValue placeholder="All branches" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All branches</SelectItem>
+                    <SelectItem value="all">All branches</SelectItem>
                     {branches.map((branch) => (
                       <SelectItem key={branch.id} value={branch.id}>
                         {branch.name}

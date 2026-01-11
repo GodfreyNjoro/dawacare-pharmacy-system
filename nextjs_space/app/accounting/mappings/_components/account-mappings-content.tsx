@@ -18,6 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -315,6 +316,11 @@ export default function AccountMappingsContent() {
             <DialogTitle>
               {editingMapping ? "Edit Account Mapping" : "Add Account Mapping"}
             </DialogTitle>
+            <DialogDescription>
+              {editingMapping
+                ? "Update the chart of accounts mapping details"
+                : "Create a new chart of accounts mapping for exports"}
+            </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
