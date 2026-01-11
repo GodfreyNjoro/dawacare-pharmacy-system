@@ -2,22 +2,45 @@
 
 import { useSession } from "next-auth/react";
 import { Navbar } from "@/components/ui/navbar";
+import { Sidebar } from "@/components/ui/sidebar";
+import { ReactNode } from "react";
 
 /**
- * PageNav component that renders Navbar only for CASHIER role.
- * For other roles, the Sidebar is rendered by AppShell, so we don't need
- * to render anything here to avoid duplicate navigation.
+ * PageNav component that renders appropriate navigation based on user role.
+ * - Cashiers get the top Navbar (simpler, POS-focused interface)
+ * - Other roles get the left Sidebar (full navigation)
  */
 export function PageNav() {
   const sessionData = useSession();
   const session = sessionData?.data;
   const userRole = session?.user?.role;
 
-  // Only render Navbar for cashiers (they don't have sidebar)
+  if (!session) return null;
+
+  // Cashiers get top navbar
   if (userRole === "CASHIER") {
     return <Navbar />;
   }
 
-  // For other roles, sidebar is rendered by AppShell
-  return null;
+  // Other roles get sidebar
+  return <Sidebar />;
+}
+
+/**
+ * PageLayout wrapper that provides appropriate layout based on user role.
+ * Adds left margin for sidebar users.
+ */
+export function PageLayout({ children }: { children: ReactNode }) {
+  const sessionData = useSession();
+  const session = sessionData?.data;
+  const userRole = session?.user?.role;
+
+  const isCashier = userRole === "CASHIER";
+
+  return (
+    <div className={`min-h-screen bg-gray-50 ${!isCashier && session ? "ml-64" : ""}`}>
+      <PageNav />
+      {children}
+    </div>
+  );
 }

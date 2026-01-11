@@ -3,7 +3,7 @@
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { PageNav } from "@/components/ui/page-nav";
+import { PageLayout } from "@/components/ui/page-nav";
 import SalesContent from "./sales-content";
 import { RefreshCw } from "lucide-react";
 
@@ -41,9 +41,10 @@ export default function SalesPageClient() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <PageNav />
-      <SalesContent />
-    </div>
+    <PageLayout>
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <SalesContent />
+      </main>
+    </PageLayout>
   );
 }

@@ -3,14 +3,16 @@
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { PageNav } from "@/components/ui/page-nav";
+import { PageLayout } from "@/components/ui/page-nav";
 import ReportsContent from "./reports-content";
 import { RefreshCw } from "lucide-react";
 
 export default function ReportsPageClient() {
-  const { status } = useSession();
-  const router = useRouter();
   const [mounted, setMounted] = useState(false);
+  const sessionData = useSession();
+  const session = sessionData?.data;
+  const status = sessionData?.status;
+  const router = useRouter();
 
   useEffect(() => {
     setMounted(true);
@@ -25,21 +27,20 @@ export default function ReportsPageClient() {
   if (!mounted || status === "loading") {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <RefreshCw className="h-8 w-8 animate-spin text-emerald-600" />
+        <RefreshCw className="w-8 h-8 text-emerald-600 animate-spin" />
       </div>
     );
   }
 
-  if (status === "unauthenticated") {
+  if (!session) {
     return null;
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <PageNav />
-      <main className="container mx-auto px-4 py-6">
+    <PageLayout>
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <ReportsContent />
       </main>
-    </div>
+    </PageLayout>
   );
 }
