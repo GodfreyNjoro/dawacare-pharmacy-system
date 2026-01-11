@@ -66,7 +66,23 @@ export async function GET(request: NextRequest) {
     });
 
     if (format === "csv") {
-      const parser = new Parser();
+      // Define fields for CSV to handle empty data
+      const fields = [
+        "Branch",
+        "MedicineName",
+        "GenericName",
+        "Category",
+        "BatchNumber",
+        "Manufacturer",
+        "Quantity",
+        "ReorderLevel",
+        "UnitPrice",
+        "ExpiryDate",
+        "Status",
+        "TotalValue",
+      ];
+      
+      const parser = new Parser({ fields });
       const csv = parser.parse(exportData);
 
       return new NextResponse(csv, {

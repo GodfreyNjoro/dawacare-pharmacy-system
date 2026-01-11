@@ -102,7 +102,23 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    const parser = new Parser();
+    // Define fields for CSV to handle empty data
+    const fields = [
+      "Type",
+      "AccountRef",
+      "NominalCode",
+      "DepartmentCode",
+      "Date",
+      "Reference",
+      "Details",
+      "NetAmount",
+      "TaxCode",
+      "TaxAmount",
+      "ExchangeRate",
+      "ExtraNominalCode",
+    ];
+    
+    const parser = new Parser({ fields });
     const csv = parser.parse(exportData);
 
     return new NextResponse(csv, {

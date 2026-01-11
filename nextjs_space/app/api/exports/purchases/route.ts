@@ -90,7 +90,29 @@ export async function GET(request: NextRequest) {
     });
 
     if (format === "csv") {
-      const parser = new Parser();
+      // Define fields for CSV to handle empty data
+      const fields = [
+        "Date",
+        "PONumber",
+        "Branch",
+        "Supplier",
+        "SupplierContact",
+        "SupplierPhone",
+        "MedicineName",
+        "GenericName",
+        "Category",
+        "Quantity",
+        "ReceivedQty",
+        "UnitCost",
+        "Total",
+        "Status",
+        "Subtotal",
+        "Tax",
+        "GrandTotal",
+        "ExpectedDate",
+      ];
+      
+      const parser = new Parser({ fields });
       const csv = parser.parse(exportData);
 
       return new NextResponse(csv, {
