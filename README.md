@@ -240,7 +240,7 @@ pharmacy_management_system/
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/YOUR_USERNAME/dawacare-pharmacy-system.git
+   git clone https://github.com/GodfreyNjoro/dawacare-pharmacy-system.git
    cd dawacare-pharmacy-system/nextjs_space
    ```
 
@@ -328,10 +328,10 @@ Desktop installers are automatically built and released via GitHub Actions whene
 
 | Platform | Download | File Size | Notes |
 |----------|----------|-----------|-------|
-| 🪟 **Windows** | [Download .exe](https://github.com/YOUR_USERNAME/dawacare-pharmacy-system/releases/latest/download/DawaCare-POS-Setup.exe) | ~150 MB | Windows 10/11 (64-bit) |
-| 🍎 **macOS** | [Download .dmg](https://github.com/YOUR_USERNAME/dawacare-pharmacy-system/releases/latest/download/DawaCare-POS.dmg) | ~180 MB | macOS 10.13+ (Intel & Apple Silicon) |
-| 🐧 **Linux** | [Download .AppImage](https://github.com/YOUR_USERNAME/dawacare-pharmacy-system/releases/latest/download/DawaCare-POS.AppImage) | ~160 MB | Universal Linux package |
-| 🐧 **Linux (Debian/Ubuntu)** | [Download .deb](https://github.com/YOUR_USERNAME/dawacare-pharmacy-system/releases/latest/download/dawacare-pos.deb) | ~160 MB | Debian-based distros |
+| 🪟 **Windows** | [Download .exe](https://github.com/GodfreyNjoro/dawacare-pharmacy-system/releases/latest/download/DawaCare-POS-Setup.exe) | ~150 MB | Windows 10/11 (64-bit) |
+| 🍎 **macOS** | [Download .dmg](https://github.com/GodfreyNjoro/dawacare-pharmacy-system/releases/latest/download/DawaCare-POS.dmg) | ~180 MB | macOS 10.13+ (Intel & Apple Silicon) |
+| 🐧 **Linux** | [Download .AppImage](https://github.com/GodfreyNjoro/dawacare-pharmacy-system/releases/latest/download/DawaCare-POS.AppImage) | ~160 MB | Universal Linux package |
+| 🐧 **Linux (Debian/Ubuntu)** | [Download .deb](https://github.com/GodfreyNjoro/dawacare-pharmacy-system/releases/latest/download/dawacare-pos.deb) | ~160 MB | Debian-based distros |
 
 #### Installation Instructions
 
@@ -515,8 +515,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 📞 Support
 
-- **Issues**: [GitHub Issues](https://github.com/YOUR_USERNAME/dawacare-pharmacy-system/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/YOUR_USERNAME/dawacare-pharmacy-system/discussions)
+- **Issues**: [GitHub Issues](https://github.com/GodfreyNjoro/dawacare-pharmacy-system/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/GodfreyNjoro/dawacare-pharmacy-system/discussions)
 - **Email**: support@dawacare.com
 
 ---
@@ -534,6 +534,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 **Made with ❤️ for pharmacies worldwide**
 
-[⭐ Star this repo](https://github.com/YOUR_USERNAME/dawacare-pharmacy-system) • [🐛 Report Bug](https://github.com/YOUR_USERNAME/dawacare-pharmacy-system/issues) • [💡 Request Feature](https://github.com/YOUR_USERNAME/dawacare-pharmacy-system/issues)
+[⭐ Star this repo](https://github.com/GodfreyNjoro/dawacare-pharmacy-system) • [🐛 Report Bug](https://github.com/GodfreyNjoro/dawacare-pharmacy-system/issues) • [💡 Request Feature](https://github.com/GodfreyNjoro/dawacare-pharmacy-system/issues)
 
 </div>
