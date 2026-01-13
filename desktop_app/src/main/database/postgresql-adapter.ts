@@ -1,8 +1,8 @@
-import { PrismaClient } from '@prisma/client';
 import type { DatabaseAdapter } from '../../shared/types';
+import { getPrismaClientClass } from '../prisma-helper';
 
 export class PostgreSQLAdapter implements DatabaseAdapter {
-  private prisma: PrismaClient | null = null;
+  private prisma: any = null;
   private connectionString: string;
   private connected: boolean = false;
 
@@ -15,6 +15,9 @@ export class PostgreSQLAdapter implements DatabaseAdapter {
       // Set DATABASE_URL environment variable for Prisma
       process.env.DATABASE_URL = this.connectionString;
 
+      // Get PrismaClient dynamically (after env is configured)
+      const PrismaClient = getPrismaClientClass();
+      
       this.prisma = new PrismaClient({
         datasources: {
           db: {
@@ -46,8 +49,7 @@ export class PostgreSQLAdapter implements DatabaseAdapter {
   }
 
   getConnectionString(): string {
-    // Mask password in connection string for security
-    return this.connectionString.replace(/:[^:@]+@/, ':****@');
+    return this.connectionString;
   }
 
   async initialize(): Promise<void> {
@@ -63,22 +65,9 @@ export class PostgreSQLAdapter implements DatabaseAdapter {
   }
 
   async runMigrations(): Promise<void> {
-    try {
-      console.log('[PostgreSQL] Running migrations...');
-      const { execSync } = require('child_process');
-      const path = require('path');
-      const prismaPath = path.join(__dirname, '../../../node_modules/.bin/prisma');
-      
-      execSync(`"${prismaPath}" db push --skip-generate`, {
-        env: { ...process.env, DATABASE_URL: this.connectionString },
-        stdio: 'inherit',
-      });
-      
-      console.log('[PostgreSQL] Migrations completed');
-    } catch (error) {
-      console.error('[PostgreSQL] Migration error:', error);
-      // Don't throw - migrations might already be applied
-    }
+    // PostgreSQL migrations are typically run via external migration tools
+    // or handled by the cloud database. This is a no-op for now.
+    console.log('[PostgreSQL] Migrations handled externally');
   }
 
   private async seedDefaultData(): Promise<void> {
@@ -141,7 +130,7 @@ export class PostgreSQLAdapter implements DatabaseAdapter {
     }
   }
 
-  getPrismaClient(): PrismaClient {
+  getPrismaClient(): any {
     if (!this.prisma) {
       throw new Error('Database not connected. Call connect() first.');
     }

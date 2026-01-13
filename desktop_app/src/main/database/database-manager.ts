@@ -1,5 +1,4 @@
 import Store from 'electron-store';
-import { PrismaClient } from '@prisma/client';
 import type { DatabaseAdapter, DatabaseConfig, DatabaseType } from '../../shared/types';
 import { SQLiteAdapter } from './sqlite-adapter';
 import { PostgreSQLAdapter } from './postgresql-adapter';
@@ -64,8 +63,10 @@ class DatabaseManager {
       }
 
       // Connect and initialize
-      await this.adapter.connect();
-      await this.adapter.initialize();
+      if (this.adapter) {
+        await this.adapter.connect();
+        await this.adapter.initialize();
+      }
 
       console.log('[DatabaseManager] Database initialized successfully');
     } catch (error) {
@@ -89,14 +90,16 @@ class DatabaseManager {
         return { success: false, message: `Unsupported database type: ${config.type}` };
       }
 
-      await testAdapter.connect();
-      await testAdapter.disconnect();
+      if (testAdapter) {
+        await testAdapter.connect();
+        await testAdapter.disconnect();
+      }
 
       return { success: true };
     } catch (error: any) {
       return { success: false, message: error.message || 'Connection failed' };
     } finally {
-      if (testAdapter && testAdapter.isConnected()) {
+      if (testAdapter?.isConnected()) {
         await testAdapter.disconnect();
       }
     }
@@ -109,7 +112,7 @@ class DatabaseManager {
     return this.adapter;
   }
 
-  getPrismaClient(): PrismaClient {
+  getPrismaClient(): any {
     if (!this.adapter) {
       throw new Error('Database not initialized. Call initialize() first.');
     }

@@ -42,7 +42,7 @@ export function registerSettingsHandlers(): void {
       const settings = await prisma.appSettings.findMany();
 
       // Convert to object for easier access
-      const settingsMap = settings.reduce((acc, setting) => {
+      const settingsMap = settings.reduce((acc: Record<string, string>, setting: { key: string; value: string }) => {
         acc[setting.key] = setting.value;
         return acc;
       }, {} as Record<string, string>);

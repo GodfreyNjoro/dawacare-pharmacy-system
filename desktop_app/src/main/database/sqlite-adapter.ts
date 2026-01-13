@@ -1,11 +1,11 @@
 import path from 'path';
 import { app } from 'electron';
-import { PrismaClient } from '@prisma/client';
 import type { DatabaseAdapter } from '../../shared/types';
 import { DEFAULT_SQLITE_DB_NAME } from '../../shared/constants';
+import { getPrismaClientClass } from '../prisma-helper';
 
 export class SQLiteAdapter implements DatabaseAdapter {
-  private prisma: PrismaClient | null = null;
+  private prisma: any = null;
   private dbPath: string;
   private connected: boolean = false;
 
@@ -19,6 +19,9 @@ export class SQLiteAdapter implements DatabaseAdapter {
       // Set DATABASE_URL environment variable for Prisma
       process.env.DATABASE_URL = `file:${this.dbPath}`;
 
+      // Get PrismaClient dynamically (after env is configured)
+      const PrismaClient = getPrismaClientClass();
+      
       this.prisma = new PrismaClient({
         datasources: {
           db: {
@@ -145,7 +148,7 @@ export class SQLiteAdapter implements DatabaseAdapter {
     }
   }
 
-  getPrismaClient(): PrismaClient {
+  getPrismaClient(): any {
     if (!this.prisma) {
       throw new Error('Database not connected. Call connect() first.');
     }
