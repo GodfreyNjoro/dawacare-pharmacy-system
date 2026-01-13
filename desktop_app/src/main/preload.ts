@@ -1,6 +1,45 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import { IPC_CHANNELS } from '../shared/types';
-import type { LoginCredentials, DatabaseConfig } from '../shared/types';
+
+// IPC Channel names - inlined to avoid module resolution issues in preload
+const IPC_CHANNELS = {
+  // Auth
+  AUTH_LOGIN: 'auth:login',
+  AUTH_LOGOUT: 'auth:logout',
+  AUTH_GET_CURRENT_USER: 'auth:get-current-user',
+  // Database
+  DB_GET_CONFIG: 'db:get-config',
+  DB_SET_CONFIG: 'db:set-config',
+  DB_TEST_CONNECTION: 'db:test-connection',
+  DB_INITIALIZE: 'db:initialize',
+  // Settings
+  SETTINGS_GET: 'settings:get',
+  SETTINGS_SET: 'settings:set',
+  SETTINGS_GET_ALL: 'settings:get-all',
+  // Sync
+  SYNC_START: 'sync:start',
+  SYNC_STOP: 'sync:stop',
+  SYNC_STATUS: 'sync:status',
+  SYNC_MANUAL: 'sync:manual',
+  // Window
+  WINDOW_MINIMIZE: 'window:minimize',
+  WINDOW_MAXIMIZE: 'window:maximize',
+  WINDOW_CLOSE: 'window:close',
+  // App
+  APP_VERSION: 'app:version',
+  APP_QUIT: 'app:quit',
+} as const;
+
+// Type definitions inlined
+interface LoginCredentials {
+  email: string;
+  password: string;
+}
+
+interface DatabaseConfig {
+  type: 'sqlite' | 'postgresql';
+  connectionString?: string;
+  databasePath?: string;
+}
 
 // Expose protected methods that allow the renderer process to use
 // the ipcRenderer without exposing the entire object
