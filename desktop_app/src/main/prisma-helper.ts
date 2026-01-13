@@ -1,8 +1,10 @@
 import { app } from 'electron';
 import path from 'path';
 import fs from 'fs';
+import Module from 'module';
 
 let prismaConfigured = false;
+let unpackedNodeModulesPath: string | null = null;
 
 /**
  * Configure Prisma for production Electron app
@@ -16,7 +18,6 @@ export function configurePrismaForProduction(): void {
   console.log('[Prisma] App is packaged:', isPackaged);
 
   if (!isPackaged) {
-    // Development mode - no special configuration needed
     console.log('[Prisma] Development mode - using default paths');
     return;
   }
@@ -25,109 +26,102 @@ export function configurePrismaForProduction(): void {
   const appPath = app.getAppPath();
   const resourcesPath = path.dirname(appPath);
   const unpackedPath = path.join(resourcesPath, 'app.asar.unpacked');
+  unpackedNodeModulesPath = path.join(unpackedPath, 'node_modules');
   
   console.log('[Prisma] App path:', appPath);
   console.log('[Prisma] Resources path:', resourcesPath);
   console.log('[Prisma] Unpacked path:', unpackedPath);
+  console.log('[Prisma] Unpacked node_modules:', unpackedNodeModulesPath);
 
-  // Check multiple possible locations for Prisma
-  const possiblePrismaPaths = [
-    path.join(unpackedPath, 'node_modules', '.prisma', 'client'),
-    path.join(unpackedPath, 'node_modules', '@prisma', 'client'),
-    path.join(resourcesPath, 'app.asar.unpacked', 'node_modules', '.prisma', 'client'),
-  ];
-
-  let prismaPath: string | null = null;
-  for (const p of possiblePrismaPaths) {
-    if (fs.existsSync(p)) {
-      prismaPath = p;
-      console.log('[Prisma] Found Prisma at:', p);
-      break;
-    }
-  }
-
-  if (!prismaPath) {
-    console.error('[Prisma] Could not find Prisma client directory!');
-    console.error('[Prisma] Searched paths:', possiblePrismaPaths);
-    
-    // List what's actually in the unpacked directory
-    if (fs.existsSync(unpackedPath)) {
-      try {
-        console.log('[Prisma] Contents of unpacked:', fs.readdirSync(unpackedPath));
-        const nmPath = path.join(unpackedPath, 'node_modules');
-        if (fs.existsSync(nmPath)) {
-          const contents = fs.readdirSync(nmPath);
-          console.log('[Prisma] node_modules contents:', contents.filter(d => d.includes('prisma') || d === '.prisma'));
-        }
-      } catch (err) {
-        console.error('[Prisma] Error listing directory:', err);
-      }
-    }
+  // Verify unpacked directory exists
+  if (!fs.existsSync(unpackedNodeModulesPath)) {
+    console.error('[Prisma] Unpacked node_modules not found!');
     return;
   }
 
-  // List files in the prisma client directory
+  // List prisma-related directories
   try {
-    const files = fs.readdirSync(prismaPath);
-    console.log('[Prisma] Files in client dir:', files);
+    const contents = fs.readdirSync(unpackedNodeModulesPath);
+    const prismaRelated = contents.filter(d => d.includes('prisma') || d === '.prisma');
+    console.log('[Prisma] Found in unpacked node_modules:', prismaRelated);
   } catch (err) {
-    console.error('[Prisma] Error listing prisma dir:', err);
+    console.error('[Prisma] Error listing unpacked node_modules:', err);
   }
 
-  // Determine the correct query engine based on platform
-  const engineNames: Record<string, string[]> = {
-    win32: ['query_engine-windows.dll.node', 'query-engine-windows.dll.node'],
-    darwin: [
-      'libquery_engine-darwin.dylib.node',
-      'libquery_engine-darwin-arm64.dylib.node',
-      'query-engine-darwin.dylib.node',
-      'query-engine-darwin-arm64.dylib.node',
-    ],
-    linux: [
-      'libquery_engine-debian-openssl-3.0.x.so.node',
-      'libquery_engine-debian-openssl-1.1.x.so.node',
-      'libquery_engine-linux-musl.so.node',
-      'libquery_engine-rhel-openssl-3.0.x.so.node',
-      'query-engine-debian-openssl-3.0.x.so.node',
-    ],
-  };
-
-  const platform = process.platform;
-  const candidates = engineNames[platform] || [];
-
-  let enginePath: string | null = null;
-  for (const engineName of candidates) {
-    const testPath = path.join(prismaPath, engineName);
-    if (fs.existsSync(testPath)) {
-      enginePath = testPath;
-      break;
+  // Check .prisma/client directory
+  const prismaClientPath = path.join(unpackedNodeModulesPath, '.prisma', 'client');
+  if (fs.existsSync(prismaClientPath)) {
+    try {
+      const files = fs.readdirSync(prismaClientPath);
+      console.log('[Prisma] .prisma/client contents:', files);
+      
+      // Find query engine
+      const engineFile = files.find(f => f.includes('query_engine') || f.includes('query-engine'));
+      if (engineFile) {
+        const enginePath = path.join(prismaClientPath, engineFile);
+        process.env.PRISMA_QUERY_ENGINE_LIBRARY = enginePath;
+        console.log('[Prisma] Set PRISMA_QUERY_ENGINE_LIBRARY:', enginePath);
+      }
+    } catch (err) {
+      console.error('[Prisma] Error reading .prisma/client:', err);
     }
   }
 
-  if (enginePath) {
-    process.env.PRISMA_QUERY_ENGINE_LIBRARY = enginePath;
-    console.log('[Prisma] Set PRISMA_QUERY_ENGINE_LIBRARY:', enginePath);
-  } else {
-    console.warn('[Prisma] Query engine not found! Tried:', candidates);
-  }
-
-  // Also set the schema path
+  // Set schema path
   const schemaPath = path.join(unpackedPath, 'prisma', 'schema.prisma');
   if (fs.existsSync(schemaPath)) {
     process.env.PRISMA_SCHEMA = schemaPath;
     console.log('[Prisma] Set PRISMA_SCHEMA:', schemaPath);
   }
+
+  // Add unpacked node_modules to module search paths
+  // This ensures require('@prisma/client') finds the unpacked version
+  const originalResolveLookupPaths = (Module as any)._resolveLookupPaths;
+  (Module as any)._resolveLookupPaths = function(request: string, parent: any) {
+    const result = originalResolveLookupPaths.call(this, request, parent);
+    if (request.includes('prisma') && unpackedNodeModulesPath) {
+      // Prepend unpacked path for prisma modules
+      if (Array.isArray(result)) {
+        if (!result.includes(unpackedNodeModulesPath)) {
+          result.unshift(unpackedNodeModulesPath);
+        }
+      } else if (result && Array.isArray(result.paths)) {
+        if (!result.paths.includes(unpackedNodeModulesPath)) {
+          result.paths.unshift(unpackedNodeModulesPath);
+        }
+      }
+    }
+    return result;
+  };
+
+  console.log('[Prisma] Module resolution patched for unpacked directory');
 }
 
 /**
  * Get PrismaClient dynamically after configuration
- * This avoids static import issues in production
+ * This loads from the unpacked directory in production
  */
 export function getPrismaClientClass(): any {
   // Ensure configuration is done first
   configurePrismaForProduction();
   
-  // Dynamic require to avoid static import issues
+  if (app.isPackaged && unpackedNodeModulesPath) {
+    // In production, explicitly require from unpacked path
+    const prismaClientPath = path.join(unpackedNodeModulesPath, '@prisma', 'client');
+    console.log('[Prisma] Loading PrismaClient from:', prismaClientPath);
+    
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { PrismaClient } = require(prismaClientPath);
+      console.log('[Prisma] PrismaClient loaded successfully');
+      return PrismaClient;
+    } catch (err) {
+      console.error('[Prisma] Failed to load from unpacked path:', err);
+      // Fallback to default require
+    }
+  }
+  
+  // Development mode or fallback
   // eslint-disable-next-line @typescript-eslint/no-var-requires
   const { PrismaClient } = require('@prisma/client');
   return PrismaClient;
