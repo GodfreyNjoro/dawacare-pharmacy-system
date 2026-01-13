@@ -1,0 +1,202 @@
+name: Build Desktop App
+
+on:
+  push:
+    tags:
+      - 'v*' # Trigger on version tags (e.g., v1.0.0)
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  build:
+    name: Build on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        include:
+          - os: ubuntu-latest
+            platform: linux
+            artifact_name: linux
+          - os: windows-latest
+            platform: windows
+            artifact_name: windows
+          - os: macos-latest
+            platform: macos
+            artifact_name: macos
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: desktop_app/package-lock.json
+
+      - name: Install dependencies
+        working-directory: desktop_app
+        run: npm ci
+
+      - name: Generate Prisma Client
+        working-directory: desktop_app
+        run: npx prisma generate
+
+      # Linux-specific build
+      - name: Build for Linux
+        if: matrix.platform == 'linux'
+        working-directory: desktop_app
+        run: npm run package:linux
+
+      # Windows-specific build
+      - name: Build for Windows
+        if: matrix.platform == 'windows'
+        working-directory: desktop_app
+        run: npm run package:win
+
+      # macOS-specific build
+      - name: Build for macOS
+        if: matrix.platform == 'macos'
+        working-directory: desktop_app
+        run: npm run package:mac
+        env:
+          # Skip code signing for now (requires Apple Developer account)
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+
+      # Upload artifacts for each platform
+      - name: Upload Linux artifacts
+        if: matrix.platform == 'linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: dawacare-pos-linux
+          path: |
+            desktop_app/dist/*.AppImage
+            desktop_app/dist/*.deb
+          retention-days: 7
+
+      - name: Upload Windows artifacts
+        if: matrix.platform == 'windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: dawacare-pos-windows
+          path: desktop_app/dist/*.exe
+          retention-days: 7
+
+      - name: Upload macOS artifacts
+        if: matrix.platform == 'macos'
+        uses: actions/upload-artifact@v4
+        with:
+          name: dawacare-pos-macos
+          path: desktop_app/dist/*.dmg
+          retention-days: 7
+
+  release:
+    name: Create Release
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Download all artifacts from build jobs
+      - name: Download Linux artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dawacare-pos-linux
+          path: ./release/linux
+
+      - name: Download Windows artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dawacare-pos-windows
+          path: ./release/windows
+
+      - name: Download macOS artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dawacare-pos-macos
+          path: ./release/macos
+
+      # Extract version from tag
+      - name: Get version from tag
+        id: get_version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      # Create GitHub Release
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: DawaCare POS ${{ steps.get_version.outputs.VERSION }}
+          body: |
+            ## 🎉 DawaCare POS ${{ steps.get_version.outputs.VERSION }}
+            
+            ### 📦 Downloads
+            
+            | Platform | File | Notes |
+            |----------|------|-------|
+            | 🪟 Windows | `DawaCare-POS-Setup-*.exe` | Windows 10/11 (64-bit) |
+            | 🍎 macOS | `DawaCare-POS-*.dmg` | macOS 10.13+ (Intel & Apple Silicon) |
+            | 🐧 Linux | `DawaCare-POS-*.AppImage` | Universal Linux package |
+            | 🐧 Linux (Debian) | `dawacare-pos_*_amd64.deb` | Debian/Ubuntu |
+            
+            ### 📝 Installation Instructions
+            
+            **Windows:**
+            1. Download the `.exe` file
+            2. Run the installer
+            3. Windows SmartScreen may show a warning (click "More info" → "Run anyway")
+            4. Follow the setup wizard
+            
+            **macOS:**
+            1. Download the `.dmg` file
+            2. Open the DMG and drag DawaCare POS to Applications
+            3. First launch: Right-click → Open (to bypass Gatekeeper for unsigned apps)
+            
+            **Linux (AppImage):**
+            ```bash
+            chmod +x DawaCare-POS-*.AppImage
+            ./DawaCare-POS-*.AppImage
+            ```
+            
+            **Linux (Debian/Ubuntu):**
+            ```bash
+            sudo dpkg -i dawacare-pos_*_amd64.deb
+            sudo apt-get install -f
+            ```
+            
+            ### ✨ What's New
+            
+            - Phase 1: Complete desktop app foundation
+            - SQLite and PostgreSQL database support
+            - Database setup wizard
+            - Local authentication
+            - Cross-platform support (Windows, macOS, Linux)
+            
+            ### 🐛 Known Issues
+            
+            - macOS app is unsigned (requires right-click → Open on first launch)
+            - Windows SmartScreen warning (click "More info" → "Run anyway")
+            
+            ### 📚 Documentation
+            
+            - [Desktop App README](https://github.com/${{ github.repository }}/blob/main/desktop_app/README.md)
+            - [Project README](https://github.com/${{ github.repository }}/blob/main/README.md)
+            
+            ---
+            
+            **Full Changelog**: https://github.com/${{ github.repository }}/compare/v0.0.0...${{ steps.get_version.outputs.VERSION }}
+          files: |
+            release/linux/*
+            release/windows/*
+            release/macos/*
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
