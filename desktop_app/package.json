@@ -62,7 +62,20 @@
     "files": [
       "dist/**/*",
       "package.json",
-      "prisma/**/*"
+      "prisma/**/*",
+      "node_modules/.prisma/**/*",
+      "node_modules/@prisma/client/**/*",
+      "!node_modules/@prisma/engines/**/*.node",
+      {
+        "from": "node_modules/@prisma/engines",
+        "to": "node_modules/@prisma/engines",
+        "filter": [
+          "*.node",
+          "*.exe",
+          "*.so",
+          "*.dylib"
+        ]
+      }
     ],
     "win": {
       "target": [
@@ -102,32 +115,8 @@
       "createStartMenuShortcut": true
     },
     "asarUnpack": [
-      "**/.prisma/**/*",
-      "**/prisma/**/*",
-      "**/@prisma/client/**/*"
-    ],
-    "extraResources": [
-      {
-        "from": "node_modules/.prisma",
-        "to": "node_modules/.prisma",
-        "filter": [
-          "**/*"
-        ]
-      },
-      {
-        "from": "node_modules/@prisma/client",
-        "to": "node_modules/@prisma/client",
-        "filter": [
-          "**/*"
-        ]
-      },
-      {
-        "from": "prisma",
-        "to": "prisma",
-        "filter": [
-          "**/*"
-        ]
-      }
+      "node_modules/.prisma/**/*",
+      "node_modules/@prisma/**/*"
     ]
   },
   "homepage": "https://github.com/GodfreyNjoro/dawacare-pharmacy-system"

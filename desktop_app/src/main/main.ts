@@ -4,6 +4,7 @@ import { createMainWindow, getMainWindow } from './windows/main-window';
 import { registerAllIpcHandlers } from './ipc';
 import DatabaseManager from './database/database-manager';
 import { APP_NAME } from '../shared/constants';
+import { configurePrismaForProduction } from './prisma-helper';
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (require('electron-squirrel-startup')) {
@@ -23,6 +24,9 @@ const createWindow = (): void => {
 // initialization and is ready to create browser windows.
 app.on('ready', async () => {
   console.log(`[${APP_NAME}] App ready, initializing...`);
+
+  // Configure Prisma for production (must be done before any database operations)
+  configurePrismaForProduction();
 
   try {
     // Register all IPC handlers
