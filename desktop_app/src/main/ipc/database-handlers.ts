@@ -5,13 +5,19 @@ import DatabaseManager from '../database/database-manager';
 export function registerDatabaseHandlers(): void {
   const dbManager = DatabaseManager.getInstance();
 
-  // Get current database configuration
+  // Get current database configuration AND initialization status
   ipcMain.handle(IPC_CHANNELS.DB_GET_CONFIG, async () => {
     try {
       const config = dbManager.getConfig();
-      return { success: true, config };
+      const isInitialized = dbManager.isInitialized();
+      // Only return config as valid if database is actually initialized
+      return { 
+        success: true, 
+        config: isInitialized ? config : null,
+        isInitialized 
+      };
     } catch (error: any) {
-      return { success: false, error: error.message };
+      return { success: false, error: error.message, config: null, isInitialized: false };
     }
   });
 

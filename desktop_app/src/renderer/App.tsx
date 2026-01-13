@@ -15,10 +15,15 @@ function AppContent() {
 
   const checkDatabaseConfig = async () => {
     try {
+      console.log('[App] Checking database configuration...');
       const result = await window.electronAPI.getDbConfig();
-      setDbConfigured(result.success && result.config !== null);
+      console.log('[App] Database config result:', result);
+      // Only consider configured if database is actually initialized and connected
+      const isConfigured = result.success && result.config !== null && result.isInitialized;
+      console.log('[App] Database configured:', isConfigured);
+      setDbConfigured(isConfigured);
     } catch (error) {
-      console.error('Error checking database config:', error);
+      console.error('[App] Error checking database config:', error);
       setDbConfigured(false);
     }
   };
