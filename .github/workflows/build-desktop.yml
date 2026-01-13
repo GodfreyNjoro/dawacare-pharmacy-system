@@ -77,8 +77,8 @@ jobs:
         with:
           name: dawacare-pos-linux
           path: |
-            desktop_app/dist/*.AppImage
-            desktop_app/dist/*.deb
+            desktop_app/release/*.AppImage
+            desktop_app/release/*.deb
           retention-days: 7
 
       - name: Upload Windows artifacts
@@ -86,7 +86,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: dawacare-pos-windows
-          path: desktop_app/dist/*.exe
+          path: desktop_app/release/*.exe
           retention-days: 7
 
       - name: Upload macOS artifacts
@@ -94,7 +94,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: dawacare-pos-macos
-          path: desktop_app/dist/*.dmg
+          path: desktop_app/release/*.dmg
           retention-days: 7
 
   release:
