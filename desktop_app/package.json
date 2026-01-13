@@ -74,8 +74,7 @@
             "ia32"
           ]
         }
-      ],
-      "icon": "build/icon.ico"
+      ]
     },
     "mac": {
       "target": [
@@ -87,7 +86,6 @@
           ]
         }
       ],
-      "icon": "build/icon.icns",
       "category": "public.app-category.business"
     },
     "linux": {
@@ -95,15 +93,12 @@
         "AppImage",
         "deb"
       ],
-      "icon": "build/icon.png",
       "category": "Office",
       "maintainer": "DawaCare <support@dawacare.com>"
     },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
-      "installerIcon": "build/icon.ico",
-      "uninstallerIcon": "build/icon.ico",
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true
     }
