@@ -44,23 +44,28 @@ jobs:
         working-directory: desktop_app
         run: npx prisma generate
 
+      # Build the application (compile TypeScript and Vite)
+      - name: Build Application
+        working-directory: desktop_app
+        run: npm run build
+
       # Linux-specific build
-      - name: Build for Linux
+      - name: Package for Linux
         if: matrix.platform == 'linux'
         working-directory: desktop_app
-        run: npm run package:linux
+        run: npx electron-builder --linux
 
       # Windows-specific build
-      - name: Build for Windows
+      - name: Package for Windows
         if: matrix.platform == 'windows'
         working-directory: desktop_app
-        run: npm run package:win
+        run: npx electron-builder --win
 
       # macOS-specific build
-      - name: Build for macOS
+      - name: Package for macOS
         if: matrix.platform == 'macos'
         working-directory: desktop_app
-        run: npm run package:mac
+        run: npx electron-builder --mac
         env:
           # Skip code signing for now (requires Apple Developer account)
           CSC_IDENTITY_AUTO_DISCOVERY: false
