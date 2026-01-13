@@ -1,0 +1,75 @@
+import React, { useEffect, useState } from 'react';
+import { Routes, Route, Navigate } from 'react-router-dom';
+import SetupWizard from './pages/SetupWizard';
+import Login from './pages/Login';
+import Dashboard from './pages/Dashboard';
+import { AuthProvider, useAuth } from './lib/auth-context';
+
+function AppContent() {
+  const [dbConfigured, setDbConfigured] = useState<boolean | null>(null);
+  const { user, loading: authLoading } = useAuth();
+
+  useEffect(() => {
+    checkDatabaseConfig();
+  }, []);
+
+  const checkDatabaseConfig = async () => {
+    try {
+      const result = await window.electronAPI.getDbConfig();
+      setDbConfigured(result.success && result.config !== null);
+    } catch (error) {
+      console.error('Error checking database config:', error);
+      setDbConfigured(false);
+    }
+  };
+
+  // Show loading state
+  if (dbConfigured === null || authLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-gradient-to-br from-blue-50 to-blue-100">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600 text-lg">Loading DawaCare POS...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show setup wizard if database not configured
+  if (!dbConfigured) {
+    return (
+      <Routes>
+        <Route path="/setup" element={<SetupWizard onComplete={() => setDbConfigured(true)} />} />
+        <Route path="*" element={<Navigate to="/setup" replace />} />
+      </Routes>
+    );
+  }
+
+  // Show login if not authenticated
+  if (!user) {
+    return (
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route path="*" element={<Navigate to="/login" replace />} />
+      </Routes>
+    );
+  }
+
+  // Show main app if authenticated
+  return (
+    <Routes>
+      <Route path="/dashboard" element={<Dashboard />} />
+      <Route path="*" element={<Navigate to="/dashboard" replace />} />
+    </Routes>
+  );
+}
+
+function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
+  );
+}
+
+export default App;

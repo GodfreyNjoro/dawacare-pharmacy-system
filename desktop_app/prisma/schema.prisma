@@ -1,0 +1,397 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/client"
+}
+
+// Dynamic datasource - will be set at runtime based on user choice
+datasource db {
+  provider = "sqlite" // Default - can be overridden to "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User Management
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String?
+  password      String
+  role          String    @default("CASHIER") // ADMIN, PHARMACIST, CASHIER
+  status        String    @default("ACTIVE")  // ACTIVE, INACTIVE
+  branchId      String?
+  branch        Branch?   @relation(fields: [branchId], references: [id])
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  lastSyncedAt  DateTime? // Track when user was last synced from cloud
+
+  @@index([role])
+  @@index([status])
+  @@index([branchId])
+}
+
+// Branch Management
+model Branch {
+  id            String    @id @default(cuid())
+  name          String
+  code          String    @unique  // Short code like "MAIN", "BR001"
+  address       String?
+  phone         String?
+  email         String?
+  isMainBranch  Boolean   @default(false)
+  status        String    @default("ACTIVE") // ACTIVE, INACTIVE
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  lastSyncedAt  DateTime? // Track sync status
+  users         User[]
+  medicines     Medicine[]
+  sales         Sale[]
+  purchaseOrders PurchaseOrder[]
+  grns          GoodsReceivedNote[]
+  stockTransfersFrom StockTransfer[] @relation("FromBranch")
+  stockTransfersTo   StockTransfer[] @relation("ToBranch")
+  exportHistory ExportHistory[]
+
+  @@index([code])
+  @@index([status])
+}
+
+// Medicine/Inventory
+model Medicine {
+  id            String    @id @default(cuid())
+  name          String
+  genericName   String?
+  manufacturer  String?
+  batchNumber   String
+  expiryDate    DateTime
+  quantity      Int
+  reorderLevel  Int       @default(10)
+  unitPrice     Float
+  category      String
+  branchId      String?
+  branch        Branch?   @relation(fields: [branchId], references: [id])
+  syncStatus    String    @default("LOCAL") // LOCAL, SYNCED, PENDING_SYNC, CONFLICT
+  lastSyncedAt  DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  saleItems     SaleItem[]
+
+  @@index([name])
+  @@index([category])
+  @@index([batchNumber])
+  @@index([expiryDate])
+  @@index([branchId])
+  @@index([syncStatus])
+}
+
+// Customer Management
+model Customer {
+  id            String    @id @default(cuid())
+  name          String
+  phone         String    @unique
+  email         String?
+  address       String?
+  dateOfBirth   DateTime?
+  gender        String?   // MALE, FEMALE, OTHER
+  loyaltyPoints Int       @default(0)
+  creditBalance Float     @default(0)  // Amount customer owes
+  creditLimit   Float     @default(0)  // Maximum credit allowed
+  status        String    @default("ACTIVE") // ACTIVE, INACTIVE
+  notes         String?
+  syncStatus    String    @default("LOCAL") // LOCAL, SYNCED, PENDING_SYNC
+  lastSyncedAt  DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  sales         Sale[]
+  loyaltyTransactions LoyaltyTransaction[]
+  creditTransactions  CreditTransaction[]
+
+  @@index([name])
+  @@index([phone])
+  @@index([email])
+  @@index([status])
+  @@index([syncStatus])
+}
+
+model LoyaltyTransaction {
+  id            String    @id @default(cuid())
+  customerId    String
+  customer      Customer  @relation(fields: [customerId], references: [id])
+  type          String    // EARN, REDEEM, ADJUST
+  points        Int       // Positive for earn, negative for redeem
+  saleId        String?   // Reference to associated sale
+  description   String?
+  createdAt     DateTime  @default(now())
+
+  @@index([customerId])
+  @@index([saleId])
+  @@index([createdAt])
+}
+
+model CreditTransaction {
+  id            String    @id @default(cuid())
+  customerId    String
+  customer      Customer  @relation(fields: [customerId], references: [id])
+  type          String    // CREDIT, PAYMENT
+  amount        Float     // Positive for credit, negative for payment
+  saleId        String?   // Reference to associated sale
+  description   String?
+  createdBy     String?   // User who recorded this
+  createdAt     DateTime  @default(now())
+
+  @@index([customerId])
+  @@index([saleId])
+  @@index([createdAt])
+}
+
+// Sales
+model Sale {
+  id            String    @id @default(cuid())
+  invoiceNumber String    @unique
+  customerId    String?   // Optional - for walk-in customers
+  customer      Customer? @relation(fields: [customerId], references: [id])
+  customerName  String?   // Keep for walk-in customers
+  customerPhone String?   // Keep for walk-in customers
+  subtotal      Float
+  discount      Float     @default(0)
+  loyaltyPointsUsed Int   @default(0)
+  loyaltyPointsEarned Int @default(0)
+  total         Float
+  paymentMethod String    // CASH, CARD, MPESA, CREDIT, OTHER
+  paymentStatus String    @default("PAID") // PAID, PENDING, PARTIAL
+  notes         String?
+  soldBy        String?   // User who made the sale
+  branchId      String?
+  branch        Branch?   @relation(fields: [branchId], references: [id])
+  syncStatus    String    @default("PENDING") // PENDING, SYNCED, FAILED
+  lastSyncedAt  DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  items         SaleItem[]
+
+  @@index([invoiceNumber])
+  @@index([customerId])
+  @@index([createdAt])
+  @@index([paymentMethod])
+  @@index([branchId])
+  @@index([syncStatus])
+}
+
+model SaleItem {
+  id            String    @id @default(cuid())
+  saleId        String
+  medicineId    String
+  medicineName  String    // Store name at time of sale
+  batchNumber   String    // Store batch at time of sale
+  quantity      Int
+  unitPrice     Float     // Store price at time of sale
+  total         Float
+  sale          Sale      @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  medicine      Medicine  @relation(fields: [medicineId], references: [id])
+
+  @@index([saleId])
+  @@index([medicineId])
+}
+
+// Procurement Models
+model Supplier {
+  id            String    @id @default(cuid())
+  name          String
+  contactPerson String?
+  email         String?
+  phone         String?
+  address       String?
+  status        String    @default("ACTIVE") // ACTIVE, INACTIVE
+  lastSyncedAt  DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  purchaseOrders PurchaseOrder[]
+
+  @@index([name])
+  @@index([status])
+}
+
+model PurchaseOrder {
+  id            String    @id @default(cuid())
+  poNumber      String    @unique
+  supplierId    String
+  supplier      Supplier  @relation(fields: [supplierId], references: [id])
+  status        String    @default("DRAFT") // DRAFT, SENT, PARTIAL, RECEIVED, CANCELLED
+  subtotal      Float
+  tax           Float     @default(0)
+  total         Float
+  notes         String?
+  expectedDate  DateTime?
+  createdBy     String?
+  branchId      String?
+  branch        Branch?   @relation(fields: [branchId], references: [id])
+  lastSyncedAt  DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  items         PurchaseOrderItem[]
+  grns          GoodsReceivedNote[]
+
+  @@index([poNumber])
+  @@index([supplierId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([branchId])
+}
+
+model PurchaseOrderItem {
+  id              String    @id @default(cuid())
+  purchaseOrderId String
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  medicineName    String
+  genericName     String?
+  quantity        Int
+  receivedQty     Int       @default(0)
+  unitCost        Float
+  total           Float
+  category        String?
+
+  @@index([purchaseOrderId])
+}
+
+model GoodsReceivedNote {
+  id              String    @id @default(cuid())
+  grnNumber       String    @unique
+  purchaseOrderId String
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id])
+  receivedDate    DateTime  @default(now())
+  receivedBy      String?
+  notes           String?
+  status          String    @default("RECEIVED") // RECEIVED, PARTIAL, REJECTED
+  branchId        String?
+  branch          Branch?   @relation(fields: [branchId], references: [id])
+  lastSyncedAt    DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  items           GRNItem[]
+
+  @@index([grnNumber])
+  @@index([purchaseOrderId])
+  @@index([receivedDate])
+  @@index([branchId])
+}
+
+model GRNItem {
+  id              String    @id @default(cuid())
+  grnId           String
+  grn             GoodsReceivedNote @relation(fields: [grnId], references: [id], onDelete: Cascade)
+  medicineName    String
+  batchNumber     String
+  expiryDate      DateTime
+  quantityReceived Int
+  unitCost        Float
+  total           Float
+  addedToInventory Boolean  @default(false)
+
+  @@index([grnId])
+}
+
+// Stock Transfer between branches
+model StockTransfer {
+  id              String    @id @default(cuid())
+  transferNumber  String    @unique
+  fromBranchId    String
+  fromBranch      Branch    @relation("FromBranch", fields: [fromBranchId], references: [id])
+  toBranchId      String
+  toBranch        Branch    @relation("ToBranch", fields: [toBranchId], references: [id])
+  status          String    @default("PENDING") // PENDING, IN_TRANSIT, COMPLETED, CANCELLED
+  notes           String?
+  createdBy       String?
+  completedBy     String?
+  createdAt       DateTime  @default(now())
+  completedAt     DateTime?
+  updatedAt       DateTime  @updatedAt
+  items           StockTransferItem[]
+
+  @@index([transferNumber])
+  @@index([fromBranchId])
+  @@index([toBranchId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model StockTransferItem {
+  id              String    @id @default(cuid())
+  transferId      String
+  transfer        StockTransfer @relation(fields: [transferId], references: [id], onDelete: Cascade)
+  medicineId      String
+  medicineName    String
+  batchNumber     String
+  quantity        Int
+  unitPrice       Float
+
+  @@index([transferId])
+  @@index([medicineId])
+}
+
+// Accounting Exports
+model AccountMapping {
+  id              String    @id @default(cuid())
+  accountType     String    // SALES_REVENUE, SALES_TAX, INVENTORY_ASSET, COGS, PURCHASE, CASH, BANK, ACCOUNTS_PAYABLE, ACCOUNTS_RECEIVABLE
+  accountCode     String    // Account code in accounting software (e.g., "4000", "1200")
+  accountName     String    // Descriptive name (e.g., "Sales Revenue", "Inventory Asset")
+  description     String?
+  tallyLedger     String?   // Tally ledger name mapping
+  sageLedger      String?   // Sage ledger code mapping
+  isActive        Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([accountType])
+  @@index([isActive])
+}
+
+model ExportHistory {
+  id              String    @id @default(cuid())
+  exportType      String    // SALES, PURCHASES, INVENTORY, TALLY, SAGE
+  format          String    // CSV, XML, JSON
+  dateFrom        DateTime
+  dateTo          DateTime
+  recordCount     Int       @default(0)
+  fileName        String
+  fileSize        Int?      // File size in bytes
+  status          String    @default("COMPLETED") // COMPLETED, FAILED, IN_PROGRESS
+  errorMessage    String?
+  exportedBy      String?   // User who triggered export
+  branchId        String?
+  branch          Branch?   @relation(fields: [branchId], references: [id])
+  createdAt       DateTime  @default(now())
+
+  @@index([exportType])
+  @@index([status])
+  @@index([createdAt])
+  @@index([branchId])
+}
+
+// Sync Queue - tracks items that need to be synced to cloud
+model SyncQueue {
+  id              String    @id @default(cuid())
+  entityType      String    // SALE, MEDICINE, CUSTOMER, etc.
+  entityId        String    // ID of the entity to sync
+  operation       String    // CREATE, UPDATE, DELETE
+  payload         String    // JSON payload
+  status          String    @default("PENDING") // PENDING, IN_PROGRESS, SYNCED, FAILED
+  attempts        Int       @default(0)
+  lastAttemptAt   DateTime?
+  errorMessage    String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([status])
+  @@index([entityType])
+  @@index([createdAt])
+}
+
+// App Settings
+model AppSettings {
+  id              String    @id @default(cuid())
+  key             String    @unique
+  value           String
+  description     String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([key])
+}
