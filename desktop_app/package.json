@@ -3,7 +3,10 @@
   "version": "1.0.0",
   "description": "DawaCare POS - Offline-First Pharmacy Management Desktop Application",
   "main": "dist/main/main/main.js",
-  "author": "DawaCare",
+  "author": {
+    "name": "DawaCare",
+    "email": "support@dawacare.com"
+  },
   "license": "MIT",
   "private": true,
   "scripts": {
@@ -66,7 +69,10 @@
       "target": [
         {
           "target": "nsis",
-          "arch": ["x64", "ia32"]
+          "arch": [
+            "x64",
+            "ia32"
+          ]
         }
       ],
       "icon": "build/icon.ico"
@@ -75,7 +81,10 @@
       "target": [
         {
           "target": "dmg",
-          "arch": ["x64", "arm64"]
+          "arch": [
+            "x64",
+            "arm64"
+          ]
         }
       ],
       "icon": "build/icon.icns",
@@ -87,7 +96,8 @@
         "deb"
       ],
       "icon": "build/icon.png",
-      "category": "Office"
+      "category": "Office",
+      "maintainer": "DawaCare <support@dawacare.com>"
     },
     "nsis": {
       "oneClick": false,
@@ -97,5 +107,6 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true
     }
-  }
+  },
+  "homepage": "https://github.com/GodfreyNjoro/dawacare-pharmacy-system"
 }
