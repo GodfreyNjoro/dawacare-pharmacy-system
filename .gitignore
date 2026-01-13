@@ -1,129 +1,20 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
-
-# ============================================
-# NEXT.JS WEB APP (nextjs_space/)
-# ============================================
-
-# dependencies
-node_modules/
-/.pnp
-.pnp.js
-
-# testing
-/coverage
-
-# next.js
-/.next/
-/out/
-nextjs_space/.next/
-nextjs_space/.build/
-
-# production
-/build
-/dist
-
-# misc
-.DS_Store
-*.pem
-
-# debug
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-# local env files
-.env
-.env*.local
-.env.development.local
-.env.test.local
-.env.production.local
-
-# vercel
-.vercel
-
-# typescript
+**/node_modules
+.next
+.cache
+.build
+*.nfs*
+**/.yarn/
+!**/.yarn/patches
+!**/.yarn/plugins
+!**/.yarn/releases
+!**/.yarn/sdks
+!**/.yarn/versions
+!**/.yarn/cache
+**/.yarn/build-state.yml
+**/.yarn/install-state.gz
+dist
+target
+out
+.deploy
+.logs
 *.tsbuildinfo
-next-env.d.ts
-
-# ============================================
-# ELECTRON DESKTOP APP (desktop_app/)
-# ============================================
-
-# Electron build outputs
-desktop_app/dist/
-desktop_app/out/
-desktop_app/release/
-desktop_app/.next/
-desktop_app/.build/
-
-# Electron dependencies
-desktop_app/node_modules/
-
-# Electron cache
-desktop_app/.cache/
-
-# SQLite databases
-*.db
-*.db-shm
-*.db-wal
-*.sqlite
-*.sqlite3
-
-# Logs
-desktop_app/logs/
-*.log
-
-# OS files
-.DS_Store
-Thumbs.db
-
-# IDE files
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-
-# ============================================
-# SHARED / PROJECT-WIDE
-# ============================================
-
-# Abacus.AI internal files
-.abacus.donotdelete
-.deploy/
-.logs/
-
-# Package manager lock files (keep yarn.lock, ignore others)
-package-lock.json
-pnpm-lock.yaml
-
-# Temporary files
-*.tmp
-*.temp
-
-# Backup files
-*.backup
-*.bak
-
-# Documentation PDFs (keep markdown)
-*.pdf
-
-# Environment variables
-.env.backup
-
-# prisma artifacts
-prisma/.env
-
-# System files
-ehthumbs.db
-Desktop.ini
-$RECYCLE.BIN/
-
-# Archives
-*.zip
-*.tar.gz
-*.rar
-
-# Test files
-test-results/
-.playwright/
