@@ -2,7 +2,7 @@
   "name": "dawacare-pos",
   "version": "1.0.0",
   "description": "DawaCare POS - Offline-First Pharmacy Management Desktop Application",
-  "main": "dist/main/main.js",
+  "main": "dist/main/main/main.js",
   "author": "DawaCare",
   "license": "MIT",
   "private": true,
