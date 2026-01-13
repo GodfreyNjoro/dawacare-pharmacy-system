@@ -37,7 +37,11 @@ export function createMainWindow(): BrowserWindow {
     mainWindow.loadURL('http://localhost:3001');
     mainWindow.webContents.openDevTools();
   } else {
-    mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
+    // In production: __dirname is dist/main/main/windows
+    // Need to go up to dist/ then into renderer/
+    const rendererPath = path.join(__dirname, '../../../renderer/index.html');
+    console.log('[MainWindow] Loading renderer from:', rendererPath);
+    mainWindow.loadFile(rendererPath);
   }
 
   // Handle window close
