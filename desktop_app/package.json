@@ -21,7 +21,7 @@
     "package:mac": "electron-builder --mac",
     "package:linux": "electron-builder --linux",
     "package:all": "electron-builder -mwl",
-    "postinstall": "electron-builder install-app-deps"
+    "postinstall": "prisma generate"
   },
   "dependencies": {
     "@prisma/client": "^6.7.0",
@@ -61,9 +61,24 @@
     },
     "files": [
       "dist/**/*",
-      "node_modules/**/*",
       "package.json",
-      "prisma/**/*"
+      "prisma/**/*",
+      "node_modules/.prisma/**/*",
+      "node_modules/@prisma/client/**/*",
+      {
+        "from": "node_modules/.prisma",
+        "to": "node_modules/.prisma",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "node_modules/@prisma/client",
+        "to": "node_modules/@prisma/client",
+        "filter": [
+          "**/*"
+        ]
+      }
     ],
     "win": {
       "target": [
@@ -101,7 +116,11 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true
-    }
+    },
+    "asarUnpack": [
+      "node_modules/.prisma/**/*",
+      "node_modules/@prisma/client/**/*"
+    ]
   },
   "homepage": "https://github.com/GodfreyNjoro/dawacare-pharmacy-system"
 }
