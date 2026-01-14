@@ -5,10 +5,10 @@ import Module from 'module';
 
 let prismaConfigured = false;
 let unpackedNodeModulesPath: string | null = null;
+let dotPrismaClientPath: string | null = null;
 
 /**
  * Configure Prisma for production Electron app
- * Patches Node's module resolution to load ALL prisma modules from unpacked path
  */
 export function configurePrismaForProduction(): void {
   if (prismaConfigured) return;
@@ -18,80 +18,101 @@ export function configurePrismaForProduction(): void {
   console.log('[Prisma] App is packaged:', isPackaged);
 
   if (!isPackaged) {
-    console.log('[Prisma] Development mode - using default paths');
+    console.log('[Prisma] Development mode');
     return;
   }
 
-  // In production, Prisma files are unpacked in app.asar.unpacked
   const appPath = app.getAppPath();
   const resourcesPath = path.dirname(appPath);
   const unpackedPath = path.join(resourcesPath, 'app.asar.unpacked');
   unpackedNodeModulesPath = path.join(unpackedPath, 'node_modules');
+  dotPrismaClientPath = path.join(unpackedNodeModulesPath, '.prisma', 'client');
   
-  console.log('[Prisma] App path:', appPath);
-  console.log('[Prisma] Unpacked node_modules:', unpackedNodeModulesPath);
+  console.log('[Prisma] Unpacked path:', unpackedPath);
+  console.log('[Prisma] .prisma/client path:', dotPrismaClientPath);
 
-  // Verify unpacked directories exist
-  const prismaClientDir = path.join(unpackedNodeModulesPath, '.prisma', 'client');
-  const atPrismaDir = path.join(unpackedNodeModulesPath, '@prisma', 'client');
-  
-  console.log('[Prisma] Checking .prisma/client:', fs.existsSync(prismaClientDir));
-  console.log('[Prisma] Checking @prisma/client:', fs.existsSync(atPrismaDir));
-
-  if (fs.existsSync(prismaClientDir)) {
-    const files = fs.readdirSync(prismaClientDir);
-    console.log('[Prisma] .prisma/client files:', files);
-    
-    // Set query engine path
-    const engineFile = files.find(f => f.includes('query_engine') || f.includes('query-engine'));
-    if (engineFile) {
-      process.env.PRISMA_QUERY_ENGINE_LIBRARY = path.join(prismaClientDir, engineFile);
-      console.log('[Prisma] Engine path:', process.env.PRISMA_QUERY_ENGINE_LIBRARY);
-    }
+  // List what's in the unpacked directory
+  if (fs.existsSync(unpackedNodeModulesPath)) {
+    const dirs = fs.readdirSync(unpackedNodeModulesPath);
+    console.log('[Prisma] Unpacked node_modules contents:', dirs);
   } else {
-    console.error('[Prisma] ERROR: .prisma/client not found in unpacked!');
+    console.error('[Prisma] ERROR: unpacked node_modules does not exist!');
   }
 
-  // CRITICAL: Patch Module._resolveFilename to intercept ALL prisma requires
+  // Check .prisma/client
+  if (fs.existsSync(dotPrismaClientPath)) {
+    const files = fs.readdirSync(dotPrismaClientPath);
+    console.log('[Prisma] .prisma/client files:', files);
+    
+    // Check for default.js specifically
+    const defaultJsPath = path.join(dotPrismaClientPath, 'default.js');
+    console.log('[Prisma] default.js exists:', fs.existsSync(defaultJsPath));
+    
+    // Set query engine
+    const engineFile = files.find(f => f.includes('query_engine') || f.includes('query-engine'));
+    if (engineFile) {
+      process.env.PRISMA_QUERY_ENGINE_LIBRARY = path.join(dotPrismaClientPath, engineFile);
+      console.log('[Prisma] Engine:', process.env.PRISMA_QUERY_ENGINE_LIBRARY);
+    }
+  } else {
+    console.error('[Prisma] ERROR: .prisma/client NOT FOUND!');
+    // Check what IS in unpacked
+    const prismaDir = path.join(unpackedNodeModulesPath, '.prisma');
+    if (fs.existsSync(prismaDir)) {
+      console.log('[Prisma] .prisma contents:', fs.readdirSync(prismaDir));
+    }
+  }
+
+  // Patch Module._resolveFilename
   const originalResolveFilename = (Module as any)._resolveFilename;
   (Module as any)._resolveFilename = function(request: string, parent: any, isMain: boolean, options?: any) {
     
-    // Only intercept if unpacked path is set and request is prisma-related
-    if (unpackedNodeModulesPath && (request.includes('prisma') || request.startsWith('.prisma'))) {
-      let newRequest: string | null = null;
-      
-      // Handle @prisma/client and subpaths
-      if (request.startsWith('@prisma/')) {
-        newRequest = path.join(unpackedNodeModulesPath, request);
+    // Log ALL prisma-related requests for debugging
+    if (request.includes('prisma') || request.includes('.prisma')) {
+      console.log('[Prisma] Resolve request:', request);
+    }
+    
+    if (!unpackedNodeModulesPath) {
+      return originalResolveFilename.call(this, request, parent, isMain, options);
+    }
+
+    // Handle .prisma/client/default specifically (the main issue)
+    if (request === '.prisma/client/default' || request === '.prisma\\client\\default') {
+      const targetPath = path.join(dotPrismaClientPath!, 'default.js');
+      console.log('[Prisma] Intercepting .prisma/client/default ->', targetPath);
+      if (fs.existsSync(targetPath)) {
+        return targetPath;
       }
-      // Handle .prisma/client (note: starts with dot, treated as module name not relative path)
-      else if (request.startsWith('.prisma/') || request === '.prisma') {
-        newRequest = path.join(unpackedNodeModulesPath, request);
-      }
+      console.log('[Prisma] WARNING: default.js not found at', targetPath);
+    }
+    
+    // Handle other .prisma paths
+    if (request.startsWith('.prisma/') || request.startsWith('.prisma\\')) {
+      const relativePart = request.replace(/^\.prisma[\/\\]/, '');
+      const targetPath = path.join(unpackedNodeModulesPath, '.prisma', relativePart);
       
-      if (newRequest) {
-        // Check various extensions
-        const candidates = [
-          newRequest,
-          newRequest + '.js',
-          newRequest + '.node',
-          path.join(newRequest, 'index.js'),
-          path.join(newRequest, 'default.js'),
-        ];
-        
-        for (const candidate of candidates) {
-          if (fs.existsSync(candidate)) {
-            console.log('[Prisma] Redirect:', request, '->', candidate);
-            return candidate;
-          }
+      const candidates = [targetPath, targetPath + '.js', targetPath + '.node'];
+      for (const candidate of candidates) {
+        if (fs.existsSync(candidate)) {
+          console.log('[Prisma] Redirect:', request, '->', candidate);
+          return candidate;
         }
-        
-        // Even if file check fails, try the redirect anyway
-        console.log('[Prisma] Forcing redirect:', request, '->', newRequest);
-        try {
-          return originalResolveFilename.call(this, newRequest, parent, isMain, options);
-        } catch (e) {
-          console.log('[Prisma] Redirect failed, trying original');
+      }
+    }
+    
+    // Handle @prisma paths
+    if (request.startsWith('@prisma/')) {
+      const targetPath = path.join(unpackedNodeModulesPath, request);
+      const candidates = [
+        targetPath,
+        targetPath + '.js',
+        path.join(targetPath, 'index.js'),
+        path.join(targetPath, 'default.js'),
+      ];
+      for (const candidate of candidates) {
+        if (fs.existsSync(candidate)) {
+          console.log('[Prisma] Redirect:', request, '->', candidate);
+          return candidate;
         }
       }
     }
