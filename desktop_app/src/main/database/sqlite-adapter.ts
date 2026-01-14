@@ -69,22 +69,334 @@ export class SQLiteAdapter implements DatabaseAdapter {
   }
 
   async runMigrations(): Promise<void> {
+    if (!this.prisma) throw new Error('Database not connected');
+    
     try {
-      console.log('[SQLite] Running migrations...');
-      // In production, migrations should be embedded
-      // For now, we'll use Prisma's push command
-      const { execSync } = require('child_process');
-      const prismaPath = path.join(__dirname, '../../../node_modules/.bin/prisma');
+      console.log('[SQLite] Creating schema...');
       
-      execSync(`"${prismaPath}" db push --skip-generate`, {
-        env: { ...process.env, DATABASE_URL: `file:${this.dbPath}` },
-        stdio: 'inherit',
-      });
-      
-      console.log('[SQLite] Migrations completed');
+      // Create all tables using raw SQL (SQLite compatible)
+      await this.prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "Branch" (
+          "id" TEXT PRIMARY KEY NOT NULL,
+          "name" TEXT NOT NULL,
+          "code" TEXT NOT NULL UNIQUE,
+          "address" TEXT,
+          "phone" TEXT,
+          "email" TEXT,
+          "isMainBranch" INTEGER NOT NULL DEFAULT 0,
+          "status" TEXT NOT NULL DEFAULT 'ACTIVE',
+          "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          "updatedAt" DATETIME NOT NULL,
+          "lastSyncedAt" DATETIME
+        )
+      `);
+
+      await this.prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "User" (
+          "id" TEXT PRIMARY KEY NOT NULL,
+          "email" TEXT NOT NULL UNIQUE,
+          "name" TEXT,
+          "password" TEXT NOT NULL,
+          "role" TEXT NOT NULL DEFAULT 'CASHIER',
+          "status" TEXT NOT NULL DEFAULT 'ACTIVE',
+          "branchId" TEXT,
+          "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          "updatedAt" DATETIME NOT NULL,
+          "lastSyncedAt" DATETIME,
+          FOREIGN KEY ("branchId") REFERENCES "Branch"("id") ON DELETE SET NULL ON UPDATE CASCADE
+        )
+      `);
+
+      await this.prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "Medicine" (
+          "id" TEXT PRIMARY KEY NOT NULL,
+          "name" TEXT NOT NULL,
+          "genericName" TEXT,
+          "manufacturer" TEXT,
+          "batchNumber" TEXT NOT NULL,
+          "expiryDate" DATETIME NOT NULL,
+          "quantity" INTEGER NOT NULL,
+          "reorderLevel" INTEGER NOT NULL DEFAULT 10,
+          "unitPrice" REAL NOT NULL,
+          "category" TEXT NOT NULL,
+          "branchId" TEXT,
+          "syncStatus" TEXT NOT NULL DEFAULT 'LOCAL',
+          "lastSyncedAt" DATETIME,
+          "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          "updatedAt" DATETIME NOT NULL,
+          FOREIGN KEY ("branchId") REFERENCES "Branch"("id") ON DELETE SET NULL ON UPDATE CASCADE
+        )
+      `);
+
+      await this.prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "Customer" (
+          "id" TEXT PRIMARY KEY NOT NULL,
+          "name" TEXT NOT NULL,
+          "phone" TEXT NOT NULL UNIQUE,
+          "email" TEXT,
+          "address" TEXT,
+          "dateOfBirth" DATETIME,
+          "gender" TEXT,
+          "loyaltyPoints" INTEGER NOT NULL DEFAULT 0,
+          "creditBalance" REAL NOT NULL DEFAULT 0,
+          "creditLimit" REAL NOT NULL DEFAULT 0,
+          "status" TEXT NOT NULL DEFAULT 'ACTIVE',
+          "notes" TEXT,
+          "syncStatus" TEXT NOT NULL DEFAULT 'LOCAL',
+          "lastSyncedAt" DATETIME,
+          "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          "updatedAt" DATETIME NOT NULL
+        )
+      `);
+
+      await this.prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "Sale" (
+          "id" TEXT PRIMARY KEY NOT NULL,
+          "invoiceNumber" TEXT NOT NULL UNIQUE,
+          "customerId" TEXT,
+          "customerName" TEXT,
+          "customerPhone" TEXT,
+          "subtotal" REAL NOT NULL,
+          "discount" REAL NOT NULL DEFAULT 0,
+          "loyaltyPointsUsed" INTEGER NOT NULL DEFAULT 0,
+          "loyaltyPointsEarned" INTEGER NOT NULL DEFAULT 0,
+          "total" REAL NOT NULL,
+          "paymentMethod" TEXT NOT NULL,
+          "paymentStatus" TEXT NOT NULL DEFAULT 'PAID',
+          "notes" TEXT,
+          "soldBy" TEXT,
+          "branchId" TEXT,
+          "syncStatus" TEXT NOT NULL DEFAULT 'PENDING',
+          "lastSyncedAt" DATETIME,
+          "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          "updatedAt" DATETIME NOT NULL,
+          FOREIGN KEY ("customerId") REFERENCES "Customer"("id") ON DELETE SET NULL ON UPDATE CASCADE,
+          FOREIGN KEY ("branchId") REFERENCES "Branch"("id") ON DELETE SET NULL ON UPDATE CASCADE
+        )
+      `);
+
+      await this.prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "SaleItem" (
+          "id" TEXT PRIMARY KEY NOT NULL,
+          "saleId" TEXT NOT NULL,
+          "medicineId" TEXT NOT NULL,
+          "medicineName" TEXT NOT NULL,
+          "batchNumber" TEXT NOT NULL,
+          "quantity" INTEGER NOT NULL,
+          "unitPrice" REAL NOT NULL,
+          "total" REAL NOT NULL,
+          FOREIGN KEY ("saleId") REFERENCES "Sale"("id") ON DELETE CASCADE ON UPDATE CASCADE,
+          FOREIGN KEY ("medicineId") REFERENCES "Medicine"("id") ON DELETE RESTRICT ON UPDATE CASCADE
+        )
+      `);
+
+      await this.prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "Supplier" (
+          "id" TEXT PRIMARY KEY NOT NULL,
+          "name" TEXT NOT NULL,
+          "contactPerson" TEXT,
+          "email" TEXT,
+          "phone" TEXT,
+          "address" TEXT,
+          "status" TEXT NOT NULL DEFAULT 'ACTIVE',
+          "lastSyncedAt" DATETIME,
+          "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          "updatedAt" DATETIME NOT NULL
+        )
+      `);
+
+      await this.prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "PurchaseOrder" (
+          "id" TEXT PRIMARY KEY NOT NULL,
+          "poNumber" TEXT NOT NULL UNIQUE,
+          "supplierId" TEXT NOT NULL,
+          "status" TEXT NOT NULL DEFAULT 'DRAFT',
+          "subtotal" REAL NOT NULL,
+          "tax" REAL NOT NULL DEFAULT 0,
+          "total" REAL NOT NULL,
+          "notes" TEXT,
+          "expectedDate" DATETIME,
+          "createdBy" TEXT,
+          "branchId" TEXT,
+          "lastSyncedAt" DATETIME,
+          "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          "updatedAt" DATETIME NOT NULL,
+          FOREIGN KEY ("supplierId") REFERENCES "Supplier"("id") ON DELETE RESTRICT ON UPDATE CASCADE,
+          FOREIGN KEY ("branchId") REFERENCES "Branch"("id") ON DELETE SET NULL ON UPDATE CASCADE
+        )
+      `);
+
+      await this.prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "PurchaseOrderItem" (
+          "id" TEXT PRIMARY KEY NOT NULL,
+          "purchaseOrderId" TEXT NOT NULL,
+          "medicineName" TEXT NOT NULL,
+          "genericName" TEXT,
+          "quantity" INTEGER NOT NULL,
+          "receivedQty" INTEGER NOT NULL DEFAULT 0,
+          "unitCost" REAL NOT NULL,
+          "total" REAL NOT NULL,
+          "category" TEXT,
+          FOREIGN KEY ("purchaseOrderId") REFERENCES "PurchaseOrder"("id") ON DELETE CASCADE ON UPDATE CASCADE
+        )
+      `);
+
+      await this.prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "GoodsReceivedNote" (
+          "id" TEXT PRIMARY KEY NOT NULL,
+          "grnNumber" TEXT NOT NULL UNIQUE,
+          "purchaseOrderId" TEXT NOT NULL,
+          "receivedDate" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          "receivedBy" TEXT,
+          "notes" TEXT,
+          "status" TEXT NOT NULL DEFAULT 'RECEIVED',
+          "branchId" TEXT,
+          "lastSyncedAt" DATETIME,
+          "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          "updatedAt" DATETIME NOT NULL,
+          FOREIGN KEY ("purchaseOrderId") REFERENCES "PurchaseOrder"("id") ON DELETE RESTRICT ON UPDATE CASCADE,
+          FOREIGN KEY ("branchId") REFERENCES "Branch"("id") ON DELETE SET NULL ON UPDATE CASCADE
+        )
+      `);
+
+      await this.prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "GRNItem" (
+          "id" TEXT PRIMARY KEY NOT NULL,
+          "grnId" TEXT NOT NULL,
+          "medicineName" TEXT NOT NULL,
+          "batchNumber" TEXT NOT NULL,
+          "expiryDate" DATETIME NOT NULL,
+          "quantityReceived" INTEGER NOT NULL,
+          "unitCost" REAL NOT NULL,
+          "total" REAL NOT NULL,
+          "addedToInventory" INTEGER NOT NULL DEFAULT 0,
+          FOREIGN KEY ("grnId") REFERENCES "GoodsReceivedNote"("id") ON DELETE CASCADE ON UPDATE CASCADE
+        )
+      `);
+
+      await this.prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "LoyaltyTransaction" (
+          "id" TEXT PRIMARY KEY NOT NULL,
+          "customerId" TEXT NOT NULL,
+          "type" TEXT NOT NULL,
+          "points" INTEGER NOT NULL,
+          "saleId" TEXT,
+          "description" TEXT,
+          "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY ("customerId") REFERENCES "Customer"("id") ON DELETE RESTRICT ON UPDATE CASCADE
+        )
+      `);
+
+      await this.prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "CreditTransaction" (
+          "id" TEXT PRIMARY KEY NOT NULL,
+          "customerId" TEXT NOT NULL,
+          "type" TEXT NOT NULL,
+          "amount" REAL NOT NULL,
+          "saleId" TEXT,
+          "description" TEXT,
+          "createdBy" TEXT,
+          "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY ("customerId") REFERENCES "Customer"("id") ON DELETE RESTRICT ON UPDATE CASCADE
+        )
+      `);
+
+      await this.prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "StockTransfer" (
+          "id" TEXT PRIMARY KEY NOT NULL,
+          "transferNumber" TEXT NOT NULL UNIQUE,
+          "fromBranchId" TEXT NOT NULL,
+          "toBranchId" TEXT NOT NULL,
+          "status" TEXT NOT NULL DEFAULT 'PENDING',
+          "notes" TEXT,
+          "createdBy" TEXT,
+          "completedBy" TEXT,
+          "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          "completedAt" DATETIME,
+          "updatedAt" DATETIME NOT NULL,
+          FOREIGN KEY ("fromBranchId") REFERENCES "Branch"("id") ON DELETE RESTRICT ON UPDATE CASCADE,
+          FOREIGN KEY ("toBranchId") REFERENCES "Branch"("id") ON DELETE RESTRICT ON UPDATE CASCADE
+        )
+      `);
+
+      await this.prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "StockTransferItem" (
+          "id" TEXT PRIMARY KEY NOT NULL,
+          "transferId" TEXT NOT NULL,
+          "medicineId" TEXT NOT NULL,
+          "medicineName" TEXT NOT NULL,
+          "batchNumber" TEXT NOT NULL,
+          "quantity" INTEGER NOT NULL,
+          "unitPrice" REAL NOT NULL,
+          FOREIGN KEY ("transferId") REFERENCES "StockTransfer"("id") ON DELETE CASCADE ON UPDATE CASCADE
+        )
+      `);
+
+      await this.prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "AccountMapping" (
+          "id" TEXT PRIMARY KEY NOT NULL,
+          "accountType" TEXT NOT NULL,
+          "accountCode" TEXT NOT NULL,
+          "accountName" TEXT NOT NULL,
+          "description" TEXT,
+          "tallyLedger" TEXT,
+          "sageLedger" TEXT,
+          "isActive" INTEGER NOT NULL DEFAULT 1,
+          "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          "updatedAt" DATETIME NOT NULL
+        )
+      `);
+
+      await this.prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "ExportHistory" (
+          "id" TEXT PRIMARY KEY NOT NULL,
+          "exportType" TEXT NOT NULL,
+          "format" TEXT NOT NULL,
+          "dateFrom" DATETIME NOT NULL,
+          "dateTo" DATETIME NOT NULL,
+          "recordCount" INTEGER NOT NULL DEFAULT 0,
+          "fileName" TEXT NOT NULL,
+          "fileSize" INTEGER,
+          "status" TEXT NOT NULL DEFAULT 'COMPLETED',
+          "errorMessage" TEXT,
+          "exportedBy" TEXT,
+          "branchId" TEXT,
+          "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY ("branchId") REFERENCES "Branch"("id") ON DELETE SET NULL ON UPDATE CASCADE
+        )
+      `);
+
+      await this.prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "SyncQueue" (
+          "id" TEXT PRIMARY KEY NOT NULL,
+          "entityType" TEXT NOT NULL,
+          "entityId" TEXT NOT NULL,
+          "operation" TEXT NOT NULL,
+          "payload" TEXT NOT NULL,
+          "status" TEXT NOT NULL DEFAULT 'PENDING',
+          "attempts" INTEGER NOT NULL DEFAULT 0,
+          "lastAttemptAt" DATETIME,
+          "errorMessage" TEXT,
+          "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          "updatedAt" DATETIME NOT NULL
+        )
+      `);
+
+      await this.prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "AppSettings" (
+          "id" TEXT PRIMARY KEY NOT NULL,
+          "key" TEXT NOT NULL UNIQUE,
+          "value" TEXT NOT NULL,
+          "description" TEXT,
+          "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          "updatedAt" DATETIME NOT NULL
+        )
+      `);
+
+      console.log('[SQLite] Schema created successfully');
     } catch (error) {
-      console.error('[SQLite] Migration error:', error);
-      // Don't throw - migrations might already be applied
+      console.error('[SQLite] Schema creation error:', error);
+      throw error;
     }
   }
 
