@@ -44,7 +44,8 @@ jobs:
         working-directory: desktop_app
         run: npx prisma generate
 
-      - name: Verify Prisma Client Generated
+      - name: Verify Prisma Client Generated (Unix)
+        if: runner.os != 'Windows'
         working-directory: desktop_app
         run: |
           echo "=== Checking .prisma directory ==="
@@ -52,6 +53,17 @@ jobs:
           ls -la node_modules/.prisma/client/ || echo ".prisma/client folder NOT FOUND!"
           echo "=== Checking @prisma directory ==="
           ls -la node_modules/@prisma/client/ | head -20
+
+      - name: Verify Prisma Client Generated (Windows)
+        if: runner.os == 'Windows'
+        working-directory: desktop_app
+        shell: cmd
+        run: |
+          echo === Checking .prisma directory ===
+          if exist node_modules\.prisma\client dir node_modules\.prisma\client
+          if not exist node_modules\.prisma\client echo .prisma/client folder NOT FOUND!
+          echo === Checking @prisma directory ===
+          dir node_modules\@prisma\client
 
       # Build the application (compile TypeScript and Vite)
       - name: Build Application
