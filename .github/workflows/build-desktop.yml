@@ -44,6 +44,15 @@ jobs:
         working-directory: desktop_app
         run: npx prisma generate
 
+      - name: Verify Prisma Client Generated
+        working-directory: desktop_app
+        run: |
+          echo "=== Checking .prisma directory ==="
+          ls -la node_modules/.prisma/ || echo ".prisma folder NOT FOUND!"
+          ls -la node_modules/.prisma/client/ || echo ".prisma/client folder NOT FOUND!"
+          echo "=== Checking @prisma directory ==="
+          ls -la node_modules/@prisma/client/ | head -20
+
       # Build the application (compile TypeScript and Vite)
       - name: Build Application
         working-directory: desktop_app

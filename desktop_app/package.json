@@ -1,6 +1,6 @@
 {
   "name": "dawacare-pos",
-  "version": "1.0.12",
+  "version": "1.0.13",
   "description": "DawaCare POS - Offline-First Pharmacy Management Desktop Application",
   "main": "dist/main/main/main.js",
   "author": {
@@ -54,7 +54,7 @@
   "build": {
     "appId": "com.dawacare.pos",
     "productName": "DawaCare POS",
-    "copyright": "Copyright © 2025 DawaCare",
+    "copyright": "Copyright \u00a9 2025 DawaCare",
     "directories": {
       "output": "release",
       "buildResources": "build"
@@ -62,20 +62,7 @@
     "files": [
       "dist/**/*",
       "package.json",
-      "prisma/**/*",
-      "node_modules/.prisma/**/*",
-      "node_modules/@prisma/client/**/*",
-      "!node_modules/@prisma/engines/**/*.node",
-      {
-        "from": "node_modules/@prisma/engines",
-        "to": "node_modules/@prisma/engines",
-        "filter": [
-          "*.node",
-          "*.exe",
-          "*.so",
-          "*.dylib"
-        ]
-      }
+      "prisma/**/*"
     ],
     "win": {
       "target": [
@@ -114,9 +101,28 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true
     },
-    "asarUnpack": [
-      "node_modules/.prisma/**/*",
-      "node_modules/@prisma/**/*"
+    "extraResources": [
+      {
+        "from": "node_modules/.prisma",
+        "to": "app.asar.unpacked/node_modules/.prisma",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "node_modules/@prisma/client",
+        "to": "app.asar.unpacked/node_modules/@prisma/client",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "node_modules/@prisma/engines",
+        "to": "app.asar.unpacked/node_modules/@prisma/engines",
+        "filter": [
+          "**/*"
+        ]
+      }
     ]
   },
   "homepage": "https://github.com/GodfreyNjoro/dawacare-pharmacy-system"
