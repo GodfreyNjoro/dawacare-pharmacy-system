@@ -3,6 +3,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import SetupWizard from './pages/SetupWizard';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
+import POS from './pages/POS';
 import { AuthProvider, useAuth } from './lib/auth-context';
 
 function AppContent() {
@@ -64,7 +65,8 @@ function AppContent() {
   return (
     <Routes>
       <Route path="/dashboard" element={<Dashboard />} />
-      <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      <Route path="/pos" element={<POS />} />
+      <Route path="*" element={<Navigate to="/pos" replace />} />
     </Routes>
   );
 }

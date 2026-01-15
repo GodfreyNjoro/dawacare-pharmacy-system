@@ -27,6 +27,17 @@ const IPC_CHANNELS = {
   // App
   APP_VERSION: 'app:version',
   APP_QUIT: 'app:quit',
+  // POS
+  MEDICINE_SEARCH: 'pos:medicine-search',
+  MEDICINE_GET_ALL: 'pos:medicine-get-all',
+  MEDICINE_GET_BY_ID: 'pos:medicine-get-by-id',
+  CUSTOMER_SEARCH: 'pos:customer-search',
+  CUSTOMER_GET_ALL: 'pos:customer-get-all',
+  CUSTOMER_GET_BY_ID: 'pos:customer-get-by-id',
+  CUSTOMER_CREATE: 'pos:customer-create',
+  SALE_CREATE: 'pos:sale-create',
+  SALE_GET_BY_ID: 'pos:sale-get-by-id',
+  SALE_GET_TODAY_STATS: 'pos:sale-get-today-stats',
 } as const;
 
 // Type definitions inlined
@@ -74,6 +85,23 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // App APIs
   getAppVersion: () => ipcRenderer.invoke(IPC_CHANNELS.APP_VERSION),
   quitApp: () => ipcRenderer.invoke(IPC_CHANNELS.APP_QUIT),
+
+  // POS APIs - Medicines
+  searchMedicines: (query: string) => ipcRenderer.invoke(IPC_CHANNELS.MEDICINE_SEARCH, query),
+  getAllMedicines: (options?: { limit?: number }) => ipcRenderer.invoke(IPC_CHANNELS.MEDICINE_GET_ALL, options),
+  getMedicineById: (id: string) => ipcRenderer.invoke(IPC_CHANNELS.MEDICINE_GET_BY_ID, id),
+
+  // POS APIs - Customers
+  searchCustomers: (query: string) => ipcRenderer.invoke(IPC_CHANNELS.CUSTOMER_SEARCH, query),
+  getAllCustomers: () => ipcRenderer.invoke(IPC_CHANNELS.CUSTOMER_GET_ALL),
+  getCustomerById: (id: string) => ipcRenderer.invoke(IPC_CHANNELS.CUSTOMER_GET_BY_ID, id),
+  createCustomer: (data: { name: string; phone: string; email?: string; address?: string }) =>
+    ipcRenderer.invoke(IPC_CHANNELS.CUSTOMER_CREATE, data),
+
+  // POS APIs - Sales
+  createSale: (data: any) => ipcRenderer.invoke(IPC_CHANNELS.SALE_CREATE, data),
+  getSaleById: (id: string) => ipcRenderer.invoke(IPC_CHANNELS.SALE_GET_BY_ID, id),
+  getTodayStats: () => ipcRenderer.invoke(IPC_CHANNELS.SALE_GET_TODAY_STATS),
 });
 
 // Type definitions for TypeScript
@@ -108,6 +136,22 @@ export interface ElectronAPI {
   // App
   getAppVersion: () => Promise<any>;
   quitApp: () => Promise<any>;
+
+  // POS - Medicines
+  searchMedicines: (query: string) => Promise<any>;
+  getAllMedicines: (options?: { limit?: number }) => Promise<any>;
+  getMedicineById: (id: string) => Promise<any>;
+
+  // POS - Customers
+  searchCustomers: (query: string) => Promise<any>;
+  getAllCustomers: () => Promise<any>;
+  getCustomerById: (id: string) => Promise<any>;
+  createCustomer: (data: { name: string; phone: string; email?: string; address?: string }) => Promise<any>;
+
+  // POS - Sales
+  createSale: (data: any) => Promise<any>;
+  getSaleById: (id: string) => Promise<any>;
+  getTodayStats: () => Promise<any>;
 }
 
 declare global {
