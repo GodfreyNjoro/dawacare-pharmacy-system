@@ -3,12 +3,38 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
 import { prisma } from '@/lib/db';
 import { Prisma } from '@prisma/client';
+import jwt from 'jsonwebtoken';
+
+const JWT_SECRET = process.env.NEXTAUTH_SECRET || 'dawacare-desktop-sync-secret';
+
+// Helper to verify auth - supports both session and Bearer token
+async function verifyAuth(req: NextRequest): Promise<{ authenticated: boolean; userId?: string }> {
+  // First try NextAuth session
+  const session = await getServerSession(authOptions);
+  if (session?.user) {
+    return { authenticated: true, userId: (session.user as any).id };
+  }
+  
+  // Then try Bearer token (for desktop app)
+  const authHeader = req.headers.get('authorization');
+  if (authHeader?.startsWith('Bearer ')) {
+    const token = authHeader.substring(7);
+    try {
+      const decoded = jwt.verify(token, JWT_SECRET) as { userId: string };
+      return { authenticated: true, userId: decoded.userId };
+    } catch {
+      return { authenticated: false };
+    }
+  }
+  
+  return { authenticated: false };
+}
 
 // GET - Download data for offline sync
 export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session) {
+    const auth = await verifyAuth(req);
+    if (!auth.authenticated) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -90,8 +116,8 @@ export async function GET(req: NextRequest) {
 // POST - Upload offline changes to cloud
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session) {
+    const auth = await verifyAuth(req);
+    if (!auth.authenticated) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
