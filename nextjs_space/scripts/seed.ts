@@ -314,20 +314,41 @@ async function main() {
     { name: "Antiseptic Solution 500ml", genericName: "Chlorhexidine Gluconate", manufacturer: "Savlon", batchNumber: "ANS-2025-007", expiryDate: addMonths(30), quantity: 80, reorderLevel: 20, unitPrice: 185, category: "Other" },
   ];
 
-  // Clear existing medicines
-  await prisma.medicine.deleteMany();
-  console.log("Cleared existing medicines");
-
   // Insert medicines - distribute between branches (70 to main, 30 to westlands)
+  // Upsert instead of delete to preserve existing sales references
+  let medicinesCreated = 0;
+  let medicinesUpdated = 0;
+  
   for (let i = 0; i < medicines.length; i++) {
     const medicine = medicines[i];
     const branchId = i < 70 ? mainBranch?.id : westlandsBranch?.id;
-    await prisma.medicine.create({ 
-      data: { ...medicine, branchId } 
+    
+    // Check if medicine with this batch number exists
+    const existing = await prisma.medicine.findFirst({
+      where: { batchNumber: medicine.batchNumber },
     });
+    
+    if (!existing) {
+      await prisma.medicine.create({ 
+        data: { ...medicine, branchId } 
+      });
+      medicinesCreated++;
+    } else {
+      // Update existing medicine quantities and prices
+      await prisma.medicine.update({
+        where: { id: existing.id },
+        data: {
+          quantity: medicine.quantity,
+          unitPrice: medicine.unitPrice,
+          expiryDate: medicine.expiryDate,
+          reorderLevel: medicine.reorderLevel,
+        },
+      });
+      medicinesUpdated++;
+    }
   }
 
-  console.log(`Created ${medicines.length} medicines across branches`);
+  console.log(`Created ${medicinesCreated} new medicines, updated ${medicinesUpdated} existing medicines`);
 
   // Sample customers
   const customers = [
@@ -389,16 +410,329 @@ async function main() {
   ];
 
   // Create customers if they don't exist
+  const createdCustomers: any[] = [];
   for (const customer of customers) {
     const existing = await prisma.customer.findUnique({
       where: { phone: customer.phone },
     });
     if (!existing) {
-      await prisma.customer.create({ data: customer });
+      const created = await prisma.customer.create({ data: customer });
+      createdCustomers.push(created);
+    } else {
+      createdCustomers.push(existing);
     }
   }
 
   console.log(`Created/verified ${customers.length} customers`);
+
+  // Get all suppliers for purchase orders
+  const allSuppliers = await prisma.supplier.findMany();
+  
+  // Create Purchase Orders
+  const purchaseOrders = [
+    {
+      poNumber: `PO-${now.getFullYear()}0101-0001`,
+      supplierId: allSuppliers[0]?.id,
+      status: "RECEIVED",
+      subtotal: 125000,
+      tax: 0,
+      total: 125000,
+      notes: "Initial stock order",
+      expectedDate: addDays(-30),
+      branchId: mainBranch?.id,
+      items: [
+        { medicineName: "Amoxicillin 500mg", genericName: "Amoxicillin", quantity: 500, unitCost: 100, category: "Antibiotics" },
+        { medicineName: "Paracetamol 500mg", genericName: "Acetaminophen", quantity: 1000, unitCost: 25, category: "Painkillers" },
+        { medicineName: "Omeprazole 20mg", genericName: "Omeprazole", quantity: 300, unitCost: 150, category: "Antacids" },
+      ]
+    },
+    {
+      poNumber: `PO-${now.getFullYear()}0115-0002`,
+      supplierId: allSuppliers[1]?.id,
+      status: "RECEIVED",
+      subtotal: 85000,
+      tax: 0,
+      total: 85000,
+      notes: "Vitamin restock",
+      expectedDate: addDays(-20),
+      branchId: mainBranch?.id,
+      items: [
+        { medicineName: "Vitamin D3 1000IU", genericName: "Cholecalciferol", quantity: 200, unitCost: 130, category: "Vitamins" },
+        { medicineName: "Multivitamin Daily", genericName: "Multivitamin Complex", quantity: 150, unitCost: 180, category: "Vitamins" },
+        { medicineName: "Omega-3 Fish Oil 1000mg", genericName: "Fish Oil EPA/DHA", quantity: 100, unitCost: 280, category: "Vitamins" },
+      ]
+    },
+    {
+      poNumber: `PO-${now.getFullYear()}0201-0003`,
+      supplierId: allSuppliers[2]?.id,
+      status: "PARTIAL",
+      subtotal: 95000,
+      tax: 0,
+      total: 95000,
+      notes: "Cardiovascular medicines order",
+      expectedDate: addDays(5),
+      branchId: mainBranch?.id,
+      items: [
+        { medicineName: "Atorvastatin 20mg", genericName: "Atorvastatin Calcium", quantity: 100, unitCost: 220, category: "Cardiovascular" },
+        { medicineName: "Metformin 500mg", genericName: "Metformin HCL", quantity: 300, unitCost: 55, category: "Diabetes" },
+        { medicineName: "Amlodipine 5mg", genericName: "Amlodipine Besylate", quantity: 200, unitCost: 135, category: "Cardiovascular" },
+      ]
+    },
+    {
+      poNumber: `PO-${now.getFullYear()}0210-0004`,
+      supplierId: allSuppliers[3]?.id,
+      status: "SENT",
+      subtotal: 72000,
+      tax: 0,
+      total: 72000,
+      notes: "Antibiotic restock - urgent",
+      expectedDate: addDays(7),
+      branchId: westlandsBranch?.id,
+      items: [
+        { medicineName: "Ciprofloxacin 500mg", genericName: "Ciprofloxacin", quantity: 200, unitCost: 140, category: "Antibiotics" },
+        { medicineName: "Azithromycin 250mg", genericName: "Azithromycin", quantity: 150, unitCost: 180, category: "Antibiotics" },
+        { medicineName: "Amoxiclav 625mg", genericName: "Amoxicillin/Clavulanate", quantity: 100, unitCost: 220, category: "Antibiotics" },
+      ]
+    },
+    {
+      poNumber: `PO-${now.getFullYear()}0220-0005`,
+      supplierId: allSuppliers[4]?.id,
+      status: "DRAFT",
+      subtotal: 45000,
+      tax: 0,
+      total: 45000,
+      notes: "Monthly supplies - pending approval",
+      expectedDate: addDays(14),
+      branchId: mainBranch?.id,
+      items: [
+        { medicineName: "Salbutamol Inhaler 100mcg", genericName: "Albuterol", quantity: 50, unitCost: 350, category: "Respiratory" },
+        { medicineName: "Hydrocortisone 1% Cream", genericName: "Hydrocortisone", quantity: 80, unitCost: 145, category: "Dermatological" },
+        { medicineName: "Cetirizine 10mg", genericName: "Cetirizine HCL", quantity: 300, unitCost: 65, category: "Antihistamines" },
+      ]
+    },
+  ];
+
+  // Create Purchase Orders
+  for (const po of purchaseOrders) {
+    const existing = await prisma.purchaseOrder.findUnique({
+      where: { poNumber: po.poNumber },
+    });
+    if (!existing && po.supplierId) {
+      const { items, ...poData } = po;
+      const createdPO = await prisma.purchaseOrder.create({
+        data: {
+          ...poData,
+          items: {
+            create: items.map(item => ({
+              ...item,
+              total: item.quantity * item.unitCost,
+              receivedQty: po.status === "RECEIVED" ? item.quantity : po.status === "PARTIAL" ? Math.floor(item.quantity * 0.5) : 0,
+            })),
+          },
+        },
+      });
+      console.log(`Created PO ${po.poNumber}`);
+    }
+  }
+
+  console.log(`Created ${purchaseOrders.length} purchase orders`);
+
+  // Create GRNs for RECEIVED and PARTIAL purchase orders
+  const receivedPOs = await prisma.purchaseOrder.findMany({
+    where: { status: { in: ["RECEIVED", "PARTIAL"] } },
+    include: { items: true },
+  });
+
+  for (const po of receivedPOs) {
+    const existingGRN = await prisma.goodsReceivedNote.findFirst({
+      where: { purchaseOrderId: po.id },
+    });
+    
+    if (!existingGRN) {
+      const grnNumber = `GRN-${po.poNumber.replace("PO-", "")}`;
+      await prisma.goodsReceivedNote.create({
+        data: {
+          grnNumber,
+          purchaseOrderId: po.id,
+          receivedDate: addDays(-15),
+          receivedBy: "john@doe.com",
+          notes: "Goods received in good condition",
+          status: "RECEIVED",
+          branchId: po.branchId,
+          items: {
+            create: po.items.map(item => ({
+              medicineName: item.medicineName,
+              batchNumber: `BATCH-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
+              expiryDate: addMonths(18),
+              quantityReceived: item.receivedQty,
+              unitCost: item.unitCost,
+              total: item.receivedQty * item.unitCost,
+              addedToInventory: true,
+            })),
+          },
+        },
+      });
+      console.log(`Created GRN ${grnNumber}`);
+    }
+  }
+
+  console.log("Created GRNs for received purchase orders");
+
+  // Get medicines for sales
+  const allMedicines = await prisma.medicine.findMany({ take: 20 });
+
+  // Create Sample Sales (past 30 days)
+  const paymentMethods = ["CASH", "CARD", "MPESA", "CREDIT"];
+  const salesData = [];
+  
+  for (let i = 0; i < 25; i++) {
+    const daysAgo = Math.floor(Math.random() * 30);
+    const saleDate = new Date(now.getTime() - daysAgo * 24 * 60 * 60 * 1000);
+    const invoiceNumber = `INV-${saleDate.getFullYear()}${String(saleDate.getMonth() + 1).padStart(2, '0')}${String(saleDate.getDate()).padStart(2, '0')}-${String(i + 1).padStart(4, '0')}`;
+    
+    // Random 1-4 items per sale
+    const numItems = Math.floor(Math.random() * 4) + 1;
+    const saleItems = [];
+    let subtotal = 0;
+    
+    for (let j = 0; j < numItems; j++) {
+      const medicine = allMedicines[Math.floor(Math.random() * allMedicines.length)];
+      if (medicine) {
+        const qty = Math.floor(Math.random() * 3) + 1;
+        const itemTotal = medicine.unitPrice * qty;
+        subtotal += itemTotal;
+        saleItems.push({
+          medicineId: medicine.id,
+          medicineName: medicine.name,
+          batchNumber: medicine.batchNumber,
+          quantity: qty,
+          unitPrice: medicine.unitPrice,
+          total: itemTotal,
+        });
+      }
+    }
+    
+    if (saleItems.length > 0) {
+      const discount = Math.random() > 0.8 ? Math.floor(subtotal * 0.05) : 0;
+      const total = subtotal - discount;
+      const customer = Math.random() > 0.4 ? createdCustomers[Math.floor(Math.random() * createdCustomers.length)] : null;
+      const paymentMethod = paymentMethods[Math.floor(Math.random() * paymentMethods.length)];
+      const loyaltyPointsEarned = customer ? Math.floor(total / 100) : 0;
+      
+      salesData.push({
+        invoiceNumber,
+        customerId: customer?.id || null,
+        customerName: customer ? null : "Walk-in Customer",
+        customerPhone: customer ? null : null,
+        subtotal,
+        discount,
+        loyaltyPointsUsed: 0,
+        loyaltyPointsEarned,
+        total,
+        paymentMethod,
+        paymentStatus: paymentMethod === "CREDIT" ? "PENDING" : "PAID",
+        notes: null,
+        soldBy: "john@doe.com",
+        branchId: mainBranch?.id,
+        createdAt: saleDate,
+        items: saleItems,
+      });
+    }
+  }
+
+  // Create sales
+  for (const sale of salesData) {
+    const existing = await prisma.sale.findUnique({
+      where: { invoiceNumber: sale.invoiceNumber },
+    });
+    
+    if (!existing) {
+      const { items, ...saleData } = sale;
+      await prisma.sale.create({
+        data: {
+          ...saleData,
+          items: {
+            create: items,
+          },
+        },
+      });
+    }
+  }
+
+  console.log(`Created ${salesData.length} sample sales`);
+
+  // Create Account Mappings for Accounting Integration
+  const accountMappings = [
+    { accountType: "SALES_REVENUE", accountCode: "4000", accountName: "Sales Revenue", description: "Revenue from pharmacy sales", tallyLedger: "Sales Account", sageLedger: "4000" },
+    { accountType: "SALES_TAX", accountCode: "2100", accountName: "Sales Tax Payable", description: "VAT/Sales tax collected", tallyLedger: "Output VAT", sageLedger: "2100" },
+    { accountType: "INVENTORY_ASSET", accountCode: "1200", accountName: "Inventory Asset", description: "Medicine inventory value", tallyLedger: "Stock-in-Hand", sageLedger: "1200" },
+    { accountType: "COGS", accountCode: "5000", accountName: "Cost of Goods Sold", description: "Cost of medicines sold", tallyLedger: "Purchase Account", sageLedger: "5000" },
+    { accountType: "PURCHASE", accountCode: "5100", accountName: "Purchases", description: "Medicine purchases", tallyLedger: "Purchase Account", sageLedger: "5100" },
+    { accountType: "CASH", accountCode: "1000", accountName: "Cash on Hand", description: "Cash sales and receipts", tallyLedger: "Cash Account", sageLedger: "1000" },
+    { accountType: "BANK", accountCode: "1010", accountName: "Bank Account", description: "Bank deposits and payments", tallyLedger: "Bank Account", sageLedger: "1010" },
+    { accountType: "ACCOUNTS_PAYABLE", accountCode: "2000", accountName: "Accounts Payable", description: "Amounts owed to suppliers", tallyLedger: "Sundry Creditors", sageLedger: "2000" },
+    { accountType: "ACCOUNTS_RECEIVABLE", accountCode: "1100", accountName: "Accounts Receivable", description: "Amounts owed by customers", tallyLedger: "Sundry Debtors", sageLedger: "1100" },
+  ];
+
+  for (const mapping of accountMappings) {
+    const existing = await prisma.accountMapping.findFirst({
+      where: { accountType: mapping.accountType },
+    });
+    if (!existing) {
+      await prisma.accountMapping.create({ data: mapping });
+    }
+  }
+
+  console.log(`Created ${accountMappings.length} account mappings`);
+
+  // Create loyalty transactions for customers with points
+  const customersWithPoints = await prisma.customer.findMany({
+    where: { loyaltyPoints: { gt: 0 } },
+  });
+
+  for (const customer of customersWithPoints) {
+    const existingTransaction = await prisma.loyaltyTransaction.findFirst({
+      where: { customerId: customer.id },
+    });
+    
+    if (!existingTransaction) {
+      await prisma.loyaltyTransaction.create({
+        data: {
+          customerId: customer.id,
+          type: "EARN",
+          points: customer.loyaltyPoints,
+          description: "Initial loyalty points from previous purchases",
+        },
+      });
+    }
+  }
+
+  console.log("Created loyalty transactions");
+
+  // Create credit transactions for customers with credit balance
+  const customersWithCredit = await prisma.customer.findMany({
+    where: { creditBalance: { gt: 0 } },
+  });
+
+  for (const customer of customersWithCredit) {
+    const existingTransaction = await prisma.creditTransaction.findFirst({
+      where: { customerId: customer.id },
+    });
+    
+    if (!existingTransaction) {
+      await prisma.creditTransaction.create({
+        data: {
+          customerId: customer.id,
+          type: "CREDIT",
+          amount: customer.creditBalance,
+          description: "Outstanding credit balance",
+          createdBy: "john@doe.com",
+        },
+      });
+    }
+  }
+
+  console.log("Created credit transactions");
   console.log("Seed completed successfully!");
 }
 
