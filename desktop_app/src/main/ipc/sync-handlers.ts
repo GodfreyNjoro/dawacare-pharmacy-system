@@ -210,34 +210,63 @@ export function registerSyncHandlers(): void {
       const { branches, users, medicines, customers, suppliers } = result.data;
       let stats = { branches: 0, users: 0, medicines: 0, customers: 0, suppliers: 0 };
       
-      // Sync branches
+      // Sync branches - handle unique code constraint
       for (const branch of branches || []) {
-        await prisma.branch.upsert({
-          where: { id: branch.id },
-          update: {
-            name: branch.name,
-            code: branch.code,
-            address: branch.address,
-            phone: branch.phone,
-            email: branch.email,
-            isMainBranch: branch.isMainBranch,
-            status: branch.status,
-            updatedAt: new Date(branch.updatedAt),
-          },
-          create: {
-            id: branch.id,
-            name: branch.name,
-            code: branch.code,
-            address: branch.address,
-            phone: branch.phone,
-            email: branch.email,
-            isMainBranch: branch.isMainBranch,
-            status: branch.status,
-            createdAt: new Date(branch.createdAt),
-            updatedAt: new Date(branch.updatedAt),
-          },
-        });
-        stats.branches++;
+        try {
+          // First check if branch exists by ID or code
+          const existingById = await prisma.branch.findUnique({ where: { id: branch.id } });
+          const existingByCode = await prisma.branch.findUnique({ where: { code: branch.code } });
+          
+          if (existingById) {
+            // Update existing branch by ID
+            await prisma.branch.update({
+              where: { id: branch.id },
+              data: {
+                name: branch.name,
+                code: branch.code,
+                address: branch.address,
+                phone: branch.phone,
+                email: branch.email,
+                isMainBranch: branch.isMainBranch,
+                status: branch.status,
+                updatedAt: new Date(branch.updatedAt),
+              },
+            });
+          } else if (existingByCode) {
+            // Branch with same code exists but different ID - update by code
+            await prisma.branch.update({
+              where: { code: branch.code },
+              data: {
+                name: branch.name,
+                address: branch.address,
+                phone: branch.phone,
+                email: branch.email,
+                isMainBranch: branch.isMainBranch,
+                status: branch.status,
+                updatedAt: new Date(branch.updatedAt),
+              },
+            });
+          } else {
+            // Create new branch
+            await prisma.branch.create({
+              data: {
+                id: branch.id,
+                name: branch.name,
+                code: branch.code,
+                address: branch.address,
+                phone: branch.phone,
+                email: branch.email,
+                isMainBranch: branch.isMainBranch,
+                status: branch.status,
+                createdAt: new Date(branch.createdAt),
+                updatedAt: new Date(branch.updatedAt),
+              },
+            });
+          }
+          stats.branches++;
+        } catch (branchError: any) {
+          console.error(`[Sync] Branch sync error for ${branch.code}:`, branchError.message);
+        }
       }
       
       mainWindow?.webContents.send('sync:progress', { stage: 'syncing branches', progress: 40 });
@@ -266,108 +295,138 @@ export function registerSyncHandlers(): void {
       
       // Sync medicines
       for (const medicine of medicines || []) {
-        await prisma.medicine.upsert({
-          where: { id: medicine.id },
-          update: {
-            name: medicine.name,
-            genericName: medicine.genericName,
-            category: medicine.category,
-            dosageForm: medicine.dosageForm,
-            strength: medicine.strength,
-            manufacturer: medicine.manufacturer,
-            batchNumber: medicine.batchNumber,
-            expiryDate: new Date(medicine.expiryDate),
-            quantity: medicine.quantity,
-            reorderLevel: medicine.reorderLevel,
-            costPrice: medicine.costPrice,
-            sellingPrice: medicine.sellingPrice,
-            location: medicine.location,
-            requiresPrescription: medicine.requiresPrescription,
-            updatedAt: new Date(medicine.updatedAt),
-          },
-          create: {
-            id: medicine.id,
-            name: medicine.name,
-            genericName: medicine.genericName,
-            category: medicine.category,
-            dosageForm: medicine.dosageForm,
-            strength: medicine.strength,
-            manufacturer: medicine.manufacturer,
-            batchNumber: medicine.batchNumber,
-            expiryDate: new Date(medicine.expiryDate),
-            quantity: medicine.quantity,
-            reorderLevel: medicine.reorderLevel,
-            costPrice: medicine.costPrice,
-            sellingPrice: medicine.sellingPrice,
-            location: medicine.location,
-            requiresPrescription: medicine.requiresPrescription,
-            createdAt: new Date(medicine.createdAt),
-            updatedAt: new Date(medicine.updatedAt),
-          },
-        });
-        stats.medicines++;
+        try {
+          const existing = await prisma.medicine.findUnique({ where: { id: medicine.id } });
+          if (existing) {
+            await prisma.medicine.update({
+              where: { id: medicine.id },
+              data: {
+                name: medicine.name,
+                genericName: medicine.genericName,
+                category: medicine.category,
+                dosageForm: medicine.dosageForm,
+                strength: medicine.strength,
+                manufacturer: medicine.manufacturer,
+                batchNumber: medicine.batchNumber,
+                expiryDate: new Date(medicine.expiryDate),
+                quantity: medicine.quantity,
+                reorderLevel: medicine.reorderLevel,
+                costPrice: medicine.costPrice,
+                sellingPrice: medicine.sellingPrice,
+                location: medicine.location,
+                requiresPrescription: medicine.requiresPrescription,
+                updatedAt: new Date(medicine.updatedAt),
+              },
+            });
+          } else {
+            await prisma.medicine.create({
+              data: {
+                id: medicine.id,
+                name: medicine.name,
+                genericName: medicine.genericName,
+                category: medicine.category,
+                dosageForm: medicine.dosageForm,
+                strength: medicine.strength,
+                manufacturer: medicine.manufacturer,
+                batchNumber: medicine.batchNumber,
+                expiryDate: new Date(medicine.expiryDate),
+                quantity: medicine.quantity,
+                reorderLevel: medicine.reorderLevel,
+                costPrice: medicine.costPrice,
+                sellingPrice: medicine.sellingPrice,
+                location: medicine.location,
+                requiresPrescription: medicine.requiresPrescription,
+                createdAt: new Date(medicine.createdAt),
+                updatedAt: new Date(medicine.updatedAt),
+              },
+            });
+          }
+          stats.medicines++;
+        } catch (medError: any) {
+          console.error(`[Sync] Medicine sync error for ${medicine.name}:`, medError.message);
+        }
       }
       
       mainWindow?.webContents.send('sync:progress', { stage: 'syncing customers', progress: 70 });
       
       // Sync customers
       for (const customer of customers || []) {
-        await prisma.customer.upsert({
-          where: { id: customer.id },
-          update: {
-            name: customer.name,
-            phone: customer.phone,
-            email: customer.email,
-            address: customer.address,
-            loyaltyPoints: customer.loyaltyPoints,
-            creditLimit: customer.creditLimit,
-            creditBalance: customer.creditBalance,
-            updatedAt: new Date(customer.updatedAt),
-          },
-          create: {
-            id: customer.id,
-            name: customer.name,
-            phone: customer.phone,
-            email: customer.email,
-            address: customer.address,
-            loyaltyPoints: customer.loyaltyPoints,
-            creditLimit: customer.creditLimit,
-            creditBalance: customer.creditBalance,
-            createdAt: new Date(customer.createdAt),
-            updatedAt: new Date(customer.updatedAt),
-          },
-        });
-        stats.customers++;
+        try {
+          const existing = await prisma.customer.findUnique({ where: { id: customer.id } });
+          if (existing) {
+            await prisma.customer.update({
+              where: { id: customer.id },
+              data: {
+                name: customer.name,
+                phone: customer.phone,
+                email: customer.email,
+                address: customer.address,
+                loyaltyPoints: customer.loyaltyPoints,
+                creditLimit: customer.creditLimit,
+                creditBalance: customer.creditBalance,
+                updatedAt: new Date(customer.updatedAt),
+              },
+            });
+          } else {
+            await prisma.customer.create({
+              data: {
+                id: customer.id,
+                name: customer.name,
+                phone: customer.phone,
+                email: customer.email,
+                address: customer.address,
+                loyaltyPoints: customer.loyaltyPoints,
+                creditLimit: customer.creditLimit,
+                creditBalance: customer.creditBalance,
+                createdAt: new Date(customer.createdAt),
+                updatedAt: new Date(customer.updatedAt),
+              },
+            });
+          }
+          stats.customers++;
+        } catch (custError: any) {
+          console.error(`[Sync] Customer sync error for ${customer.name}:`, custError.message);
+        }
       }
       
       mainWindow?.webContents.send('sync:progress', { stage: 'syncing suppliers', progress: 85 });
       
       // Sync suppliers
       for (const supplier of suppliers || []) {
-        await prisma.supplier.upsert({
-          where: { id: supplier.id },
-          update: {
-            name: supplier.name,
-            contactPerson: supplier.contactPerson,
-            phone: supplier.phone,
-            email: supplier.email,
-            address: supplier.address,
-            status: supplier.status,
-            updatedAt: new Date(supplier.updatedAt),
-          },
-          create: {
-            id: supplier.id,
-            name: supplier.name,
-            contactPerson: supplier.contactPerson,
-            phone: supplier.phone,
-            email: supplier.email,
-            address: supplier.address,
-            status: supplier.status,
-            createdAt: new Date(supplier.createdAt),
-            updatedAt: new Date(supplier.updatedAt),
-          },
-        });
-        stats.suppliers++;
+        try {
+          const existing = await prisma.supplier.findUnique({ where: { id: supplier.id } });
+          if (existing) {
+            await prisma.supplier.update({
+              where: { id: supplier.id },
+              data: {
+                name: supplier.name,
+                contactPerson: supplier.contactPerson,
+                phone: supplier.phone,
+                email: supplier.email,
+                address: supplier.address,
+                status: supplier.status,
+                updatedAt: new Date(supplier.updatedAt),
+              },
+            });
+          } else {
+            await prisma.supplier.create({
+              data: {
+                id: supplier.id,
+                name: supplier.name,
+                contactPerson: supplier.contactPerson,
+                phone: supplier.phone,
+                email: supplier.email,
+                address: supplier.address,
+                status: supplier.status,
+                createdAt: new Date(supplier.createdAt),
+                updatedAt: new Date(supplier.updatedAt),
+              },
+            });
+          }
+          stats.suppliers++;
+        } catch (suppError: any) {
+          console.error(`[Sync] Supplier sync error for ${supplier.name}:`, suppError.message);
+        }
       }
       
       mainWindow?.webContents.send('sync:progress', { stage: 'complete', progress: 100 });
