@@ -20,6 +20,11 @@ const IPC_CHANNELS = {
   SYNC_STOP: 'sync:stop',
   SYNC_STATUS: 'sync:status',
   SYNC_MANUAL: 'sync:manual',
+  SYNC_SET_SERVER: 'sync:set-server',
+  SYNC_GET_SERVER: 'sync:get-server',
+  SYNC_AUTHENTICATE: 'sync:authenticate',
+  SYNC_DOWNLOAD: 'sync:download',
+  SYNC_UPLOAD: 'sync:upload',
   // Window
   WINDOW_MINIMIZE: 'window:minimize',
   WINDOW_MAXIMIZE: 'window:maximize',
@@ -76,6 +81,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
   stopSync: () => ipcRenderer.invoke(IPC_CHANNELS.SYNC_STOP),
   getSyncStatus: () => ipcRenderer.invoke(IPC_CHANNELS.SYNC_STATUS),
   manualSync: () => ipcRenderer.invoke(IPC_CHANNELS.SYNC_MANUAL),
+  setSyncServer: (serverUrl: string) => ipcRenderer.invoke(IPC_CHANNELS.SYNC_SET_SERVER, serverUrl),
+  getSyncServer: () => ipcRenderer.invoke(IPC_CHANNELS.SYNC_GET_SERVER),
+  syncAuthenticate: (credentials: LoginCredentials) => ipcRenderer.invoke(IPC_CHANNELS.SYNC_AUTHENTICATE, credentials),
+  syncDownload: () => ipcRenderer.invoke(IPC_CHANNELS.SYNC_DOWNLOAD),
+  syncUpload: () => ipcRenderer.invoke(IPC_CHANNELS.SYNC_UPLOAD),
+  onSyncProgress: (callback: (data: any) => void) => {
+    ipcRenderer.on('sync:progress', (_, data) => callback(data));
+    return () => ipcRenderer.removeAllListeners('sync:progress');
+  },
 
   // Window APIs
   minimizeWindow: () => ipcRenderer.invoke(IPC_CHANNELS.WINDOW_MINIMIZE),
@@ -127,6 +141,12 @@ export interface ElectronAPI {
   stopSync: () => Promise<any>;
   getSyncStatus: () => Promise<any>;
   manualSync: () => Promise<any>;
+  setSyncServer: (serverUrl: string) => Promise<any>;
+  getSyncServer: () => Promise<any>;
+  syncAuthenticate: (credentials: LoginCredentials) => Promise<any>;
+  syncDownload: () => Promise<any>;
+  syncUpload: () => Promise<any>;
+  onSyncProgress: (callback: (data: any) => void) => () => void;
 
   // Window
   minimizeWindow: () => Promise<any>;
