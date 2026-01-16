@@ -1,6 +1,6 @@
 {
   "name": "dawacare-pos",
-  "version": "1.0.17",
+  "version": "1.0.18",
   "description": "DawaCare POS - Offline-First Pharmacy Management Desktop Application",
   "main": "dist/main/main/main.js",
   "author": {
@@ -28,7 +28,9 @@
     "bcryptjs": "^2.4.3",
     "electron-squirrel-startup": "^1.0.0",
     "electron-store": "^8.1.0",
-    "electron-updater": "^6.1.7"
+    "electron-updater": "^6.1.7",
+    "lucide-react": "^0.562.0",
+    "react-hot-toast": "^2.6.0"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
@@ -54,7 +56,7 @@
   "build": {
     "appId": "com.dawacare.pos",
     "productName": "DawaCare POS",
-    "copyright": "Copyright \u00a9 2025 DawaCare",
+    "copyright": "Copyright © 2025 DawaCare",
     "directories": {
       "output": "release",
       "buildResources": "build"

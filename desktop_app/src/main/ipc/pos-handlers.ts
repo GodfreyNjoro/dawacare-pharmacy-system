@@ -289,7 +289,8 @@ export function registerPosHandlers(): void {
         where: { id: { in: medicineIds } },
       });
       
-      const medicineMap = new Map(medicines.map(m => [m.id, m]));
+      type MedicineRecord = { id: string; name: string; batchNumber: string; quantity: number; unitPrice: number };
+      const medicineMap = new Map<string, MedicineRecord>(medicines.map((m: MedicineRecord) => [m.id, m]));
       
       // Validate stock and calculate totals
       let subtotal = 0;
@@ -303,7 +304,7 @@ export function registerPosHandlers(): void {
       }> = [];
       
       for (const item of data.items) {
-        const medicine = medicineMap.get(item.medicineId);
+        const medicine: MedicineRecord | undefined = medicineMap.get(item.medicineId);
         if (!medicine) {
           return { success: false, error: `Medicine not found: ${item.medicineId}` };
         }
