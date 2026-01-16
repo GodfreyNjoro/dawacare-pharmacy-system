@@ -293,51 +293,38 @@ export function registerSyncHandlers(): void {
       
       mainWindow?.webContents.send('sync:progress', { stage: 'syncing medicines', progress: 50 });
       
-      // Sync medicines
+      // Sync medicines - map cloud fields to local schema
+      // Cloud schema: sellingPrice, costPrice, dosageForm, strength, location, requiresPrescription
+      // Local schema: unitPrice (use sellingPrice), no dosageForm/strength/location/requiresPrescription
       for (const medicine of medicines || []) {
         try {
           const existing = await prisma.medicine.findUnique({ where: { id: medicine.id } });
+          const medicineData = {
+            name: medicine.name,
+            genericName: medicine.genericName || null,
+            category: medicine.category || 'Other',
+            manufacturer: medicine.manufacturer || null,
+            batchNumber: medicine.batchNumber || `BATCH-${Date.now()}`,
+            expiryDate: new Date(medicine.expiryDate),
+            quantity: medicine.quantity || 0,
+            reorderLevel: medicine.reorderLevel || 10,
+            unitPrice: medicine.sellingPrice || medicine.unitPrice || 0, // Map sellingPrice to unitPrice
+            syncStatus: 'SYNCED',
+            lastSyncedAt: new Date(),
+            updatedAt: new Date(medicine.updatedAt),
+          };
+          
           if (existing) {
             await prisma.medicine.update({
               where: { id: medicine.id },
-              data: {
-                name: medicine.name,
-                genericName: medicine.genericName,
-                category: medicine.category,
-                dosageForm: medicine.dosageForm,
-                strength: medicine.strength,
-                manufacturer: medicine.manufacturer,
-                batchNumber: medicine.batchNumber,
-                expiryDate: new Date(medicine.expiryDate),
-                quantity: medicine.quantity,
-                reorderLevel: medicine.reorderLevel,
-                costPrice: medicine.costPrice,
-                sellingPrice: medicine.sellingPrice,
-                location: medicine.location,
-                requiresPrescription: medicine.requiresPrescription,
-                updatedAt: new Date(medicine.updatedAt),
-              },
+              data: medicineData,
             });
           } else {
             await prisma.medicine.create({
               data: {
                 id: medicine.id,
-                name: medicine.name,
-                genericName: medicine.genericName,
-                category: medicine.category,
-                dosageForm: medicine.dosageForm,
-                strength: medicine.strength,
-                manufacturer: medicine.manufacturer,
-                batchNumber: medicine.batchNumber,
-                expiryDate: new Date(medicine.expiryDate),
-                quantity: medicine.quantity,
-                reorderLevel: medicine.reorderLevel,
-                costPrice: medicine.costPrice,
-                sellingPrice: medicine.sellingPrice,
-                location: medicine.location,
-                requiresPrescription: medicine.requiresPrescription,
+                ...medicineData,
                 createdAt: new Date(medicine.createdAt),
-                updatedAt: new Date(medicine.updatedAt),
               },
             });
           }
