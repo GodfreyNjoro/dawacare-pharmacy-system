@@ -187,11 +187,16 @@ export function registerSyncHandlers(): void {
       const mainWindow = BrowserWindow.getAllWindows()[0];
       mainWindow?.webContents.send('sync:progress', { stage: 'downloading', progress: 0 });
       
-      // Fetch data from cloud
+      // Fetch data from cloud - for first sync, don't pass lastSyncAt to get ALL data
       const lastSync = store.get(STORAGE_KEYS.SYNC_LAST_SYNC) as string;
+      console.log('[Sync] Last sync timestamp:', lastSync || 'NEVER (first sync)');
+      
+      // Don't use lastSyncAt filter for first full sync
       const queryParams = lastSync ? `?lastSyncAt=${encodeURIComponent(lastSync)}` : '';
+      console.log('[Sync] Fetching from:', `${serverUrl}/api/sync${queryParams}`);
       
       const result = await fetchAPI(`${serverUrl}/api/sync${queryParams}`);
+      console.log('[Sync] API response success:', result.success);
       
       if (!result.success) {
         throw new Error(result.error || 'Failed to download data');
@@ -209,6 +214,16 @@ export function registerSyncHandlers(): void {
       
       const { branches, users, medicines, customers, suppliers } = result.data;
       let stats = { branches: 0, users: 0, medicines: 0, customers: 0, suppliers: 0 };
+      let errors: string[] = [];
+      
+      // Log received data counts
+      console.log('[Sync] Received data from cloud:', {
+        branches: branches?.length || 0,
+        users: users?.length || 0,
+        medicines: medicines?.length || 0,
+        customers: customers?.length || 0,
+        suppliers: suppliers?.length || 0,
+      });
       
       // Sync branches - handle unique code constraint
       for (const branch of branches || []) {
@@ -329,10 +344,14 @@ export function registerSyncHandlers(): void {
             });
           }
           stats.medicines++;
+          console.log(`[Sync] Medicine synced: ${medicine.name} (qty: ${medicine.quantity})`);
         } catch (medError: any) {
-          console.error(`[Sync] Medicine sync error for ${medicine.name}:`, medError.message);
+          const errMsg = `Medicine ${medicine.name}: ${medError.message}`;
+          console.error(`[Sync] ${errMsg}`);
+          errors.push(errMsg);
         }
       }
+      console.log(`[Sync] Medicines synced: ${stats.medicines}/${medicines?.length || 0}`);
       
       mainWindow?.webContents.send('sync:progress', { stage: 'syncing customers', progress: 70 });
       
@@ -423,9 +442,15 @@ export function registerSyncHandlers(): void {
       syncStatus.lastSyncAt = result.syncedAt;
       syncStatus.isSyncing = false;
       
+      console.log('[Sync] Download complete:', { stats, errors: errors.length });
+      if (errors.length > 0) {
+        console.log('[Sync] Errors:', errors.slice(0, 10)); // Show first 10 errors
+      }
+      
       return {
         success: true,
         stats,
+        errors: errors.length > 0 ? errors : undefined,
         syncedAt: result.syncedAt,
       };
     } catch (error: any) {
