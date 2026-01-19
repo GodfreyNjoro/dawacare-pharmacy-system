@@ -154,6 +154,35 @@ export default function Dashboard() {
     }
   };
 
+  const handleForceFullSync = async () => {
+    setSyncError('');
+    setSyncSuccess('');
+    
+    if (!syncStatus.isAuthenticated) {
+      setSyncError('Please authenticate with the cloud server first');
+      setShowSyncModal(true);
+      return;
+    }
+    
+    // First reset the sync state
+    const resetResult = await window.electronAPI.syncReset();
+    if (!resetResult.success) {
+      setSyncError(resetResult.error || 'Failed to reset sync state');
+      return;
+    }
+    
+    // Now do a full download
+    const result = await window.electronAPI.syncDownload();
+    
+    if (result.success) {
+      setSyncSuccess(`Full sync completed! Downloaded: ${result.stats.medicines} medicines, ${result.stats.customers} customers, ${result.stats.suppliers} suppliers`);
+      await loadSyncStatus();
+      await loadAppInfo(); // Refresh stats
+    } else {
+      setSyncError(result.error || 'Sync failed');
+    }
+  };
+
   const handleSyncUpload = async () => {
     setSyncError('');
     setSyncSuccess('');
@@ -361,6 +390,23 @@ export default function Dashboard() {
               </svg>
               <span className={`text-sm font-medium ${syncStatus.isAuthenticated ? 'text-blue-700' : 'text-gray-400'}`}>
                 {syncStatus.isSyncing ? 'Syncing...' : 'Download Data'}
+              </span>
+            </button>
+
+            <button 
+              onClick={handleForceFullSync}
+              disabled={syncStatus.isSyncing || !syncStatus.isAuthenticated}
+              className={`flex flex-col items-center p-6 border-2 rounded-lg transition-all ${
+                syncStatus.isAuthenticated && !syncStatus.isSyncing
+                  ? 'border-orange-500 bg-orange-50 hover:bg-orange-100'
+                  : 'border-gray-200 opacity-50 cursor-not-allowed'
+              }`}
+            >
+              <svg className={`w-8 h-8 mb-2 ${syncStatus.isAuthenticated ? 'text-orange-600' : 'text-gray-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              <span className={`text-sm font-medium ${syncStatus.isAuthenticated ? 'text-orange-700' : 'text-gray-400'}`}>
+                {syncStatus.isSyncing ? 'Syncing...' : 'Force Full Sync'}
               </span>
             </button>
 

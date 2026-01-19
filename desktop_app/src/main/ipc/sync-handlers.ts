@@ -15,6 +15,7 @@ const SYNC_CHANNELS = {
   SYNC_AUTHENTICATE: 'sync:authenticate',
   SYNC_DOWNLOAD: 'sync:download',
   SYNC_UPLOAD: 'sync:upload',
+  SYNC_RESET: 'sync:reset', // Reset sync state for full re-sync
 } as const;
 
 const STORAGE_KEYS = {
@@ -167,6 +168,24 @@ export function registerSyncHandlers(): void {
       
       return { success: false, error: result.error || 'Authentication failed' };
     } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  });
+
+  // Reset sync state for full re-sync
+  ipcMain.handle(SYNC_CHANNELS.SYNC_RESET, async () => {
+    try {
+      console.log('[Sync] Resetting sync state for full re-sync');
+      
+      // Clear the last sync timestamp
+      store.delete(STORAGE_KEYS.SYNC_LAST_SYNC);
+      syncStatus.lastSyncAt = null;
+      
+      console.log('[Sync] Last sync timestamp cleared - next download will be full sync');
+      
+      return { success: true, message: 'Sync state reset. Next download will fetch all data.' };
+    } catch (error: any) {
+      console.error('[Sync] Reset error:', error);
       return { success: false, error: error.message };
     }
   });

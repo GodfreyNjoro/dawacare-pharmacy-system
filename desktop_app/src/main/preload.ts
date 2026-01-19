@@ -25,6 +25,7 @@ const IPC_CHANNELS = {
   SYNC_AUTHENTICATE: 'sync:authenticate',
   SYNC_DOWNLOAD: 'sync:download',
   SYNC_UPLOAD: 'sync:upload',
+  SYNC_RESET: 'sync:reset',
   // Window
   WINDOW_MINIMIZE: 'window:minimize',
   WINDOW_MAXIMIZE: 'window:maximize',
@@ -86,6 +87,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   syncAuthenticate: (credentials: LoginCredentials) => ipcRenderer.invoke(IPC_CHANNELS.SYNC_AUTHENTICATE, credentials),
   syncDownload: () => ipcRenderer.invoke(IPC_CHANNELS.SYNC_DOWNLOAD),
   syncUpload: () => ipcRenderer.invoke(IPC_CHANNELS.SYNC_UPLOAD),
+  syncReset: () => ipcRenderer.invoke(IPC_CHANNELS.SYNC_RESET),
   onSyncProgress: (callback: (data: any) => void) => {
     ipcRenderer.on('sync:progress', (_, data) => callback(data));
     return () => ipcRenderer.removeAllListeners('sync:progress');
@@ -146,6 +148,7 @@ export interface ElectronAPI {
   syncAuthenticate: (credentials: LoginCredentials) => Promise<any>;
   syncDownload: () => Promise<any>;
   syncUpload: () => Promise<any>;
+  syncReset: () => Promise<any>;
   onSyncProgress: (callback: (data: any) => void) => () => void;
 
   // Window
