@@ -9,6 +9,12 @@ import SalesHistory from './pages/SalesHistory';
 import Invoice from './pages/Invoice';
 import Customers from './pages/Customers';
 import MedicineForm from './pages/MedicineForm';
+import Suppliers from './pages/Suppliers';
+import PurchaseOrders from './pages/PurchaseOrders';
+import NewPurchaseOrder from './pages/NewPurchaseOrder';
+import PurchaseOrderView from './pages/PurchaseOrderView';
+import GRNList from './pages/GRNList';
+import NewGRN from './pages/NewGRN';
 import { AuthProvider, useAuth } from './lib/auth-context';
 
 function AppContent() {
@@ -77,6 +83,13 @@ function AppContent() {
       <Route path="/sales" element={<SalesHistory />} />
       <Route path="/invoice/:id" element={<Invoice />} />
       <Route path="/customers" element={<Customers />} />
+      {/* Procurement Routes */}
+      <Route path="/procurement/suppliers" element={<Suppliers />} />
+      <Route path="/procurement/purchase-orders" element={<PurchaseOrders />} />
+      <Route path="/procurement/purchase-orders/new" element={<NewPurchaseOrder />} />
+      <Route path="/procurement/purchase-orders/:id" element={<PurchaseOrderView />} />
+      <Route path="/procurement/grn" element={<GRNList />} />
+      <Route path="/procurement/grn/new" element={<NewGRN />} />
       <Route path="*" element={<Navigate to="/pos" replace />} />
     </Routes>
   );

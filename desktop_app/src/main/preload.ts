@@ -59,6 +59,22 @@ const IPC_CHANNELS = {
   MEDICINE_DELETE: 'inventory:medicine-delete',
   MEDICINE_GET_PAGINATED: 'inventory:medicine-get-paginated',
   MEDICINE_ADJUST_STOCK: 'inventory:medicine-adjust-stock',
+  // Suppliers
+  SUPPLIERS_GET_PAGINATED: 'getSuppliersPaginated',
+  SUPPLIER_CREATE: 'createSupplier',
+  SUPPLIER_UPDATE: 'updateSupplier',
+  SUPPLIER_DELETE: 'deleteSupplier',
+  // Purchase Orders
+  PO_GET_PAGINATED: 'getPurchaseOrdersPaginated',
+  PO_GET_BY_ID: 'getPurchaseOrderById',
+  PO_CREATE: 'createPurchaseOrder',
+  PO_UPDATE_STATUS: 'updatePurchaseOrderStatus',
+  PO_DELETE: 'deletePurchaseOrder',
+  // GRN
+  GRN_GET_PAGINATED: 'getGRNsPaginated',
+  GRN_GET_BY_ID: 'getGRNById',
+  GRN_GET_PENDING_POS: 'getPendingPurchaseOrders',
+  GRN_CREATE: 'createGRN',
 } as const;
 
 // Type definitions inlined
@@ -155,6 +171,29 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke(IPC_CHANNELS.MEDICINE_GET_PAGINATED, options),
   adjustStock: (medicineId: string, adjustment: number, reason?: string) =>
     ipcRenderer.invoke(IPC_CHANNELS.MEDICINE_ADJUST_STOCK, medicineId, adjustment, reason),
+
+  // Suppliers APIs
+  getSuppliersPaginated: (options?: { page?: number; limit?: number; search?: string; status?: string; all?: boolean }) =>
+    ipcRenderer.invoke(IPC_CHANNELS.SUPPLIERS_GET_PAGINATED, options),
+  createSupplier: (data: any) => ipcRenderer.invoke(IPC_CHANNELS.SUPPLIER_CREATE, data),
+  updateSupplier: (data: any) => ipcRenderer.invoke(IPC_CHANNELS.SUPPLIER_UPDATE, data),
+  deleteSupplier: (id: string) => ipcRenderer.invoke(IPC_CHANNELS.SUPPLIER_DELETE, id),
+
+  // Purchase Orders APIs
+  getPurchaseOrdersPaginated: (options?: { page?: number; limit?: number; search?: string; status?: string }) =>
+    ipcRenderer.invoke(IPC_CHANNELS.PO_GET_PAGINATED, options),
+  getPurchaseOrderById: (id: string) => ipcRenderer.invoke(IPC_CHANNELS.PO_GET_BY_ID, id),
+  createPurchaseOrder: (data: any) => ipcRenderer.invoke(IPC_CHANNELS.PO_CREATE, data),
+  updatePurchaseOrderStatus: (params: { id: string; status: string }) =>
+    ipcRenderer.invoke(IPC_CHANNELS.PO_UPDATE_STATUS, params),
+  deletePurchaseOrder: (id: string) => ipcRenderer.invoke(IPC_CHANNELS.PO_DELETE, id),
+
+  // GRN APIs
+  getGRNsPaginated: (options?: { page?: number; limit?: number; search?: string }) =>
+    ipcRenderer.invoke(IPC_CHANNELS.GRN_GET_PAGINATED, options),
+  getGRNById: (id: string) => ipcRenderer.invoke(IPC_CHANNELS.GRN_GET_BY_ID, id),
+  getPendingPurchaseOrders: () => ipcRenderer.invoke(IPC_CHANNELS.GRN_GET_PENDING_POS),
+  createGRN: (data: any) => ipcRenderer.invoke(IPC_CHANNELS.GRN_CREATE, data),
 });
 
 // Type definitions for TypeScript
@@ -230,6 +269,25 @@ export interface ElectronAPI {
   deleteMedicine: (medicineId: string) => Promise<any>;
   getMedicinesPaginated: (options?: { page?: number; limit?: number; search?: string; category?: string; stockFilter?: string }) => Promise<any>;
   adjustStock: (medicineId: string, adjustment: number, reason?: string) => Promise<any>;
+
+  // Suppliers
+  getSuppliersPaginated: (options?: { page?: number; limit?: number; search?: string; status?: string; all?: boolean }) => Promise<any>;
+  createSupplier: (data: any) => Promise<any>;
+  updateSupplier: (data: any) => Promise<any>;
+  deleteSupplier: (id: string) => Promise<any>;
+
+  // Purchase Orders
+  getPurchaseOrdersPaginated: (options?: { page?: number; limit?: number; search?: string; status?: string }) => Promise<any>;
+  getPurchaseOrderById: (id: string) => Promise<any>;
+  createPurchaseOrder: (data: any) => Promise<any>;
+  updatePurchaseOrderStatus: (params: { id: string; status: string }) => Promise<any>;
+  deletePurchaseOrder: (id: string) => Promise<any>;
+
+  // GRN
+  getGRNsPaginated: (options?: { page?: number; limit?: number; search?: string }) => Promise<any>;
+  getGRNById: (id: string) => Promise<any>;
+  getPendingPurchaseOrders: () => Promise<any>;
+  createGRN: (data: any) => Promise<any>;
 }
 
 declare global {

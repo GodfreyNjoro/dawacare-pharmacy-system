@@ -1,0 +1,196 @@
+import { ipcMain } from 'electron';
+import DatabaseManager from '../database/database-manager';
+import { randomUUID } from 'crypto';
+
+interface POItemData {
+  medicineName: string;
+  genericName?: string;
+  quantity: number;
+  unitCost: number;
+  category?: string;
+}
+
+interface CreatePOData {
+  supplierId: string;
+  items: POItemData[];
+  expectedDate?: string;
+  notes?: string;
+  tax?: number;
+}
+
+function generatePONumber(): string {
+  const date = new Date();
+  const dateStr = date.toISOString().slice(0, 10).replace(/-/g, '');
+  const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+  return `PO-${dateStr}-${random}`;
+}
+
+async function addToSyncQueue(prisma: any, operation: string, table: string, recordId: string) {
+  const now = new Date().toISOString();
+  try {
+    await prisma.$executeRawUnsafe(`
+      INSERT OR REPLACE INTO "SyncQueue" ("id", "operation", "table", "recordId", "status", "createdAt")
+      VALUES (?, ?, ?, ?, 'PENDING', ?)
+    `, randomUUID(), operation, table, recordId, now);
+  } catch (error) {
+    console.error('[PurchaseOrders] Failed to add to sync queue:', error);
+  }
+}
+
+export function registerPurchaseOrdersHandlers() {
+  console.log('[IPC] Registering Purchase Orders handlers...');
+  const dbManager = DatabaseManager.getInstance();
+
+  // Get purchase orders with pagination
+  ipcMain.handle('getPurchaseOrdersPaginated', async (_, params: {
+    page?: number; limit?: number; search?: string; status?: string;
+  }) => {
+    try {
+      const prisma = dbManager.getPrismaClient();
+      if (!prisma) return { success: false, error: 'Database not initialized' };
+
+      const { page = 1, limit = 10, search, status } = params || {};
+      const offset = (page - 1) * limit;
+
+      let whereClause = 'WHERE 1=1';
+      const queryParams: any[] = [];
+
+      if (search) {
+        whereClause += ` AND (po."poNumber" LIKE ? OR s."name" LIKE ?)`;
+        queryParams.push(`%${search}%`, `%${search}%`);
+      }
+      if (status) {
+        whereClause += ` AND po."status" = ?`;
+        queryParams.push(status);
+      }
+
+      const countResult: any[] = await prisma.$queryRawUnsafe(
+        `SELECT COUNT(*) as count FROM "PurchaseOrder" po LEFT JOIN "Supplier" s ON po."supplierId" = s."id" ${whereClause}`,
+        ...queryParams
+      );
+      const totalCount = Number(countResult[0]?.count || 0);
+
+      const orders: any[] = await prisma.$queryRawUnsafe(
+        `SELECT po.*, s."name" as supplierName FROM "PurchaseOrder" po LEFT JOIN "Supplier" s ON po."supplierId" = s."id" ${whereClause} ORDER BY po."createdAt" DESC LIMIT ? OFFSET ?`,
+        ...queryParams, limit, offset
+      );
+
+      for (const order of orders) {
+        const items: any[] = await prisma.$queryRawUnsafe(`SELECT * FROM "PurchaseOrderItem" WHERE "purchaseOrderId" = ?`, order.id);
+        order.items = items;
+        order.supplier = { id: order.supplierId, name: order.supplierName };
+      }
+
+      return { success: true, orders, pagination: { page, limit, totalCount, totalPages: Math.ceil(totalCount / limit) } };
+    } catch (error) {
+      console.error('[PurchaseOrders] Error fetching orders:', error);
+      return { success: false, error: String(error) };
+    }
+  });
+
+  // Get single purchase order
+  ipcMain.handle('getPurchaseOrderById', async (_, id: string) => {
+    try {
+      const prisma = dbManager.getPrismaClient();
+      if (!prisma) return { success: false, error: 'Database not initialized' };
+
+      const orders: any[] = await prisma.$queryRawUnsafe(
+        `SELECT po.*, s."name" as supplierName, s."phone" as supplierPhone, s."email" as supplierEmail FROM "PurchaseOrder" po LEFT JOIN "Supplier" s ON po."supplierId" = s."id" WHERE po."id" = ?`, id
+      );
+
+      if (orders.length === 0) return { success: false, error: 'Purchase order not found' };
+
+      const order = orders[0];
+      order.supplier = { id: order.supplierId, name: order.supplierName, phone: order.supplierPhone, email: order.supplierEmail };
+      order.items = await prisma.$queryRawUnsafe(`SELECT * FROM "PurchaseOrderItem" WHERE "purchaseOrderId" = ?`, id);
+      order.grns = await prisma.$queryRawUnsafe(`SELECT * FROM "GoodsReceivedNote" WHERE "purchaseOrderId" = ? ORDER BY "receivedDate" DESC`, id);
+
+      return { success: true, order };
+    } catch (error) {
+      console.error('[PurchaseOrders] Error fetching order:', error);
+      return { success: false, error: String(error) };
+    }
+  });
+
+  // Create purchase order
+  ipcMain.handle('createPurchaseOrder', async (_, data: CreatePOData) => {
+    try {
+      const prisma = dbManager.getPrismaClient();
+      if (!prisma) return { success: false, error: 'Database not initialized' };
+
+      if (!data.supplierId) return { success: false, error: 'Supplier is required' };
+      if (!data.items || data.items.length === 0) return { success: false, error: 'At least one item is required' };
+
+      const validItems = data.items.filter(item => item.medicineName?.trim() && item.quantity > 0 && item.unitCost > 0);
+      if (validItems.length === 0) return { success: false, error: 'At least one valid item is required' };
+
+      const now = new Date().toISOString();
+      const poId = randomUUID();
+      const poNumber = generatePONumber();
+
+      const subtotal = validItems.reduce((sum, item) => sum + (item.quantity * item.unitCost), 0);
+      const tax = data.tax || 0;
+      const total = subtotal + tax;
+
+      await prisma.$executeRawUnsafe(`
+        INSERT INTO "PurchaseOrder" ("id", "poNumber", "supplierId", "status", "subtotal", "tax", "total", "notes", "expectedDate", "createdAt", "updatedAt")
+        VALUES (?, ?, ?, 'DRAFT', ?, ?, ?, ?, ?, ?, ?)
+      `, poId, poNumber, data.supplierId, subtotal, tax, total, data.notes || null, data.expectedDate || null, now, now);
+
+      for (const item of validItems) {
+        const itemId = randomUUID();
+        const itemTotal = item.quantity * item.unitCost;
+        await prisma.$executeRawUnsafe(`
+          INSERT INTO "PurchaseOrderItem" ("id", "purchaseOrderId", "medicineName", "genericName", "quantity", "receivedQty", "unitCost", "total", "category")
+          VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?)
+        `, itemId, poId, item.medicineName.trim(), item.genericName?.trim() || null, item.quantity, item.unitCost, itemTotal, item.category || null);
+      }
+
+      await addToSyncQueue(prisma, 'CREATE', 'PurchaseOrder', poId);
+      return { success: true, orderId: poId, poNumber };
+    } catch (error) {
+      console.error('[PurchaseOrders] Error creating order:', error);
+      return { success: false, error: String(error) };
+    }
+  });
+
+  // Update purchase order status
+  ipcMain.handle('updatePurchaseOrderStatus', async (_, params: { id: string; status: string; }) => {
+    try {
+      const prisma = dbManager.getPrismaClient();
+      if (!prisma) return { success: false, error: 'Database not initialized' };
+
+      const now = new Date().toISOString();
+      await prisma.$executeRawUnsafe(`UPDATE "PurchaseOrder" SET "status" = ?, "updatedAt" = ? WHERE "id" = ?`, params.status, now, params.id);
+      await addToSyncQueue(prisma, 'UPDATE', 'PurchaseOrder', params.id);
+      return { success: true };
+    } catch (error) {
+      console.error('[PurchaseOrders] Error updating status:', error);
+      return { success: false, error: String(error) };
+    }
+  });
+
+  // Delete purchase order
+  ipcMain.handle('deletePurchaseOrder', async (_, id: string) => {
+    try {
+      const prisma = dbManager.getPrismaClient();
+      if (!prisma) return { success: false, error: 'Database not initialized' };
+
+      const grnCount: any[] = await prisma.$queryRawUnsafe(`SELECT COUNT(*) as count FROM "GoodsReceivedNote" WHERE "purchaseOrderId" = ?`, id);
+      if (Number(grnCount[0]?.count || 0) > 0) return { success: false, error: 'Cannot delete PO with received goods' };
+
+      const orders: any[] = await prisma.$queryRawUnsafe(`SELECT "status" FROM "PurchaseOrder" WHERE "id" = ?`, id);
+      if (orders.length > 0 && !['DRAFT', 'CANCELLED'].includes(orders[0].status)) {
+        return { success: false, error: 'Can only delete draft or cancelled orders' };
+      }
+
+      await prisma.$executeRawUnsafe(`DELETE FROM "PurchaseOrderItem" WHERE "purchaseOrderId" = ?`, id);
+      await prisma.$executeRawUnsafe(`DELETE FROM "PurchaseOrder" WHERE "id" = ?`, id);
+      await addToSyncQueue(prisma, 'DELETE', 'PurchaseOrder', id);
+      return { success: true };
+    } catch (error) {
+      console.error('[PurchaseOrders] Error deleting order:', error);
+      return { success: false, error: String(error) };
+    }
+  });
+}

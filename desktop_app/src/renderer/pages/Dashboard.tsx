@@ -456,8 +456,42 @@ export default function Dashboard() {
                 Upload Changes ({syncStatus.pendingChanges})
               </span>
             </button>
+          </div>
+        </div>
 
+        {/* Procurement Section */}
+        <div className="card mb-8">
+          <h2 className="text-xl font-bold text-gray-900 mb-4">Procurement</h2>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+            <button 
+              onClick={() => navigate('/procurement/suppliers')}
+              className="flex flex-col items-center p-6 border-2 border-teal-500 bg-teal-50 rounded-lg hover:bg-teal-100 transition-all"
+            >
+              <svg className="w-8 h-8 text-teal-600 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+              </svg>
+              <span className="text-sm font-medium text-teal-700">Suppliers</span>
+            </button>
 
+            <button 
+              onClick={() => navigate('/procurement/purchase-orders')}
+              className="flex flex-col items-center p-6 border-2 border-amber-500 bg-amber-50 rounded-lg hover:bg-amber-100 transition-all"
+            >
+              <svg className="w-8 h-8 text-amber-600 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              <span className="text-sm font-medium text-amber-700">Purchase Orders</span>
+            </button>
+
+            <button 
+              onClick={() => navigate('/procurement/grn')}
+              className="flex flex-col items-center p-6 border-2 border-lime-500 bg-lime-50 rounded-lg hover:bg-lime-100 transition-all"
+            >
+              <svg className="w-8 h-8 text-lime-600 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+              </svg>
+              <span className="text-sm font-medium text-lime-700">Goods Received</span>
+            </button>
           </div>
         </div>
 

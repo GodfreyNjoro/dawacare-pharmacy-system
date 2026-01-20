@@ -7,6 +7,9 @@ import { registerSyncHandlers } from './sync-handlers';
 import { registerSalesHandlers } from './sales-handlers';
 import { registerCustomerHandlers } from './customer-handlers';
 import { registerInventoryHandlers } from './inventory-handlers';
+import { registerSuppliersHandlers } from './suppliers-handlers';
+import { registerPurchaseOrdersHandlers } from './purchase-orders-handlers';
+import { registerGRNHandlers } from './grn-handlers';
 
 export function registerAllIpcHandlers(): void {
   console.log('[IPC] Registering all IPC handlers...');
@@ -20,6 +23,9 @@ export function registerAllIpcHandlers(): void {
   registerSalesHandlers();
   registerCustomerHandlers();
   registerInventoryHandlers();
+  registerSuppliersHandlers();
+  registerPurchaseOrdersHandlers();
+  registerGRNHandlers();
 
   console.log('[IPC] All IPC handlers registered successfully');
 }
