@@ -44,6 +44,21 @@ const IPC_CHANNELS = {
   SALE_CREATE: 'pos:sale-create',
   SALE_GET_BY_ID: 'pos:sale-get-by-id',
   SALE_GET_TODAY_STATS: 'pos:sale-get-today-stats',
+  // Sales History
+  SALES_GET_ALL: 'sales:get-all',
+  SALES_GET_STATS: 'sales:get-stats',
+  SALES_VOID: 'sales:void',
+  // Customer Management
+  CUSTOMER_GET_ALL_PAGINATED: 'customer:get-all-paginated',
+  CUSTOMER_GET_DETAILS: 'customer:get-details',
+  CUSTOMER_UPDATE: 'customer:update',
+  CUSTOMER_TOGGLE_STATUS: 'customer:toggle-status',
+  // Inventory Management
+  MEDICINE_CREATE: 'inventory:medicine-create',
+  MEDICINE_UPDATE: 'inventory:medicine-update',
+  MEDICINE_DELETE: 'inventory:medicine-delete',
+  MEDICINE_GET_PAGINATED: 'inventory:medicine-get-paginated',
+  MEDICINE_ADJUST_STOCK: 'inventory:medicine-adjust-stock',
 } as const;
 
 // Type definitions inlined
@@ -118,6 +133,28 @@ contextBridge.exposeInMainWorld('electronAPI', {
   createSale: (data: any) => ipcRenderer.invoke(IPC_CHANNELS.SALE_CREATE, data),
   getSaleById: (id: string) => ipcRenderer.invoke(IPC_CHANNELS.SALE_GET_BY_ID, id),
   getTodayStats: () => ipcRenderer.invoke(IPC_CHANNELS.SALE_GET_TODAY_STATS),
+
+  // Sales History APIs
+  getAllSales: (options?: { page?: number; limit?: number; search?: string; paymentMethod?: string; startDate?: string; endDate?: string }) =>
+    ipcRenderer.invoke(IPC_CHANNELS.SALES_GET_ALL, options),
+  getSalesStats: () => ipcRenderer.invoke(IPC_CHANNELS.SALES_GET_STATS),
+  voidSale: (saleId: string) => ipcRenderer.invoke(IPC_CHANNELS.SALES_VOID, saleId),
+
+  // Customer Management APIs
+  getCustomersPaginated: (options?: { page?: number; limit?: number; search?: string; status?: string }) =>
+    ipcRenderer.invoke(IPC_CHANNELS.CUSTOMER_GET_ALL_PAGINATED, options),
+  getCustomerDetails: (customerId: string) => ipcRenderer.invoke(IPC_CHANNELS.CUSTOMER_GET_DETAILS, customerId),
+  updateCustomer: (customerId: string, data: any) => ipcRenderer.invoke(IPC_CHANNELS.CUSTOMER_UPDATE, customerId, data),
+  toggleCustomerStatus: (customerId: string) => ipcRenderer.invoke(IPC_CHANNELS.CUSTOMER_TOGGLE_STATUS, customerId),
+
+  // Inventory Management APIs
+  createMedicine: (data: any) => ipcRenderer.invoke(IPC_CHANNELS.MEDICINE_CREATE, data),
+  updateMedicine: (medicineId: string, data: any) => ipcRenderer.invoke(IPC_CHANNELS.MEDICINE_UPDATE, medicineId, data),
+  deleteMedicine: (medicineId: string) => ipcRenderer.invoke(IPC_CHANNELS.MEDICINE_DELETE, medicineId),
+  getMedicinesPaginated: (options?: { page?: number; limit?: number; search?: string; category?: string; stockFilter?: string }) =>
+    ipcRenderer.invoke(IPC_CHANNELS.MEDICINE_GET_PAGINATED, options),
+  adjustStock: (medicineId: string, adjustment: number, reason?: string) =>
+    ipcRenderer.invoke(IPC_CHANNELS.MEDICINE_ADJUST_STOCK, medicineId, adjustment, reason),
 });
 
 // Type definitions for TypeScript
@@ -175,6 +212,24 @@ export interface ElectronAPI {
   createSale: (data: any) => Promise<any>;
   getSaleById: (id: string) => Promise<any>;
   getTodayStats: () => Promise<any>;
+
+  // Sales History
+  getAllSales: (options?: { page?: number; limit?: number; search?: string; paymentMethod?: string; startDate?: string; endDate?: string }) => Promise<any>;
+  getSalesStats: () => Promise<any>;
+  voidSale: (saleId: string) => Promise<any>;
+
+  // Customer Management
+  getCustomersPaginated: (options?: { page?: number; limit?: number; search?: string; status?: string }) => Promise<any>;
+  getCustomerDetails: (customerId: string) => Promise<any>;
+  updateCustomer: (customerId: string, data: any) => Promise<any>;
+  toggleCustomerStatus: (customerId: string) => Promise<any>;
+
+  // Inventory Management
+  createMedicine: (data: any) => Promise<any>;
+  updateMedicine: (medicineId: string, data: any) => Promise<any>;
+  deleteMedicine: (medicineId: string) => Promise<any>;
+  getMedicinesPaginated: (options?: { page?: number; limit?: number; search?: string; category?: string; stockFilter?: string }) => Promise<any>;
+  adjustStock: (medicineId: string, adjustment: number, reason?: string) => Promise<any>;
 }
 
 declare global {

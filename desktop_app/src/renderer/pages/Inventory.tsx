@@ -132,10 +132,20 @@ export default function Inventory() {
 
   const handleDelete = async () => {
     if (!medicineToDelete) return;
-    // Note: Delete functionality would need to be implemented in IPC handlers
-    alert('Delete functionality will be available in a future update');
-    setShowDeleteModal(false);
-    setMedicineToDelete(null);
+    try {
+      const result = await window.electronAPI.deleteMedicine(medicineToDelete.id);
+      if (result.success) {
+        fetchMedicines();
+      } else {
+        alert(result.error || 'Failed to delete medicine');
+      }
+    } catch (error) {
+      console.error('Error deleting medicine:', error);
+      alert('Failed to delete medicine');
+    } finally {
+      setShowDeleteModal(false);
+      setMedicineToDelete(null);
+    }
   };
 
   const formatDate = (dateString: string) => {
@@ -183,6 +193,10 @@ export default function Inventory() {
               <Button onClick={fetchMedicines} variant="outline">
                 <RefreshCw className="w-4 h-4 mr-2" />
                 Refresh
+              </Button>
+              <Button variant="primary" onClick={() => navigate('/inventory/add')}>
+                <Plus className="w-4 h-4 mr-2" />
+                Add Medicine
               </Button>
             </div>
           </div>
@@ -346,6 +360,7 @@ export default function Inventory() {
                       <th className="px-4 py-3 text-right text-sm font-medium text-gray-500">Price</th>
                       <th className="px-4 py-3 text-center text-sm font-medium text-gray-500">Status</th>
                       <th className="px-4 py-3 text-center text-sm font-medium text-gray-500">Sync</th>
+                      <th className="px-4 py-3 text-center text-sm font-medium text-gray-500">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y">
@@ -417,6 +432,27 @@ export default function Inventory() {
                           >
                             {medicine.syncStatus}
                           </Badge>
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <div className="flex items-center justify-center gap-1">
+                            <Button
+                              variant="ghost"
+                              onClick={() => navigate(`/inventory/edit/${medicine.id}`)}
+                              title="Edit"
+                            >
+                              <Edit className="w-4 h-4 text-blue-600" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              onClick={() => {
+                                setMedicineToDelete(medicine);
+                                setShowDeleteModal(true);
+                              }}
+                              title="Delete"
+                            >
+                              <Trash2 className="w-4 h-4 text-red-600" />
+                            </Button>
+                          </div>
                         </td>
                       </tr>
                     ))}

@@ -5,6 +5,10 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import POS from './pages/POS';
 import Inventory from './pages/Inventory';
+import SalesHistory from './pages/SalesHistory';
+import Invoice from './pages/Invoice';
+import Customers from './pages/Customers';
+import MedicineForm from './pages/MedicineForm';
 import { AuthProvider, useAuth } from './lib/auth-context';
 
 function AppContent() {
@@ -68,6 +72,11 @@ function AppContent() {
       <Route path="/dashboard" element={<Dashboard />} />
       <Route path="/pos" element={<POS />} />
       <Route path="/inventory" element={<Inventory />} />
+      <Route path="/inventory/add" element={<MedicineForm />} />
+      <Route path="/inventory/edit/:id" element={<MedicineForm />} />
+      <Route path="/sales" element={<SalesHistory />} />
+      <Route path="/invoice/:id" element={<Invoice />} />
+      <Route path="/customers" element={<Customers />} />
       <Route path="*" element={<Navigate to="/pos" replace />} />
     </Routes>
   );
