@@ -104,7 +104,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // POS APIs - Medicines
   searchMedicines: (query: string) => ipcRenderer.invoke(IPC_CHANNELS.MEDICINE_SEARCH, query),
-  getAllMedicines: (options?: { limit?: number }) => ipcRenderer.invoke(IPC_CHANNELS.MEDICINE_GET_ALL, options),
+  getAllMedicines: (options?: { limit?: number; includeOutOfStock?: boolean }) => ipcRenderer.invoke(IPC_CHANNELS.MEDICINE_GET_ALL, options),
   getMedicineById: (id: string) => ipcRenderer.invoke(IPC_CHANNELS.MEDICINE_GET_BY_ID, id),
 
   // POS APIs - Customers
@@ -162,7 +162,7 @@ export interface ElectronAPI {
 
   // POS - Medicines
   searchMedicines: (query: string) => Promise<any>;
-  getAllMedicines: (options?: { limit?: number }) => Promise<any>;
+  getAllMedicines: (options?: { limit?: number; includeOutOfStock?: boolean }) => Promise<any>;
   getMedicineById: (id: string) => Promise<any>;
 
   // POS - Customers

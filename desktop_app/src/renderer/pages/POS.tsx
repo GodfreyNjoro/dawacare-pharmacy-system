@@ -130,15 +130,20 @@ export default function POS() {
   // Fetch medicines
   const fetchMedicines = useCallback(async () => {
     try {
+      console.log('[POS] Fetching medicines, search:', searchQuery);
       const result = searchQuery
         ? await window.electronAPI.searchMedicines(searchQuery)
-        : await window.electronAPI.getAllMedicines({ limit: 50 });
+        : await window.electronAPI.getAllMedicines({ limit: 100 });
       
+      console.log('[POS] Medicines result:', result);
       if (result.success) {
-        setMedicines(result.medicines.filter((m: Medicine) => m.quantity > 0));
+        // The API already filters by quantity > 0
+        setMedicines(result.medicines || []);
+      } else {
+        console.error('[POS] Failed to fetch medicines:', result.error);
       }
     } catch (error) {
-      console.error('Error fetching medicines:', error);
+      console.error('[POS] Error fetching medicines:', error);
     }
   }, [searchQuery]);
 
@@ -512,7 +517,7 @@ export default function POS() {
               {medicines.length === 0 ? (
                 <div className="col-span-2 text-center py-12 text-gray-500">
                   <Package className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                  <p>{searchQuery ? 'No medicines found matching your search' : 'Start typing to search for medicines'}</p>
+                  <p>{searchQuery ? 'No medicines found matching your search' : 'No medicines with stock available. Please sync data from cloud.'}</p>
                 </div>
               ) : (
                 medicines.map((medicine) => {

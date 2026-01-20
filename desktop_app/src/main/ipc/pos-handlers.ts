@@ -64,16 +64,19 @@ export function registerPosHandlers(): void {
     }
   });
 
-  // Get all medicines with stock > 0
-  ipcMain.handle(POS_CHANNELS.MEDICINE_GET_ALL, async (_, options?: { limit?: number }) => {
+  // Get all medicines - optionally filter by stock
+  ipcMain.handle(POS_CHANNELS.MEDICINE_GET_ALL, async (_, options?: { limit?: number; includeOutOfStock?: boolean }) => {
     try {
       const prisma = dbManager.getPrismaClient();
       if (!prisma) {
         return { success: false, error: 'Database not initialized' };
       }
       
+      // For inventory page, show all medicines including out of stock
+      const whereClause = options?.includeOutOfStock ? {} : { quantity: { gt: 0 } };
+      
       const medicines = await prisma.medicine.findMany({
-        where: { quantity: { gt: 0 } },
+        where: whereClause,
         orderBy: { name: 'asc' },
         take: options?.limit || 100,
       });
