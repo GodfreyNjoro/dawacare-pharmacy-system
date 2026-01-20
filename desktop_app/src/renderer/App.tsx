@@ -15,6 +15,9 @@ import NewPurchaseOrder from './pages/NewPurchaseOrder';
 import PurchaseOrderView from './pages/PurchaseOrderView';
 import GRNList from './pages/GRNList';
 import NewGRN from './pages/NewGRN';
+import Users from './pages/Users';
+import Branches from './pages/Branches';
+import Reports from './pages/Reports';
 import { AuthProvider, useAuth } from './lib/auth-context';
 
 function AppContent() {
@@ -90,6 +93,10 @@ function AppContent() {
       <Route path="/procurement/purchase-orders/:id" element={<PurchaseOrderView />} />
       <Route path="/procurement/grn" element={<GRNList />} />
       <Route path="/procurement/grn/new" element={<NewGRN />} />
+      {/* Admin Routes */}
+      <Route path="/admin/users" element={<Users />} />
+      <Route path="/admin/branches" element={<Branches />} />
+      <Route path="/admin/reports" element={<Reports />} />
       <Route path="*" element={<Navigate to="/pos" replace />} />
     </Routes>
   );

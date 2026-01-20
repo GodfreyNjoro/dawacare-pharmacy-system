@@ -75,6 +75,21 @@ const IPC_CHANNELS = {
   GRN_GET_BY_ID: 'getGRNById',
   GRN_GET_PENDING_POS: 'getPendingPurchaseOrders',
   GRN_CREATE: 'createGRN',
+  // Users
+  USERS_GET_PAGINATED: 'getUsersPaginated',
+  USER_CREATE: 'createUser',
+  USER_UPDATE: 'updateUser',
+  USER_DELETE: 'deleteUser',
+  // Branches
+  BRANCHES_GET_PAGINATED: 'getBranchesPaginated',
+  BRANCH_CREATE: 'createBranch',
+  BRANCH_UPDATE: 'updateBranch',
+  BRANCH_DELETE: 'deleteBranch',
+  // Reports
+  REPORT_SALES: 'getSalesReport',
+  REPORT_STOCK: 'getStockReport',
+  REPORT_TOP_SELLERS: 'getTopSellersReport',
+  EXPORT_ACCOUNTING: 'exportAccountingData',
 } as const;
 
 // Type definitions inlined
@@ -194,6 +209,30 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getGRNById: (id: string) => ipcRenderer.invoke(IPC_CHANNELS.GRN_GET_BY_ID, id),
   getPendingPurchaseOrders: () => ipcRenderer.invoke(IPC_CHANNELS.GRN_GET_PENDING_POS),
   createGRN: (data: any) => ipcRenderer.invoke(IPC_CHANNELS.GRN_CREATE, data),
+
+  // Users APIs
+  getUsersPaginated: (options?: { page?: number; limit?: number; search?: string; role?: string; status?: string }) =>
+    ipcRenderer.invoke(IPC_CHANNELS.USERS_GET_PAGINATED, options),
+  createUser: (data: any) => ipcRenderer.invoke(IPC_CHANNELS.USER_CREATE, data),
+  updateUser: (userId: string, data: any) => ipcRenderer.invoke(IPC_CHANNELS.USER_UPDATE, userId, data),
+  deleteUser: (userId: string, currentUserId?: string) => ipcRenderer.invoke(IPC_CHANNELS.USER_DELETE, userId, currentUserId),
+
+  // Branches APIs
+  getBranchesPaginated: (options?: { page?: number; limit?: number; search?: string; status?: string; all?: boolean }) =>
+    ipcRenderer.invoke(IPC_CHANNELS.BRANCHES_GET_PAGINATED, options),
+  createBranch: (data: any) => ipcRenderer.invoke(IPC_CHANNELS.BRANCH_CREATE, data),
+  updateBranch: (branchId: string, data: any) => ipcRenderer.invoke(IPC_CHANNELS.BRANCH_UPDATE, branchId, data),
+  deleteBranch: (branchId: string) => ipcRenderer.invoke(IPC_CHANNELS.BRANCH_DELETE, branchId),
+
+  // Reports APIs
+  getSalesReport: (options?: { startDate?: string; endDate?: string; groupBy?: string }) =>
+    ipcRenderer.invoke(IPC_CHANNELS.REPORT_SALES, options),
+  getStockReport: (options?: { status?: string; category?: string; search?: string }) =>
+    ipcRenderer.invoke(IPC_CHANNELS.REPORT_STOCK, options),
+  getTopSellersReport: (options?: { startDate?: string; endDate?: string; limit?: number }) =>
+    ipcRenderer.invoke(IPC_CHANNELS.REPORT_TOP_SELLERS, options),
+  exportAccountingData: (options: { type: string; startDate?: string; endDate?: string }) =>
+    ipcRenderer.invoke(IPC_CHANNELS.EXPORT_ACCOUNTING, options),
 });
 
 // Type definitions for TypeScript
@@ -288,6 +327,24 @@ export interface ElectronAPI {
   getGRNById: (id: string) => Promise<any>;
   getPendingPurchaseOrders: () => Promise<any>;
   createGRN: (data: any) => Promise<any>;
+
+  // Users
+  getUsersPaginated: (options?: { page?: number; limit?: number; search?: string; role?: string; status?: string }) => Promise<any>;
+  createUser: (data: any) => Promise<any>;
+  updateUser: (userId: string, data: any) => Promise<any>;
+  deleteUser: (userId: string, currentUserId?: string) => Promise<any>;
+
+  // Branches
+  getBranchesPaginated: (options?: { page?: number; limit?: number; search?: string; status?: string; all?: boolean }) => Promise<any>;
+  createBranch: (data: any) => Promise<any>;
+  updateBranch: (branchId: string, data: any) => Promise<any>;
+  deleteBranch: (branchId: string) => Promise<any>;
+
+  // Reports
+  getSalesReport: (options?: { startDate?: string; endDate?: string; groupBy?: string }) => Promise<any>;
+  getStockReport: (options?: { status?: string; category?: string; search?: string }) => Promise<any>;
+  getTopSellersReport: (options?: { startDate?: string; endDate?: string; limit?: number }) => Promise<any>;
+  exportAccountingData: (options: { type: string; startDate?: string; endDate?: string }) => Promise<any>;
 }
 
 declare global {
