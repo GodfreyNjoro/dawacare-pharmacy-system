@@ -1,8 +1,8 @@
 {
   "name": "dawacare-pos",
-  "version": "1.0.27",
+  "version": "1.0.28",
   "description": "DawaCare POS - Offline-First Pharmacy Management Desktop Application",
-  "main": "dist/main/main/main.js",
+  "main": "dist/main/src/main/main.js",
   "author": {
     "name": "DawaCare",
     "email": "support@dawacare.com"
