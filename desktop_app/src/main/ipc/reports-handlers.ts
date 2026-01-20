@@ -65,10 +65,6 @@ export function registerReportsHandlers(): void {
 
       // Summary
       const summaryResult = await prisma.$queryRawUnsafe(
-        totalRevenue: number;
-        totalTransactions: number;
-        totalItems: number;
-      }])(
         `SELECT 
           COALESCE(SUM(s.total), 0) as "totalRevenue",
           COUNT(s.id) as "totalTransactions",
@@ -76,7 +72,11 @@ export function registerReportsHandlers(): void {
          FROM "Sale" s
          WHERE s.status = 'COMPLETED' ${dateFilter}`,
         ...params
-      );
+      ) as {
+        totalRevenue: number;
+        totalTransactions: number;
+        totalItems: number;
+      }[];
 
       const summary = {
         totalRevenue: Number(summaryResult[0]?.totalRevenue || 0),
@@ -188,12 +188,6 @@ export function registerReportsHandlers(): void {
 
       // Summary stats
       const statsResult = await prisma.$queryRawUnsafe(
-        totalItems: number;
-        totalValue: number;
-        lowStockCount: number;
-        outOfStockCount: number;
-        expiringCount: number;
-      }])(
         `SELECT 
           COUNT(*) as "totalItems",
           COALESCE(SUM(m.quantity * m."unitPrice"), 0) as "totalValue",
@@ -201,7 +195,13 @@ export function registerReportsHandlers(): void {
           SUM(CASE WHEN m.quantity = 0 THEN 1 ELSE 0 END) as "outOfStockCount",
           SUM(CASE WHEN m."expiryDate" IS NOT NULL AND date(m."expiryDate") <= date('now', '+30 days') THEN 1 ELSE 0 END) as "expiringCount"
          FROM "Medicine" m`
-      );
+      ) as {
+        totalItems: number;
+        totalValue: number;
+        lowStockCount: number;
+        outOfStockCount: number;
+        expiringCount: number;
+      }[];
 
       // Categories
       const categories = await prisma.$queryRawUnsafe(
@@ -313,7 +313,16 @@ export function registerReportsHandlers(): void {
 
       if (type === 'sales') {
         headers = ['Date', 'Invoice', 'Customer', 'Items', 'Subtotal', 'Discount', 'Tax', 'Total', 'Payment Method', 'Status'];
-        const sales = await prisma.$queryRawUnsafe<{
+        const sales = await prisma.$queryRawUnsafe(
+          `SELECT s."createdAt", s."invoiceNumber", c.name as "customerName",
+                  (SELECT COUNT(*) FROM "SaleItem" WHERE "saleId" = s.id) as "itemCount",
+                  s.subtotal, s.discount, s.tax, s.total, s."paymentMethod", s.status
+           FROM "Sale" s
+           LEFT JOIN "Customer" c ON s."customerId" = c.id
+           WHERE 1=1 ${dateFilter.replace(/"createdAt"/g, 's."createdAt"')}
+           ORDER BY s."createdAt" DESC`,
+          ...params
+        ) as {
           createdAt: string;
           invoiceNumber: string | null;
           customerName: string | null;
@@ -324,16 +333,7 @@ export function registerReportsHandlers(): void {
           total: number;
           paymentMethod: string;
           status: string;
-        }[]>(
-          `SELECT s."createdAt", s."invoiceNumber", c.name as "customerName",
-                  (SELECT COUNT(*) FROM "SaleItem" WHERE "saleId" = s.id) as "itemCount",
-                  s.subtotal, s.discount, s.tax, s.total, s."paymentMethod", s.status
-           FROM "Sale" s
-           LEFT JOIN "Customer" c ON s."customerId" = c.id
-           WHERE 1=1 ${dateFilter.replace(/"createdAt"/g, 's."createdAt"')}
-           ORDER BY s."createdAt" DESC`,
-          ...params
-        );
+        }[];
         data = sales.map((s) => ([
           s.createdAt,
           s.invoiceNumber || '-',
@@ -348,16 +348,7 @@ export function registerReportsHandlers(): void {
         ]));
       } else if (type === 'purchases') {
         headers = ['Date', 'PO Number', 'Supplier', 'Items', 'Subtotal', 'Tax', 'Total', 'Status'];
-        const purchases = await prisma.$queryRawUnsafe<{
-          createdAt: string;
-          poNumber: string;
-          supplierName: string;
-          itemCount: number;
-          subtotal: number;
-          tax: number;
-          total: number;
-          status: string;
-        }[]>(
+        const purchases = await prisma.$queryRawUnsafe(
           `SELECT po."createdAt", po."poNumber", s.name as "supplierName",
                   (SELECT COUNT(*) FROM "PurchaseOrderItem" WHERE "purchaseOrderId" = po.id) as "itemCount",
                   po.subtotal, po.tax, po.total, po.status
@@ -366,7 +357,16 @@ export function registerReportsHandlers(): void {
            WHERE 1=1 ${dateFilter.replace(/"createdAt"/g, 'po."createdAt"')}
            ORDER BY po."createdAt" DESC`,
           ...params
-        );
+        ) as {
+          createdAt: string;
+          poNumber: string;
+          supplierName: string;
+          itemCount: number;
+          subtotal: number;
+          tax: number;
+          total: number;
+          status: string;
+        }[];
         data = purchases.map((p) => ([
           p.createdAt,
           p.poNumber,

@@ -550,7 +550,7 @@ export default function Dashboard() {
             </div>
             <div className="flex items-center justify-between py-2 border-b border-gray-100">
               <span className="text-gray-600">Branch:</span>
-              <span className="font-medium text-gray-900">{user?.branch?.name || 'Main Branch'}</span>
+              <span className="font-medium text-gray-900">{user?.branchId ? `Branch ${user.branchId.slice(0,8)}` : 'Main Branch'}</span>
             </div>
             <div className="flex items-center justify-between py-2">
               <span className="text-gray-600">Cloud Sync:</span>
