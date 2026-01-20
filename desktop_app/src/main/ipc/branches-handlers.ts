@@ -136,9 +136,9 @@ export function registerBranchesHandlers(): void {
 
       // Add to sync queue
       await prisma.$queryRawUnsafe(
-        `INSERT INTO "SyncQueue" (id, "tableName", "recordId", operation, "createdAt")
-         VALUES (?, 'Branch', ?, 'CREATE', ?)`,
-        randomUUID(), id, now
+        `INSERT INTO "SyncQueue" (id, "entityType", "entityId", operation, payload, status, "createdAt", "updatedAt")
+         VALUES (?, 'BRANCH', ?, 'CREATE', '{}', 'PENDING', ?, ?)`,
+        randomUUID(), id, now, now
       );
 
       return { success: true, id };
@@ -229,9 +229,9 @@ export function registerBranchesHandlers(): void {
 
       // Add to sync queue
       await prisma.$queryRawUnsafe(
-        `INSERT INTO "SyncQueue" (id, "tableName", "recordId", operation, "createdAt")
-         VALUES (?, 'Branch', ?, 'UPDATE', ?)`,
-        randomUUID(), branchId, now
+        `INSERT INTO "SyncQueue" (id, "entityType", "entityId", operation, payload, status, "createdAt", "updatedAt")
+         VALUES (?, 'BRANCH', ?, 'UPDATE', '{}', 'PENDING', ?, ?)`,
+        randomUUID(), branchId, now, now
       );
 
       return { success: true };
@@ -275,9 +275,9 @@ export function registerBranchesHandlers(): void {
         );
         // Add to sync queue
         await prisma.$queryRawUnsafe(
-          `INSERT INTO "SyncQueue" (id, "tableName", "recordId", operation, "createdAt")
-           VALUES (?, 'Branch', ?, 'UPDATE', ?)`,
-          randomUUID(), branchId, now
+          `INSERT INTO "SyncQueue" (id, "entityType", "entityId", operation, payload, status, "createdAt", "updatedAt")
+           VALUES (?, 'BRANCH', ?, 'UPDATE', '{}', 'PENDING', ?, ?)`,
+          randomUUID(), branchId, now, now
         );
         return { success: true, softDelete: true };
       }
@@ -286,9 +286,9 @@ export function registerBranchesHandlers(): void {
       await prisma.$queryRawUnsafe('DELETE FROM "Branch" WHERE id = ?', branchId);
       // Add to sync queue
       await prisma.$queryRawUnsafe(
-        `INSERT INTO "SyncQueue" (id, "tableName", "recordId", operation, "createdAt")
-         VALUES (?, 'Branch', ?, 'DELETE', ?)`,
-        randomUUID(), branchId, now
+        `INSERT INTO "SyncQueue" (id, "entityType", "entityId", operation, payload, status, "createdAt", "updatedAt")
+         VALUES (?, 'BRANCH', ?, 'DELETE', '{}', 'PENDING', ?, ?)`,
+        randomUUID(), branchId, now, now
       );
 
       return { success: true };

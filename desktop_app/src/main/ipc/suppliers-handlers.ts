@@ -10,13 +10,13 @@ interface SupplierData {
   address?: string;
 }
 
-async function addToSyncQueue(prisma: any, operation: string, table: string, recordId: string) {
+async function addToSyncQueue(prisma: any, entityType: string, entityId: string, operation: string, payload: any = {}) {
   const now = new Date().toISOString();
   try {
     await prisma.$executeRawUnsafe(`
-      INSERT OR REPLACE INTO "SyncQueue" ("id", "operation", "table", "recordId", "status", "createdAt")
-      VALUES (?, ?, ?, ?, 'PENDING', ?)
-    `, randomUUID(), operation, table, recordId, now);
+      INSERT OR REPLACE INTO "SyncQueue" ("id", "entityType", "entityId", "operation", "payload", "status", "createdAt", "updatedAt")
+      VALUES (?, ?, ?, ?, ?, 'PENDING', ?, ?)
+    `, randomUUID(), entityType, entityId, operation, JSON.stringify(payload), now, now);
   } catch (error) {
     console.error('[Suppliers] Failed to add to sync queue:', error);
   }
@@ -112,9 +112,8 @@ export function registerSuppliersHandlers() {
         now, now
       );
 
-      await addToSyncQueue(prisma, 'CREATE', 'Supplier', id);
-
       const suppliers: any[] = await prisma.$queryRawUnsafe(`SELECT * FROM "Supplier" WHERE "id" = ?`, id);
+      await addToSyncQueue(prisma, 'SUPPLIER', id, 'CREATE', suppliers[0]);
       return { success: true, supplier: suppliers[0] };
     } catch (error) {
       console.error('[Suppliers] Error creating supplier:', error);
@@ -144,9 +143,8 @@ export function registerSuppliersHandlers() {
         now, data.id
       );
 
-      await addToSyncQueue(prisma, 'UPDATE', 'Supplier', data.id);
-
       const suppliers: any[] = await prisma.$queryRawUnsafe(`SELECT * FROM "Supplier" WHERE "id" = ?`, data.id);
+      await addToSyncQueue(prisma, 'SUPPLIER', data.id, 'UPDATE', suppliers[0]);
       return { success: true, supplier: suppliers[0] };
     } catch (error) {
       console.error('[Suppliers] Error updating supplier:', error);
@@ -167,11 +165,12 @@ export function registerSuppliersHandlers() {
       if (Number(poCount[0]?.count || 0) > 0) {
         const now = new Date().toISOString();
         await prisma.$executeRawUnsafe(`UPDATE "Supplier" SET "status" = 'INACTIVE', "updatedAt" = ? WHERE "id" = ?`, now, id);
-        await addToSyncQueue(prisma, 'UPDATE', 'Supplier', id);
+        const suppliers: any[] = await prisma.$queryRawUnsafe(`SELECT * FROM "Supplier" WHERE "id" = ?`, id);
+        await addToSyncQueue(prisma, 'SUPPLIER', id, 'UPDATE', suppliers[0]);
         return { success: true, softDeleted: true };
       } else {
         await prisma.$executeRawUnsafe(`DELETE FROM "Supplier" WHERE "id" = ?`, id);
-        await addToSyncQueue(prisma, 'DELETE', 'Supplier', id);
+        await addToSyncQueue(prisma, 'SUPPLIER', id, 'DELETE', { id });
         return { success: true, softDeleted: false };
       }
     } catch (error) {

@@ -24,13 +24,13 @@ function generateGRNNumber(): string {
   return `GRN-${dateStr}-${random}`;
 }
 
-async function addToSyncQueue(prisma: any, operation: string, table: string, recordId: string) {
+async function addToSyncQueue(prisma: any, entityType: string, entityId: string, operation: string, payload: any = {}) {
   const now = new Date().toISOString();
   try {
     await prisma.$executeRawUnsafe(`
-      INSERT OR REPLACE INTO "SyncQueue" ("id", "operation", "table", "recordId", "status", "createdAt")
-      VALUES (?, ?, ?, ?, 'PENDING', ?)
-    `, randomUUID(), operation, table, recordId, now);
+      INSERT OR REPLACE INTO "SyncQueue" ("id", "entityType", "entityId", "operation", "payload", "status", "createdAt", "updatedAt")
+      VALUES (?, ?, ?, ?, ?, 'PENDING', ?, ?)
+    `, randomUUID(), entityType, entityId, operation, JSON.stringify(payload), now, now);
   } catch (error) {
     console.error('[GRN] Failed to add to sync queue:', error);
   }
@@ -173,7 +173,7 @@ export function registerGRNHandlers() {
           if (existing.length > 0) {
             await prisma.$executeRawUnsafe(`UPDATE "Medicine" SET "quantity" = "quantity" + ?, "updatedAt" = ? WHERE "id" = ?`,
               item.quantityReceived, now, existing[0].id);
-            await addToSyncQueue(prisma, 'UPDATE', 'Medicine', existing[0].id);
+            await addToSyncQueue(prisma, 'MEDICINE', existing[0].id, 'UPDATE', { quantityAdded: item.quantityReceived });
           } else {
             const medicineId = randomUUID();
             const sellingPrice = item.unitCost * 1.3;
@@ -181,7 +181,7 @@ export function registerGRNHandlers() {
               INSERT INTO "Medicine" ("id", "name", "batchNumber", "expiryDate", "quantity", "reorderLevel", "unitPrice", "category", "syncStatus", "createdAt", "updatedAt")
               VALUES (?, ?, ?, ?, ?, 10, ?, 'General', 'LOCAL', ?, ?)
             `, medicineId, item.medicineName.trim(), item.batchNumber.trim(), item.expiryDate, item.quantityReceived, sellingPrice, now, now);
-            await addToSyncQueue(prisma, 'CREATE', 'Medicine', medicineId);
+            await addToSyncQueue(prisma, 'MEDICINE', medicineId, 'CREATE', {});
           }
         }
       }
@@ -197,8 +197,8 @@ export function registerGRNHandlers() {
       const newStatus = totalReceived >= totalOrdered ? 'RECEIVED' : 'PARTIAL';
       await prisma.$executeRawUnsafe(`UPDATE "PurchaseOrder" SET "status" = ?, "updatedAt" = ? WHERE "id" = ?`, newStatus, now, data.purchaseOrderId);
 
-      await addToSyncQueue(prisma, 'CREATE', 'GoodsReceivedNote', grnId);
-      await addToSyncQueue(prisma, 'UPDATE', 'PurchaseOrder', data.purchaseOrderId);
+      await addToSyncQueue(prisma, 'GRN', grnId, 'CREATE', {});
+      await addToSyncQueue(prisma, 'PURCHASE_ORDER', data.purchaseOrderId, 'UPDATE', { status: newStatus });
 
       return { success: true, grnId, grnNumber };
     } catch (error) {

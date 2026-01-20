@@ -24,7 +24,6 @@ export function registerInventoryHandlers(): void {
     quantity: number;
     reorderLevel?: number;
     unitPrice: number;
-    costPrice?: number;
     category: string;
     description?: string;
     branchId?: string;
@@ -64,7 +63,6 @@ export function registerInventoryHandlers(): void {
           quantity: data.quantity || 0,
           reorderLevel: data.reorderLevel || 10,
           unitPrice: data.unitPrice,
-          costPrice: data.costPrice || null,
           category: data.category || 'Other',
           description: data.description || null,
           branchId: data.branchId || null,
@@ -92,7 +90,6 @@ export function registerInventoryHandlers(): void {
     quantity?: number;
     reorderLevel?: number;
     unitPrice?: number;
-    costPrice?: number;
     category?: string;
     description?: string;
   }) => {

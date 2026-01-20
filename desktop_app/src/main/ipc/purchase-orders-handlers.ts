@@ -25,13 +25,13 @@ function generatePONumber(): string {
   return `PO-${dateStr}-${random}`;
 }
 
-async function addToSyncQueue(prisma: any, operation: string, table: string, recordId: string) {
+async function addToSyncQueue(prisma: any, entityType: string, entityId: string, operation: string, payload: any = {}) {
   const now = new Date().toISOString();
   try {
     await prisma.$executeRawUnsafe(`
-      INSERT OR REPLACE INTO "SyncQueue" ("id", "operation", "table", "recordId", "status", "createdAt")
-      VALUES (?, ?, ?, ?, 'PENDING', ?)
-    `, randomUUID(), operation, table, recordId, now);
+      INSERT OR REPLACE INTO "SyncQueue" ("id", "entityType", "entityId", "operation", "payload", "status", "createdAt", "updatedAt")
+      VALUES (?, ?, ?, ?, ?, 'PENDING', ?, ?)
+    `, randomUUID(), entityType, entityId, operation, JSON.stringify(payload), now, now);
   } catch (error) {
     console.error('[PurchaseOrders] Failed to add to sync queue:', error);
   }
@@ -146,7 +146,7 @@ export function registerPurchaseOrdersHandlers() {
         `, itemId, poId, item.medicineName.trim(), item.genericName?.trim() || null, item.quantity, item.unitCost, itemTotal, item.category || null);
       }
 
-      await addToSyncQueue(prisma, 'CREATE', 'PurchaseOrder', poId);
+      await addToSyncQueue(prisma, 'PURCHASE_ORDER', poId, 'CREATE', {});
       return { success: true, orderId: poId, poNumber };
     } catch (error) {
       console.error('[PurchaseOrders] Error creating order:', error);
@@ -162,7 +162,7 @@ export function registerPurchaseOrdersHandlers() {
 
       const now = new Date().toISOString();
       await prisma.$executeRawUnsafe(`UPDATE "PurchaseOrder" SET "status" = ?, "updatedAt" = ? WHERE "id" = ?`, params.status, now, params.id);
-      await addToSyncQueue(prisma, 'UPDATE', 'PurchaseOrder', params.id);
+      await addToSyncQueue(prisma, 'PURCHASE_ORDER', params.id, 'UPDATE', { status: params.status });
       return { success: true };
     } catch (error) {
       console.error('[PurchaseOrders] Error updating status:', error);
@@ -186,7 +186,7 @@ export function registerPurchaseOrdersHandlers() {
 
       await prisma.$executeRawUnsafe(`DELETE FROM "PurchaseOrderItem" WHERE "purchaseOrderId" = ?`, id);
       await prisma.$executeRawUnsafe(`DELETE FROM "PurchaseOrder" WHERE "id" = ?`, id);
-      await addToSyncQueue(prisma, 'DELETE', 'PurchaseOrder', id);
+      await addToSyncQueue(prisma, 'PURCHASE_ORDER', id, 'DELETE', { id });
       return { success: true };
     } catch (error) {
       console.error('[PurchaseOrders] Error deleting order:', error);

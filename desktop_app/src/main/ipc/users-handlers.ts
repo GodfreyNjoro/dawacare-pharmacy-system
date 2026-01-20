@@ -136,9 +136,9 @@ export function registerUsersHandlers(): void {
 
       // Add to sync queue
       await prisma.$queryRawUnsafe(
-        `INSERT INTO "SyncQueue" (id, "tableName", "recordId", operation, "createdAt")
-         VALUES (?, 'User', ?, 'CREATE', ?)`,
-        randomUUID(), id, now
+        `INSERT INTO "SyncQueue" (id, "entityType", "entityId", operation, payload, status, "createdAt", "updatedAt")
+         VALUES (?, 'USER', ?, 'CREATE', '{}', 'PENDING', ?, ?)`,
+        randomUUID(), id, now, now
       );
 
       return { success: true, id };
@@ -214,9 +214,9 @@ export function registerUsersHandlers(): void {
 
       // Add to sync queue
       await prisma.$queryRawUnsafe(
-        `INSERT INTO "SyncQueue" (id, "tableName", "recordId", operation, "createdAt")
-         VALUES (?, 'User', ?, 'UPDATE', ?)`,
-        randomUUID(), userId, now
+        `INSERT INTO "SyncQueue" (id, "entityType", "entityId", operation, payload, status, "createdAt", "updatedAt")
+         VALUES (?, 'USER', ?, 'UPDATE', '{}', 'PENDING', ?, ?)`,
+        randomUUID(), userId, now, now
       );
 
       return { success: true };
@@ -245,9 +245,9 @@ export function registerUsersHandlers(): void {
 
       // Add to sync queue
       await prisma.$queryRawUnsafe(
-        `INSERT INTO "SyncQueue" (id, "tableName", "recordId", operation, "createdAt")
-         VALUES (?, 'User', ?, 'UPDATE', ?)`,
-        randomUUID(), userId, now
+        `INSERT INTO "SyncQueue" (id, "entityType", "entityId", operation, payload, status, "createdAt", "updatedAt")
+         VALUES (?, 'USER', ?, 'UPDATE', '{}', 'PENDING', ?, ?)`,
+        randomUUID(), userId, now, now
       );
 
       return { success: true };
