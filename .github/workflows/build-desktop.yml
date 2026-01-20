@@ -70,6 +70,34 @@ jobs:
         working-directory: desktop_app
         run: npm run build
 
+      # Verify build output exists
+      - name: Verify Build Output (Unix)
+        if: runner.os != 'Windows'
+        working-directory: desktop_app
+        run: |
+          echo "=== Checking dist directory structure ==="
+          ls -la dist/ || echo "dist/ folder NOT FOUND!"
+          echo "=== Checking dist/main ==="
+          ls -la dist/main/ || echo "dist/main/ folder NOT FOUND!"
+          echo "=== Checking dist/main/main ==="
+          ls -la dist/main/main/ || echo "dist/main/main/ folder NOT FOUND!"
+          echo "=== Checking main.js exists ==="
+          ls -la dist/main/main/main.js || echo "main.js NOT FOUND!"
+          echo "=== Checking dist/renderer ==="
+          ls -la dist/renderer/ || echo "dist/renderer/ folder NOT FOUND!"
+
+      - name: Verify Build Output (Windows)
+        if: runner.os == 'Windows'
+        working-directory: desktop_app
+        shell: cmd
+        run: |
+          echo === Checking dist directory structure ===
+          if exist dist dir dist
+          if not exist dist echo dist/ folder NOT FOUND!
+          echo === Checking main.js exists ===
+          if exist dist\main\main\main.js echo main.js FOUND!
+          if not exist dist\main\main\main.js echo main.js NOT FOUND!
+
       # Linux-specific build
       - name: Package for Linux
         if: matrix.platform == 'linux'
