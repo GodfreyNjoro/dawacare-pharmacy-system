@@ -92,6 +92,14 @@ export enum IPC_CHANNELS {
   SYNC_STOP = 'sync:stop',
   SYNC_STATUS = 'sync:status',
   SYNC_MANUAL = 'sync:manual',
+  SYNC_SET_SERVER = 'sync:set-server',
+  SYNC_GET_SERVER = 'sync:get-server',
+  SYNC_GET_CONFIG = 'sync:get-config',
+  SYNC_SAVE_CONFIG = 'sync:save-config',
+  SYNC_AUTHENTICATE = 'sync:authenticate',
+  SYNC_DOWNLOAD = 'sync:download',
+  SYNC_UPLOAD = 'sync:upload',
+  SYNC_RESET = 'sync:reset',
 
   // Window
   WINDOW_MINIMIZE = 'window:minimize',

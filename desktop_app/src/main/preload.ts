@@ -116,7 +116,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getDbConfig: () => ipcRenderer.invoke(IPC_CHANNELS.DB_GET_CONFIG),
   setDbConfig: (config: DatabaseConfig) => ipcRenderer.invoke(IPC_CHANNELS.DB_SET_CONFIG, config),
   testDbConnection: (config: DatabaseConfig) => ipcRenderer.invoke(IPC_CHANNELS.DB_TEST_CONNECTION, config),
+  testDatabaseConnection: (config: DatabaseConfig) => ipcRenderer.invoke(IPC_CHANNELS.DB_TEST_CONNECTION, config),
   initializeDb: (config: DatabaseConfig) => ipcRenderer.invoke(IPC_CHANNELS.DB_INITIALIZE, config),
+  configureDatabase: (config: DatabaseConfig) => ipcRenderer.invoke(IPC_CHANNELS.DB_SET_CONFIG, config),
 
   // Settings APIs
   getSetting: (key: string) => ipcRenderer.invoke(IPC_CHANNELS.SETTINGS_GET, key),
@@ -130,6 +132,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   manualSync: () => ipcRenderer.invoke(IPC_CHANNELS.SYNC_MANUAL),
   setSyncServer: (serverUrl: string) => ipcRenderer.invoke(IPC_CHANNELS.SYNC_SET_SERVER, serverUrl),
   getSyncServer: () => ipcRenderer.invoke(IPC_CHANNELS.SYNC_GET_SERVER),
+  getSyncConfig: () => ipcRenderer.invoke(IPC_CHANNELS.SYNC_GET_CONFIG),
+  saveSyncConfig: (config: { cloudUrl: string; branchCode: string }) => ipcRenderer.invoke(IPC_CHANNELS.SYNC_SAVE_CONFIG, config),
   syncAuthenticate: (credentials: LoginCredentials) => ipcRenderer.invoke(IPC_CHANNELS.SYNC_AUTHENTICATE, credentials),
   syncDownload: () => ipcRenderer.invoke(IPC_CHANNELS.SYNC_DOWNLOAD),
   syncUpload: () => ipcRenderer.invoke(IPC_CHANNELS.SYNC_UPLOAD),
@@ -246,7 +250,9 @@ export interface ElectronAPI {
   getDbConfig: () => Promise<any>;
   setDbConfig: (config: DatabaseConfig) => Promise<any>;
   testDbConnection: (config: DatabaseConfig) => Promise<any>;
+  testDatabaseConnection: (config: DatabaseConfig) => Promise<any>;
   initializeDb: (config: DatabaseConfig) => Promise<any>;
+  configureDatabase: (config: DatabaseConfig) => Promise<any>;
 
   // Settings
   getSetting: (key: string) => Promise<any>;
@@ -260,6 +266,8 @@ export interface ElectronAPI {
   manualSync: () => Promise<any>;
   setSyncServer: (serverUrl: string) => Promise<any>;
   getSyncServer: () => Promise<any>;
+  getSyncConfig: () => Promise<any>;
+  saveSyncConfig: (config: { cloudUrl: string; branchCode: string }) => Promise<any>;
   syncAuthenticate: (credentials: LoginCredentials) => Promise<any>;
   syncDownload: () => Promise<any>;
   syncUpload: () => Promise<any>;

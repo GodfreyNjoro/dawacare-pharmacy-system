@@ -12,6 +12,8 @@ const SYNC_CHANNELS = {
   SYNC_MANUAL: 'sync:manual',
   SYNC_SET_SERVER: 'sync:set-server',
   SYNC_GET_SERVER: 'sync:get-server',
+  SYNC_GET_CONFIG: 'sync:get-config',
+  SYNC_SAVE_CONFIG: 'sync:save-config',
   SYNC_AUTHENTICATE: 'sync:authenticate',
   SYNC_DOWNLOAD: 'sync:download',
   SYNC_UPLOAD: 'sync:upload',
@@ -20,6 +22,7 @@ const SYNC_CHANNELS = {
 
 const STORAGE_KEYS = {
   SYNC_SERVER_URL: 'sync.serverUrl',
+  SYNC_BRANCH_CODE: 'sync.branchCode',
   SYNC_TOKEN: 'sync.token',
   SYNC_USER: 'sync.user',
   SYNC_LAST_SYNC: 'sync.lastSync',
@@ -143,6 +146,42 @@ export function registerSyncHandlers(): void {
   ipcMain.handle(SYNC_CHANNELS.SYNC_GET_SERVER, async () => {
     const serverUrl = store.get(STORAGE_KEYS.SYNC_SERVER_URL) as string;
     return { success: true, serverUrl: serverUrl || null };
+  });
+
+  // Get sync config (cloud URL + branch code)
+  ipcMain.handle(SYNC_CHANNELS.SYNC_GET_CONFIG, async () => {
+    const cloudUrl = store.get(STORAGE_KEYS.SYNC_SERVER_URL) as string;
+    const branchCode = store.get(STORAGE_KEYS.SYNC_BRANCH_CODE) as string;
+    return { 
+      success: true, 
+      config: { 
+        cloudUrl: cloudUrl || 'https://dawacare.abacusai.app', 
+        branchCode: branchCode || '' 
+      } 
+    };
+  });
+
+  // Save sync config (cloud URL + branch code)
+  ipcMain.handle(SYNC_CHANNELS.SYNC_SAVE_CONFIG, async (_, config: { cloudUrl: string; branchCode: string }) => {
+    try {
+      if (config.cloudUrl) {
+        const cleanUrl = config.cloudUrl.replace(/\/+$/, '');
+        store.set(STORAGE_KEYS.SYNC_SERVER_URL, cleanUrl);
+        syncStatus.serverUrl = cleanUrl;
+      }
+      if (config.branchCode !== undefined) {
+        store.set(STORAGE_KEYS.SYNC_BRANCH_CODE, config.branchCode);
+      }
+      // Clear existing auth when config changes
+      store.delete(STORAGE_KEYS.SYNC_TOKEN);
+      store.delete(STORAGE_KEYS.SYNC_USER);
+      syncStatus.isAuthenticated = false;
+      
+      return { success: true, message: 'Sync configuration saved' };
+    } catch (error: any) {
+      console.error('[Sync] Error saving config:', error);
+      return { success: false, message: error.message || 'Failed to save config' };
+    }
   });
 
   // Authenticate with cloud server

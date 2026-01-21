@@ -18,7 +18,25 @@ import NewGRN from './pages/NewGRN';
 import Users from './pages/Users';
 import Branches from './pages/Branches';
 import Reports from './pages/Reports';
+import Settings from './pages/Settings';
 import { AuthProvider, useAuth } from './lib/auth-context';
+import { hasPermission } from './lib/permissions';
+
+// Permission-protected route component
+function ProtectedRoute({ 
+  element, 
+  permission, 
+  role 
+}: { 
+  element: React.ReactElement; 
+  permission: string; 
+  role: string | undefined;
+}) {
+  if (!hasPermission(role, permission as any)) {
+    return <Navigate to="/pos" replace />;
+  }
+  return element;
+}
 
 function AppContent() {
   const [dbConfigured, setDbConfigured] = useState<boolean | null>(null);
@@ -76,27 +94,62 @@ function AppContent() {
   }
 
   // Show main app if authenticated
+  const userRole = user?.role;
+  
   return (
     <Routes>
+      {/* Core Routes - All Roles */}
       <Route path="/dashboard" element={<Dashboard />} />
       <Route path="/pos" element={<POS />} />
-      <Route path="/inventory" element={<Inventory />} />
-      <Route path="/inventory/add" element={<MedicineForm />} />
-      <Route path="/inventory/edit/:id" element={<MedicineForm />} />
       <Route path="/sales" element={<SalesHistory />} />
       <Route path="/invoice/:id" element={<Invoice />} />
       <Route path="/customers" element={<Customers />} />
-      {/* Procurement Routes */}
-      <Route path="/procurement/suppliers" element={<Suppliers />} />
-      <Route path="/procurement/purchase-orders" element={<PurchaseOrders />} />
-      <Route path="/procurement/purchase-orders/new" element={<NewPurchaseOrder />} />
-      <Route path="/procurement/purchase-orders/:id" element={<PurchaseOrderView />} />
-      <Route path="/procurement/grn" element={<GRNList />} />
-      <Route path="/procurement/grn/new" element={<NewGRN />} />
-      {/* Admin Routes */}
-      <Route path="/admin/users" element={<Users />} />
-      <Route path="/admin/branches" element={<Branches />} />
-      <Route path="/admin/reports" element={<Reports />} />
+      
+      {/* Inventory - Admin & Pharmacist Only */}
+      <Route path="/inventory" element={
+        <ProtectedRoute element={<Inventory />} permission="VIEW_INVENTORY" role={userRole} />
+      } />
+      <Route path="/inventory/add" element={
+        <ProtectedRoute element={<MedicineForm />} permission="ADD_MEDICINE" role={userRole} />
+      } />
+      <Route path="/inventory/edit/:id" element={
+        <ProtectedRoute element={<MedicineForm />} permission="EDIT_MEDICINE" role={userRole} />
+      } />
+      
+      {/* Procurement Routes - Admin & Pharmacist Only */}
+      <Route path="/procurement/suppliers" element={
+        <ProtectedRoute element={<Suppliers />} permission="VIEW_SUPPLIERS" role={userRole} />
+      } />
+      <Route path="/procurement/purchase-orders" element={
+        <ProtectedRoute element={<PurchaseOrders />} permission="VIEW_PURCHASE_ORDERS" role={userRole} />
+      } />
+      <Route path="/procurement/purchase-orders/new" element={
+        <ProtectedRoute element={<NewPurchaseOrder />} permission="CREATE_PURCHASE_ORDER" role={userRole} />
+      } />
+      <Route path="/procurement/purchase-orders/:id" element={
+        <ProtectedRoute element={<PurchaseOrderView />} permission="VIEW_PURCHASE_ORDERS" role={userRole} />
+      } />
+      <Route path="/procurement/grn" element={
+        <ProtectedRoute element={<GRNList />} permission="VIEW_GRN" role={userRole} />
+      } />
+      <Route path="/procurement/grn/new" element={
+        <ProtectedRoute element={<NewGRN />} permission="CREATE_GRN" role={userRole} />
+      } />
+      
+      {/* Admin Routes - Admin Only */}
+      <Route path="/admin/users" element={
+        <ProtectedRoute element={<Users />} permission="VIEW_USERS" role={userRole} />
+      } />
+      <Route path="/admin/branches" element={
+        <ProtectedRoute element={<Branches />} permission="VIEW_BRANCHES" role={userRole} />
+      } />
+      <Route path="/admin/reports" element={
+        <ProtectedRoute element={<Reports />} permission="VIEW_REPORTS" role={userRole} />
+      } />
+      <Route path="/admin/settings" element={
+        <ProtectedRoute element={<Settings />} permission="VIEW_SETTINGS" role={userRole} />
+      } />
+      
       <Route path="*" element={<Navigate to="/pos" replace />} />
     </Routes>
   );

@@ -21,7 +21,9 @@ export interface ElectronAPI {
   getDbConfig: () => Promise<any>;
   setDbConfig: (config: DatabaseConfig) => Promise<any>;
   testDbConnection: (config: DatabaseConfig) => Promise<any>;
+  testDatabaseConnection: (config: DatabaseConfig) => Promise<any>;
   initializeDb: (config: DatabaseConfig) => Promise<any>;
+  configureDatabase: (config: DatabaseConfig) => Promise<any>;
 
   // Settings
   getSetting: (key: string) => Promise<any>;
@@ -35,6 +37,8 @@ export interface ElectronAPI {
   manualSync: () => Promise<any>;
   setSyncServer: (serverUrl: string) => Promise<any>;
   getSyncServer: () => Promise<any>;
+  getSyncConfig: () => Promise<any>;
+  saveSyncConfig: (config: { cloudUrl: string; branchCode: string }) => Promise<any>;
   syncAuthenticate: (credentials: LoginCredentials) => Promise<any>;
   syncDownload: () => Promise<any>;
   syncUpload: () => Promise<any>;

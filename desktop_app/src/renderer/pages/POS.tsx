@@ -92,6 +92,7 @@ export default function POS() {
   const [lastSale, setLastSale] = useState<Sale | null>(null);
   
   // Customer state
+  const [showCustomerSection, setShowCustomerSection] = useState(false);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [customerSearch, setCustomerSearch] = useState('');
@@ -630,100 +631,125 @@ export default function POS() {
                       ))}
                     </div>
 
-                    {/* Customer Selection */}
+                    {/* Customer Selection Toggle */}
                     <div className="border-t pt-4">
-                      <p className="text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                        <User className="w-4 h-4" />
-                        Customer
-                      </p>
-                      {selectedCustomer ? (
-                        <div className="bg-emerald-50 rounded-lg p-3">
-                          <div className="flex justify-between items-start">
-                            <div>
-                              <p className="font-medium text-gray-900">{selectedCustomer.name}</p>
-                              <p className="text-sm text-gray-600">{selectedCustomer.phone}</p>
-                            </div>
-                            <button className="text-gray-400 hover:text-gray-600 p-1" onClick={clearCustomer}>
-                              <X className="w-4 h-4" />
-                            </button>
-                          </div>
-                          <div className="flex items-center gap-4 mt-2 text-sm">
-                            <span className="flex items-center gap-1 text-amber-600">
-                              <Star className="w-4 h-4" />
-                              {selectedCustomer.loyaltyPoints} pts
-                            </span>
-                            {selectedCustomer.creditBalance > 0 && (
-                              <span className="text-blue-600">
-                                Credit: KES {selectedCustomer.creditBalance.toFixed(2)}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="space-y-2">
-                          <div className="relative">
-                            <Input
-                              placeholder="Search customer..."
-                              value={customerSearch}
-                              onChange={(e) => {
-                                setCustomerSearch(e.target.value);
-                                setShowCustomerDropdown(true);
-                              }}
-                              onFocus={() => setShowCustomerDropdown(true)}
-                            />
-                            {showCustomerDropdown && customerSearch && (
-                              <div className="absolute top-full left-0 right-0 mt-1 bg-white border rounded-lg shadow-lg z-10 max-h-40 overflow-y-auto">
-                                {filteredCustomers.length === 0 ? (
-                                  <div className="p-3 text-center text-gray-500 text-sm">No customers found</div>
-                                ) : (
-                                  filteredCustomers.map((customer) => (
-                                    <button
-                                      key={customer.id}
-                                      className="w-full text-left px-3 py-2 hover:bg-gray-50 flex justify-between items-center"
-                                      onClick={() => selectCustomer(customer)}
-                                    >
-                                      <div>
-                                        <p className="font-medium">{customer.name}</p>
-                                        <p className="text-sm text-gray-500">{customer.phone}</p>
-                                      </div>
-                                      <span className="text-amber-600 text-sm flex items-center gap-1">
-                                        <Star className="w-3 h-3" />
-                                        {customer.loyaltyPoints}
-                                      </span>
-                                    </button>
-                                  ))
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={showCustomerSection}
+                          onChange={(e) => {
+                            setShowCustomerSection(e.target.checked);
+                            if (!e.target.checked) {
+                              // Clear customer data when hiding
+                              setSelectedCustomer(null);
+                              setCustomerSearch('');
+                              setWalkInName('');
+                              setWalkInPhone('');
+                              setUsePoints(false);
+                              setPointsToUse(0);
+                            }
+                          }}
+                          className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                        />
+                        <span className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                          <User className="w-4 h-4" />
+                          Add Customer Info
+                        </span>
+                      </label>
+                      
+                      {/* Customer Details - Only shown when checkbox is checked */}
+                      {showCustomerSection && (
+                        <div className="mt-3 space-y-3">
+                          {selectedCustomer ? (
+                            <div className="bg-emerald-50 rounded-lg p-3">
+                              <div className="flex justify-between items-start">
+                                <div>
+                                  <p className="font-medium text-gray-900">{selectedCustomer.name}</p>
+                                  <p className="text-sm text-gray-600">{selectedCustomer.phone}</p>
+                                </div>
+                                <button className="text-gray-400 hover:text-gray-600 p-1" onClick={clearCustomer}>
+                                  <X className="w-4 h-4" />
+                                </button>
+                              </div>
+                              <div className="flex items-center gap-4 mt-2 text-sm">
+                                <span className="flex items-center gap-1 text-amber-600">
+                                  <Star className="w-4 h-4" />
+                                  {selectedCustomer.loyaltyPoints} pts
+                                </span>
+                                {selectedCustomer.creditBalance > 0 && (
+                                  <span className="text-blue-600">
+                                    Credit: KES {selectedCustomer.creditBalance.toFixed(2)}
+                                  </span>
                                 )}
                               </div>
-                            )}
-                          </div>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="w-full"
-                            onClick={() => setShowNewCustomerModal(true)}
-                          >
-                            <UserPlus className="w-4 h-4 mr-1" />
-                            New Customer
-                          </Button>
-                          <div className="text-xs text-gray-500 text-center">or walk-in customer:</div>
-                          <Input
-                            placeholder="Name (optional)"
-                            value={walkInName}
-                            onChange={(e) => setWalkInName(e.target.value)}
-                            className="h-8 text-sm"
-                          />
-                          <Input
-                            placeholder="Phone (optional)"
-                            value={walkInPhone}
-                            onChange={(e) => setWalkInPhone(e.target.value)}
-                            className="h-8 text-sm"
-                          />
+                            </div>
+                          ) : (
+                            <div className="space-y-2">
+                              <div className="relative">
+                                <Input
+                                  placeholder="Search customer..."
+                                  value={customerSearch}
+                                  onChange={(e) => {
+                                    setCustomerSearch(e.target.value);
+                                    setShowCustomerDropdown(true);
+                                  }}
+                                  onFocus={() => setShowCustomerDropdown(true)}
+                                />
+                                {showCustomerDropdown && customerSearch && (
+                                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border rounded-lg shadow-lg z-10 max-h-40 overflow-y-auto">
+                                    {filteredCustomers.length === 0 ? (
+                                      <div className="p-3 text-center text-gray-500 text-sm">No customers found</div>
+                                    ) : (
+                                      filteredCustomers.map((customer) => (
+                                        <button
+                                          key={customer.id}
+                                          className="w-full text-left px-3 py-2 hover:bg-gray-50 flex justify-between items-center"
+                                          onClick={() => selectCustomer(customer)}
+                                        >
+                                          <div>
+                                            <p className="font-medium">{customer.name}</p>
+                                            <p className="text-sm text-gray-500">{customer.phone}</p>
+                                          </div>
+                                          <span className="text-amber-600 text-sm flex items-center gap-1">
+                                            <Star className="w-3 h-3" />
+                                            {customer.loyaltyPoints}
+                                          </span>
+                                        </button>
+                                      ))
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="w-full"
+                                onClick={() => setShowNewCustomerModal(true)}
+                              >
+                                <UserPlus className="w-4 h-4 mr-1" />
+                                New Customer
+                              </Button>
+                              <div className="text-xs text-gray-500 text-center">or walk-in customer:</div>
+                              <Input
+                                placeholder="Name (optional)"
+                                value={walkInName}
+                                onChange={(e) => setWalkInName(e.target.value)}
+                                className="h-8 text-sm"
+                              />
+                              <Input
+                                placeholder="Phone (optional)"
+                                value={walkInPhone}
+                                onChange={(e) => setWalkInPhone(e.target.value)}
+                                className="h-8 text-sm"
+                              />
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
 
                     {/* Loyalty Points */}
-                    {selectedCustomer && selectedCustomer.loyaltyPoints > 0 && (
+                    {showCustomerSection && selectedCustomer && selectedCustomer.loyaltyPoints > 0 && (
                       <div className="border-t pt-4">
                         <div className="flex items-center justify-between mb-2">
                           <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
