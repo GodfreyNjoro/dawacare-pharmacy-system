@@ -10,13 +10,28 @@ interface SupplierData {
   address?: string;
 }
 
+// Helper to format datetime for SQLite
+function formatDateTime(date?: Date | string): string {
+  if (!date) return new Date().toISOString().replace('T', ' ').replace('Z', '');
+  const d = typeof date === 'string' ? new Date(date) : date;
+  return d.toISOString().replace('T', ' ').replace('Z', '');
+}
+
+// Helper to escape SQL string values
+function escapeSQL(value: string | null | undefined): string {
+  if (value === null || value === undefined) return 'NULL';
+  return `'${String(value).replace(/'/g, "''")}'`;
+}
+
 async function addToSyncQueue(prisma: any, entityType: string, entityId: string, operation: string, payload: any = {}) {
-  const now = new Date().toISOString();
+  const now = formatDateTime();
+  const id = randomUUID();
+  const payloadStr = JSON.stringify(payload).replace(/'/g, "''");
   try {
     await prisma.$executeRawUnsafe(`
       INSERT OR REPLACE INTO "SyncQueue" ("id", "entityType", "entityId", "operation", "payload", "status", "createdAt", "updatedAt")
-      VALUES (?, ?, ?, ?, ?, 'PENDING', ?, ?)
-    `, randomUUID(), entityType, entityId, operation, JSON.stringify(payload), now, now);
+      VALUES ('${id}', '${entityType}', '${entityId}', '${operation}', '${payloadStr}', 'PENDING', '${now}', '${now}')
+    `);
   } catch (error) {
     console.error('[Suppliers] Failed to add to sync queue:', error);
   }
@@ -96,23 +111,20 @@ export function registerSuppliersHandlers() {
         return { success: false, error: 'Supplier name is required' };
       }
 
-      const now = new Date().toISOString();
+      const now = formatDateTime();
       const id = randomUUID();
+      const name = data.name.trim().replace(/'/g, "''");
+      const contactPerson = escapeSQL(data.contactPerson?.trim());
+      const email = escapeSQL(data.email?.trim());
+      const phone = escapeSQL(data.phone?.trim());
+      const address = escapeSQL(data.address?.trim());
 
       await prisma.$executeRawUnsafe(`
         INSERT INTO "Supplier" ("id", "name", "contactPerson", "email", "phone", "address", "status", "createdAt", "updatedAt")
-        VALUES (?, ?, ?, ?, ?, ?, 'ACTIVE', ?, ?)
-      `,
-        id,
-        data.name.trim(),
-        data.contactPerson?.trim() || null,
-        data.email?.trim() || null,
-        data.phone?.trim() || null,
-        data.address?.trim() || null,
-        now, now
-      );
+        VALUES ('${id}', '${name}', ${contactPerson}, ${email}, ${phone}, ${address}, 'ACTIVE', '${now}', '${now}')
+      `);
 
-      const suppliers: any[] = await prisma.$queryRawUnsafe(`SELECT * FROM "Supplier" WHERE "id" = ?`, id);
+      const suppliers: any[] = await prisma.$queryRawUnsafe(`SELECT * FROM "Supplier" WHERE "id" = '${id}'`);
       await addToSyncQueue(prisma, 'SUPPLIER', id, 'CREATE', suppliers[0]);
       return { success: true, supplier: suppliers[0] };
     } catch (error) {
@@ -130,20 +142,18 @@ export function registerSuppliersHandlers() {
       if (!data.id) return { success: false, error: 'Supplier ID is required' };
       if (!data.name?.trim()) return { success: false, error: 'Supplier name is required' };
 
-      const now = new Date().toISOString();
+      const now = formatDateTime();
+      const name = data.name.trim().replace(/'/g, "''");
+      const contactPerson = escapeSQL(data.contactPerson?.trim());
+      const email = escapeSQL(data.email?.trim());
+      const phone = escapeSQL(data.phone?.trim());
+      const address = escapeSQL(data.address?.trim());
 
       await prisma.$executeRawUnsafe(`
-        UPDATE "Supplier" SET "name" = ?, "contactPerson" = ?, "email" = ?, "phone" = ?, "address" = ?, "updatedAt" = ? WHERE "id" = ?
-      `,
-        data.name.trim(),
-        data.contactPerson?.trim() || null,
-        data.email?.trim() || null,
-        data.phone?.trim() || null,
-        data.address?.trim() || null,
-        now, data.id
-      );
+        UPDATE "Supplier" SET "name" = '${name}', "contactPerson" = ${contactPerson}, "email" = ${email}, "phone" = ${phone}, "address" = ${address}, "updatedAt" = '${now}' WHERE "id" = '${data.id}'
+      `);
 
-      const suppliers: any[] = await prisma.$queryRawUnsafe(`SELECT * FROM "Supplier" WHERE "id" = ?`, data.id);
+      const suppliers: any[] = await prisma.$queryRawUnsafe(`SELECT * FROM "Supplier" WHERE "id" = '${data.id}'`);
       await addToSyncQueue(prisma, 'SUPPLIER', data.id, 'UPDATE', suppliers[0]);
       return { success: true, supplier: suppliers[0] };
     } catch (error) {
@@ -158,18 +168,16 @@ export function registerSuppliersHandlers() {
       const prisma = dbManager.getPrismaClient();
       if (!prisma) return { success: false, error: 'Database not initialized' };
 
-      const poCount: any[] = await prisma.$queryRawUnsafe(
-        `SELECT COUNT(*) as count FROM "PurchaseOrder" WHERE "supplierId" = ?`, id
-      );
+      const poCount: any[] = await prisma.$queryRawUnsafe(`SELECT COUNT(*) as count FROM "PurchaseOrder" WHERE "supplierId" = '${id}'`);
 
       if (Number(poCount[0]?.count || 0) > 0) {
-        const now = new Date().toISOString();
-        await prisma.$executeRawUnsafe(`UPDATE "Supplier" SET "status" = 'INACTIVE', "updatedAt" = ? WHERE "id" = ?`, now, id);
-        const suppliers: any[] = await prisma.$queryRawUnsafe(`SELECT * FROM "Supplier" WHERE "id" = ?`, id);
+        const now = formatDateTime();
+        await prisma.$executeRawUnsafe(`UPDATE "Supplier" SET "status" = 'INACTIVE', "updatedAt" = '${now}' WHERE "id" = '${id}'`);
+        const suppliers: any[] = await prisma.$queryRawUnsafe(`SELECT * FROM "Supplier" WHERE "id" = '${id}'`);
         await addToSyncQueue(prisma, 'SUPPLIER', id, 'UPDATE', suppliers[0]);
         return { success: true, softDeleted: true };
       } else {
-        await prisma.$executeRawUnsafe(`DELETE FROM "Supplier" WHERE "id" = ?`, id);
+        await prisma.$executeRawUnsafe(`DELETE FROM "Supplier" WHERE "id" = '${id}'`);
         await addToSyncQueue(prisma, 'SUPPLIER', id, 'DELETE', { id });
         return { success: true, softDeleted: false };
       }

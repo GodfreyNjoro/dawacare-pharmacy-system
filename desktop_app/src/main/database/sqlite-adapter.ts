@@ -74,6 +74,9 @@ export class SQLiteAdapter implements DatabaseAdapter {
     try {
       console.log('[SQLite] Creating schema...');
       
+      // Run schema updates/migrations for existing tables
+      await this.runSchemaMigrations();
+      
       // Create all tables using raw SQL (SQLite compatible)
       await this.prisma.$executeRawUnsafe(`
         CREATE TABLE IF NOT EXISTS "Branch" (
@@ -397,6 +400,69 @@ export class SQLiteAdapter implements DatabaseAdapter {
     } catch (error) {
       console.error('[SQLite] Schema creation error:', error);
       throw error;
+    }
+  }
+
+  private async runSchemaMigrations(): Promise<void> {
+    if (!this.prisma) return;
+    
+    try {
+      console.log('[SQLite] Checking for schema migrations...');
+      
+      // Check if SyncQueue table exists and has old schema
+      const tableInfo: any[] = await this.prisma.$queryRawUnsafe(`PRAGMA table_info("SyncQueue")`);
+      
+      if (tableInfo.length > 0) {
+        // Table exists, check if it has old column names
+        const hasOldTableColumn = tableInfo.some((col: any) => col.name === 'table');
+        const hasEntityTypeColumn = tableInfo.some((col: any) => col.name === 'entityType');
+        
+        if (hasOldTableColumn && !hasEntityTypeColumn) {
+          console.log('[SQLite] Migrating SyncQueue table from old schema...');
+          
+          // Rename old table
+          await this.prisma.$executeRawUnsafe(`ALTER TABLE "SyncQueue" RENAME TO "SyncQueue_old"`);
+          
+          // Create new table with correct schema
+          await this.prisma.$executeRawUnsafe(`
+            CREATE TABLE "SyncQueue" (
+              "id" TEXT PRIMARY KEY NOT NULL,
+              "entityType" TEXT NOT NULL,
+              "entityId" TEXT NOT NULL,
+              "operation" TEXT NOT NULL,
+              "payload" TEXT NOT NULL DEFAULT '{}',
+              "status" TEXT NOT NULL DEFAULT 'PENDING',
+              "attempts" INTEGER NOT NULL DEFAULT 0,
+              "lastAttemptAt" DATETIME,
+              "errorMessage" TEXT,
+              "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+              "updatedAt" DATETIME NOT NULL
+            )
+          `);
+          
+          // Copy data from old table mapping old columns to new
+          try {
+            await this.prisma.$executeRawUnsafe(`
+              INSERT INTO "SyncQueue" ("id", "entityType", "entityId", "operation", "payload", "status", "createdAt", "updatedAt")
+              SELECT "id", COALESCE("table", 'UNKNOWN'), COALESCE("recordId", "id"), COALESCE("action", 'CREATE'), 
+                     COALESCE("data", '{}'), COALESCE("status", 'PENDING'), "createdAt", COALESCE("updatedAt", "createdAt")
+              FROM "SyncQueue_old"
+            `);
+          } catch (e) {
+            console.log('[SQLite] Could not migrate old data, starting fresh');
+          }
+          
+          // Drop old table
+          await this.prisma.$executeRawUnsafe(`DROP TABLE IF EXISTS "SyncQueue_old"`);
+          
+          console.log('[SQLite] SyncQueue table migration completed');
+        }
+      }
+      
+      console.log('[SQLite] Schema migrations completed');
+    } catch (error) {
+      console.error('[SQLite] Schema migration error:', error);
+      // Don't throw - allow the app to continue with fresh table creation
     }
   }
 

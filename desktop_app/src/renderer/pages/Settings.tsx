@@ -11,6 +11,9 @@ import {
   CheckCircle,
   Settings as SettingsIcon,
   Info,
+  Download,
+  RotateCcw,
+  Upload,
 } from 'lucide-react';
 import { Button, Input, Card, CardContent, CardHeader, Badge } from '../components/ui';
 import { useAuth } from '../lib/auth-context';
@@ -29,6 +32,11 @@ interface PostgresConfig {
 interface SyncConfig {
   cloudUrl: string;
   branchCode: string;
+}
+
+interface SyncProgress {
+  stage: string;
+  progress: number;
 }
 
 export default function Settings() {
@@ -51,6 +59,9 @@ export default function Settings() {
     cloudUrl: 'https://dawacare.abacusai.app',
     branchCode: '',
   });
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [syncProgress, setSyncProgress] = useState<SyncProgress | null>(null);
   
   // UI state
   const [isLoading, setIsLoading] = useState(true);
@@ -63,6 +74,16 @@ export default function Settings() {
 
   useEffect(() => {
     loadCurrentConfig();
+    
+    // Listen for sync progress updates
+    const unsubscribe = window.electronAPI.onSyncProgress?.((data: SyncProgress) => {
+      setSyncProgress(data);
+      if (data.progress === 100) {
+        setTimeout(() => setSyncProgress(null), 2000);
+      }
+    });
+    
+    return () => unsubscribe?.();
   }, []);
 
   const loadCurrentConfig = async () => {
@@ -99,11 +120,76 @@ export default function Settings() {
           branchCode: syncResult.config.branchCode || '',
         });
       }
+      
+      // Check sync authentication status
+      const statusResult = await window.electronAPI.getSyncStatus();
+      if (statusResult.success) {
+        setIsAuthenticated(statusResult.status?.isAuthenticated || false);
+      }
     } catch (err) {
       console.error('Error loading config:', err);
       setError('Failed to load current configuration');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleSyncDownload = async () => {
+    setError(null);
+    setSuccessMessage(null);
+    
+    if (!isAuthenticated) {
+      setError('Please set up cloud sync from the Dashboard first');
+      return;
+    }
+    
+    setIsSyncing(true);
+    try {
+      const result = await window.electronAPI.syncDownload();
+      
+      if (result.success) {
+        setSuccessMessage(`Download completed! Synced: ${result.stats?.medicines || 0} medicines, ${result.stats?.customers || 0} customers, ${result.stats?.suppliers || 0} suppliers`);
+      } else {
+        setError(result.error || 'Download failed');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Download failed');
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const handleForceFullSync = async () => {
+    setError(null);
+    setSuccessMessage(null);
+    
+    if (!isAuthenticated) {
+      setError('Please set up cloud sync from the Dashboard first');
+      return;
+    }
+    
+    setIsSyncing(true);
+    try {
+      // First reset the sync state
+      const resetResult = await window.electronAPI.syncReset();
+      if (!resetResult.success) {
+        setError(resetResult.error || 'Failed to reset sync state');
+        setIsSyncing(false);
+        return;
+      }
+      
+      // Now do a full download
+      const result = await window.electronAPI.syncDownload();
+      
+      if (result.success) {
+        setSuccessMessage(`Full sync completed! Downloaded: ${result.stats?.medicines || 0} medicines, ${result.stats?.customers || 0} customers, ${result.stats?.suppliers || 0} suppliers`);
+      } else {
+        setError(result.error || 'Sync failed');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Sync failed');
+    } finally {
+      setIsSyncing(false);
     }
   };
 
@@ -409,6 +495,9 @@ export default function Settings() {
             <div className="flex items-center gap-2">
               <Cloud className="w-5 h-5 text-blue-600" />
               <h2 className="text-lg font-semibold">Cloud Sync Configuration</h2>
+              <Badge variant={isAuthenticated ? 'success' : 'secondary'}>
+                {isAuthenticated ? 'Connected' : 'Not Connected'}
+              </Badge>
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -419,6 +508,22 @@ export default function Settings() {
                 This allows you to work offline and sync changes when connected.
               </p>
             </div>
+            
+            {/* Sync Progress Bar */}
+            {syncProgress && (
+              <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-emerald-700">Syncing: {syncProgress.stage}</span>
+                  <span className="text-sm text-emerald-600">{syncProgress.progress}%</span>
+                </div>
+                <div className="w-full bg-emerald-100 rounded-full h-2">
+                  <div
+                    className="bg-emerald-500 h-2 rounded-full transition-all duration-300"
+                    style={{ width: `${syncProgress.progress}%` }}
+                  ></div>
+                </div>
+              </div>
+            )}
             
             <div className="space-y-4">
               <div>
@@ -448,6 +553,84 @@ export default function Settings() {
                   <><Save className="w-4 h-4 mr-2" /> Save Sync Settings</>
                 )}
               </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Data Sync Operations */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Download className="w-5 h-5 text-emerald-600" />
+              <h2 className="text-lg font-semibold">Data Sync Operations</h2>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {!isAuthenticated && (
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex items-start gap-3">
+                <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5" />
+                <p className="text-sm text-amber-800">
+                  Please set up and authenticate cloud sync from the Dashboard before using these operations.
+                </p>
+              </div>
+            )}
+            
+            <div className="grid grid-cols-2 gap-4">
+              {/* Download Data */}
+              <div className="border rounded-xl p-4 space-y-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-emerald-100 flex items-center justify-center">
+                    <Download className="w-5 h-5 text-emerald-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-gray-900">Download Data</h3>
+                    <p className="text-sm text-gray-500">Sync new data from cloud</p>
+                  </div>
+                </div>
+                <p className="text-sm text-gray-600">
+                  Downloads only new or updated data from the cloud since your last sync.
+                </p>
+                <Button 
+                  variant="outline" 
+                  className="w-full" 
+                  onClick={handleSyncDownload}
+                  disabled={isSyncing || !isAuthenticated}
+                >
+                  {isSyncing ? (
+                    <><RefreshCw className="w-4 h-4 animate-spin mr-2" /> Syncing...</>
+                  ) : (
+                    <><Download className="w-4 h-4 mr-2" /> Download Data</>
+                  )}
+                </Button>
+              </div>
+
+              {/* Force Full Sync */}
+              <div className="border rounded-xl p-4 space-y-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
+                    <RotateCcw className="w-5 h-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-gray-900">Force Full Sync</h3>
+                    <p className="text-sm text-gray-500">Re-download all data</p>
+                  </div>
+                </div>
+                <p className="text-sm text-gray-600">
+                  Clears local sync state and downloads all data from scratch. Use if data seems incomplete.
+                </p>
+                <Button 
+                  variant="outline" 
+                  className="w-full" 
+                  onClick={handleForceFullSync}
+                  disabled={isSyncing || !isAuthenticated}
+                >
+                  {isSyncing ? (
+                    <><RefreshCw className="w-4 h-4 animate-spin mr-2" /> Syncing...</>
+                  ) : (
+                    <><RotateCcw className="w-4 h-4 mr-2" /> Force Full Sync</>
+                  )}
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>

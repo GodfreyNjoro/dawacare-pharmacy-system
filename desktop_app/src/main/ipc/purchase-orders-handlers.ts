@@ -25,13 +25,28 @@ function generatePONumber(): string {
   return `PO-${dateStr}-${random}`;
 }
 
+// Helper to format datetime for SQLite
+function formatDateTime(date?: Date | string): string {
+  if (!date) return new Date().toISOString().replace('T', ' ').replace('Z', '');
+  const d = typeof date === 'string' ? new Date(date) : date;
+  return d.toISOString().replace('T', ' ').replace('Z', '');
+}
+
+// Helper to escape SQL string values
+function escapeSQL(value: string | null | undefined): string {
+  if (value === null || value === undefined) return 'NULL';
+  return `'${String(value).replace(/'/g, "''")}'`;
+}
+
 async function addToSyncQueue(prisma: any, entityType: string, entityId: string, operation: string, payload: any = {}) {
-  const now = new Date().toISOString();
+  const now = formatDateTime();
+  const id = randomUUID();
+  const payloadStr = JSON.stringify(payload).replace(/'/g, "''");
   try {
     await prisma.$executeRawUnsafe(`
       INSERT OR REPLACE INTO "SyncQueue" ("id", "entityType", "entityId", "operation", "payload", "status", "createdAt", "updatedAt")
-      VALUES (?, ?, ?, ?, ?, 'PENDING', ?, ?)
-    `, randomUUID(), entityType, entityId, operation, JSON.stringify(payload), now, now);
+      VALUES ('${id}', '${entityType}', '${entityId}', '${operation}', '${payloadStr}', 'PENDING', '${now}', '${now}')
+    `);
   } catch (error) {
     console.error('[PurchaseOrders] Failed to add to sync queue:', error);
   }
@@ -124,7 +139,7 @@ export function registerPurchaseOrdersHandlers() {
       const validItems = data.items.filter(item => item.medicineName?.trim() && item.quantity > 0 && item.unitCost > 0);
       if (validItems.length === 0) return { success: false, error: 'At least one valid item is required' };
 
-      const now = new Date().toISOString();
+      const now = formatDateTime();
       const poId = randomUUID();
       const poNumber = generatePONumber();
 
@@ -132,18 +147,25 @@ export function registerPurchaseOrdersHandlers() {
       const tax = data.tax || 0;
       const total = subtotal + tax;
 
+      const notes = escapeSQL(data.notes);
+      const expectedDate = data.expectedDate ? escapeSQL(data.expectedDate) : 'NULL';
+
       await prisma.$executeRawUnsafe(`
         INSERT INTO "PurchaseOrder" ("id", "poNumber", "supplierId", "status", "subtotal", "tax", "total", "notes", "expectedDate", "createdAt", "updatedAt")
-        VALUES (?, ?, ?, 'DRAFT', ?, ?, ?, ?, ?, ?, ?)
-      `, poId, poNumber, data.supplierId, subtotal, tax, total, data.notes || null, data.expectedDate || null, now, now);
+        VALUES ('${poId}', '${poNumber}', '${data.supplierId}', 'DRAFT', ${subtotal}, ${tax}, ${total}, ${notes}, ${expectedDate}, '${now}', '${now}')
+      `);
 
       for (const item of validItems) {
         const itemId = randomUUID();
         const itemTotal = item.quantity * item.unitCost;
+        const medicineName = item.medicineName.trim().replace(/'/g, "''");
+        const genericName = escapeSQL(item.genericName?.trim());
+        const category = escapeSQL(item.category);
+        
         await prisma.$executeRawUnsafe(`
           INSERT INTO "PurchaseOrderItem" ("id", "purchaseOrderId", "medicineName", "genericName", "quantity", "receivedQty", "unitCost", "total", "category")
-          VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?)
-        `, itemId, poId, item.medicineName.trim(), item.genericName?.trim() || null, item.quantity, item.unitCost, itemTotal, item.category || null);
+          VALUES ('${itemId}', '${poId}', '${medicineName}', ${genericName}, ${item.quantity}, 0, ${item.unitCost}, ${itemTotal}, ${category})
+        `);
       }
 
       await addToSyncQueue(prisma, 'PURCHASE_ORDER', poId, 'CREATE', {});
@@ -160,8 +182,8 @@ export function registerPurchaseOrdersHandlers() {
       const prisma = dbManager.getPrismaClient();
       if (!prisma) return { success: false, error: 'Database not initialized' };
 
-      const now = new Date().toISOString();
-      await prisma.$executeRawUnsafe(`UPDATE "PurchaseOrder" SET "status" = ?, "updatedAt" = ? WHERE "id" = ?`, params.status, now, params.id);
+      const now = formatDateTime();
+      await prisma.$executeRawUnsafe(`UPDATE "PurchaseOrder" SET "status" = '${params.status}', "updatedAt" = '${now}' WHERE "id" = '${params.id}'`);
       await addToSyncQueue(prisma, 'PURCHASE_ORDER', params.id, 'UPDATE', { status: params.status });
       return { success: true };
     } catch (error) {

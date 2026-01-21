@@ -24,13 +24,28 @@ function generateGRNNumber(): string {
   return `GRN-${dateStr}-${random}`;
 }
 
+// Helper to format datetime for SQLite
+function formatDateTime(date?: Date | string): string {
+  if (!date) return new Date().toISOString().replace('T', ' ').replace('Z', '');
+  const d = typeof date === 'string' ? new Date(date) : date;
+  return d.toISOString().replace('T', ' ').replace('Z', '');
+}
+
+// Helper to escape SQL string values
+function escapeSQL(value: string | null | undefined): string {
+  if (value === null || value === undefined) return 'NULL';
+  return `'${String(value).replace(/'/g, "''")}'`;
+}
+
 async function addToSyncQueue(prisma: any, entityType: string, entityId: string, operation: string, payload: any = {}) {
-  const now = new Date().toISOString();
+  const now = formatDateTime();
+  const id = randomUUID();
+  const payloadStr = JSON.stringify(payload).replace(/'/g, "''");
   try {
     await prisma.$executeRawUnsafe(`
       INSERT OR REPLACE INTO "SyncQueue" ("id", "entityType", "entityId", "operation", "payload", "status", "createdAt", "updatedAt")
-      VALUES (?, ?, ?, ?, ?, 'PENDING', ?, ?)
-    `, randomUUID(), entityType, entityId, operation, JSON.stringify(payload), now, now);
+      VALUES ('${id}', '${entityType}', '${entityId}', '${operation}', '${payloadStr}', 'PENDING', '${now}', '${now}')
+    `);
   } catch (error) {
     console.error('[GRN] Failed to add to sync queue:', error);
   }
@@ -139,48 +154,50 @@ export function registerGRNHandlers() {
       );
       if (validItems.length === 0) return { success: false, error: 'All items must have name, batch, expiry, quantity, and cost' };
 
-      const now = new Date().toISOString();
+      const now = formatDateTime();
       const grnId = randomUUID();
       const grnNumber = generateGRNNumber();
+      const notes = escapeSQL(data.notes);
 
       await prisma.$executeRawUnsafe(`
         INSERT INTO "GoodsReceivedNote" ("id", "grnNumber", "purchaseOrderId", "receivedDate", "notes", "status", "createdAt", "updatedAt")
-        VALUES (?, ?, ?, ?, ?, 'RECEIVED', ?, ?)
-      `, grnId, grnNumber, data.purchaseOrderId, now, data.notes || null, now, now);
+        VALUES ('${grnId}', '${grnNumber}', '${data.purchaseOrderId}', '${now}', ${notes}, 'RECEIVED', '${now}', '${now}')
+      `);
 
       for (const item of validItems) {
         const itemId = randomUUID();
         const itemTotal = item.quantityReceived * item.unitCost;
         const addToInv = data.addToInventory !== false ? 1 : 0;
+        const medicineName = item.medicineName.trim().replace(/'/g, "''");
+        const batchNumber = item.batchNumber.trim().replace(/'/g, "''");
+        const expiryDate = formatDateTime(item.expiryDate);
 
         await prisma.$executeRawUnsafe(`
           INSERT INTO "GRNItem" ("id", "grnId", "medicineName", "batchNumber", "expiryDate", "quantityReceived", "unitCost", "total", "addedToInventory")
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `, itemId, grnId, item.medicineName.trim(), item.batchNumber.trim(), item.expiryDate, item.quantityReceived, item.unitCost, itemTotal, addToInv);
+          VALUES ('${itemId}', '${grnId}', '${medicineName}', '${batchNumber}', '${expiryDate}', ${item.quantityReceived}, ${item.unitCost}, ${itemTotal}, ${addToInv})
+        `);
 
         // Update PO item received quantity
         await prisma.$executeRawUnsafe(`
-          UPDATE "PurchaseOrderItem" SET "receivedQty" = "receivedQty" + ? WHERE "purchaseOrderId" = ? AND LOWER("medicineName") = LOWER(?)
-        `, item.quantityReceived, data.purchaseOrderId, item.medicineName.trim());
+          UPDATE "PurchaseOrderItem" SET "receivedQty" = "receivedQty" + ${item.quantityReceived} WHERE "purchaseOrderId" = '${data.purchaseOrderId}' AND LOWER("medicineName") = LOWER('${medicineName}')
+        `);
 
         // Add to inventory if requested
         if (data.addToInventory !== false) {
           const existing: any[] = await prisma.$queryRawUnsafe(
-            `SELECT "id", "quantity" FROM "Medicine" WHERE "batchNumber" = ? AND LOWER("name") = LOWER(?)`,
-            item.batchNumber.trim(), item.medicineName.trim()
+            `SELECT "id", "quantity" FROM "Medicine" WHERE "batchNumber" = '${batchNumber}' AND LOWER("name") = LOWER('${medicineName}')`
           );
 
           if (existing.length > 0) {
-            await prisma.$executeRawUnsafe(`UPDATE "Medicine" SET "quantity" = "quantity" + ?, "updatedAt" = ? WHERE "id" = ?`,
-              item.quantityReceived, now, existing[0].id);
+            await prisma.$executeRawUnsafe(`UPDATE "Medicine" SET "quantity" = "quantity" + ${item.quantityReceived}, "updatedAt" = '${now}' WHERE "id" = '${existing[0].id}'`);
             await addToSyncQueue(prisma, 'MEDICINE', existing[0].id, 'UPDATE', { quantityAdded: item.quantityReceived });
           } else {
             const medicineId = randomUUID();
             const sellingPrice = item.unitCost * 1.3;
             await prisma.$executeRawUnsafe(`
               INSERT INTO "Medicine" ("id", "name", "batchNumber", "expiryDate", "quantity", "reorderLevel", "unitPrice", "category", "syncStatus", "createdAt", "updatedAt")
-              VALUES (?, ?, ?, ?, ?, 10, ?, 'General', 'LOCAL', ?, ?)
-            `, medicineId, item.medicineName.trim(), item.batchNumber.trim(), item.expiryDate, item.quantityReceived, sellingPrice, now, now);
+              VALUES ('${medicineId}', '${medicineName}', '${batchNumber}', '${expiryDate}', ${item.quantityReceived}, 10, ${sellingPrice}, 'General', 'LOCAL', '${now}', '${now}')
+            `);
             await addToSyncQueue(prisma, 'MEDICINE', medicineId, 'CREATE', {});
           }
         }
@@ -188,14 +205,14 @@ export function registerGRNHandlers() {
 
       // Update PO status based on received quantities
       const poItems: any[] = await prisma.$queryRawUnsafe(
-        `SELECT "quantity", "receivedQty" FROM "PurchaseOrderItem" WHERE "purchaseOrderId" = ?`, data.purchaseOrderId
+        `SELECT "quantity", "receivedQty" FROM "PurchaseOrderItem" WHERE "purchaseOrderId" = '${data.purchaseOrderId}'`
       );
 
       const totalOrdered = poItems.reduce((sum: number, i: any) => sum + i.quantity, 0);
       const totalReceived = poItems.reduce((sum: number, i: any) => sum + i.receivedQty, 0);
 
       const newStatus = totalReceived >= totalOrdered ? 'RECEIVED' : 'PARTIAL';
-      await prisma.$executeRawUnsafe(`UPDATE "PurchaseOrder" SET "status" = ?, "updatedAt" = ? WHERE "id" = ?`, newStatus, now, data.purchaseOrderId);
+      await prisma.$executeRawUnsafe(`UPDATE "PurchaseOrder" SET "status" = '${newStatus}', "updatedAt" = '${now}' WHERE "id" = '${data.purchaseOrderId}'`);
 
       await addToSyncQueue(prisma, 'GRN', grnId, 'CREATE', {});
       await addToSyncQueue(prisma, 'PURCHASE_ORDER', data.purchaseOrderId, 'UPDATE', { status: newStatus });
