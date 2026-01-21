@@ -10,22 +10,23 @@ interface SupplierData {
   address?: string;
 }
 
-// Helper to format datetime for SQLite
 function formatDateTime(date?: Date | string): string {
-  if (!date) return new Date().toISOString().replace('T', ' ').replace('Z', '');
+  if (!date) {
+    const now = new Date();
+    return now.toISOString().replace('T', ' ').slice(0, 19);
+  }
   const d = typeof date === 'string' ? new Date(date) : date;
-  return d.toISOString().replace('T', ' ').replace('Z', '');
+  return d.toISOString().replace('T', ' ').slice(0, 19);
 }
 
-// Helper to escape SQL string values
-function escapeSQL(value: string | null | undefined): string {
+function escapeStr(value: string | null | undefined): string {
   if (value === null || value === undefined) return 'NULL';
-  return `'${String(value).replace(/'/g, "''")}'`;
+  const escaped = String(value).replace(/'/g, "''");
+  return "'" + escaped + "'";
 }
 
-// Helper to escape for LIKE clause
-function escapeLike(value: string): string {
-  return String(value).replace(/'/g, "''").replace(/%/g, '\\%').replace(/_/g, '\\_');
+function escapeId(value: string): string {
+  return String(value).replace(/'/g, "''");
 }
 
 async function addToSyncQueue(prisma: any, entityType: string, entityId: string, operation: string, payload: any = {}) {
@@ -33,10 +34,8 @@ async function addToSyncQueue(prisma: any, entityType: string, entityId: string,
   const id = randomUUID();
   const payloadStr = JSON.stringify(payload).replace(/'/g, "''");
   try {
-    await prisma.$executeRawUnsafe(`
-      INSERT OR REPLACE INTO "SyncQueue" ("id", "entityType", "entityId", "operation", "payload", "status", "createdAt", "updatedAt")
-      VALUES ('${id}', '${entityType}', '${entityId}', '${operation}', '${payloadStr}', 'PENDING', '${now}', '${now}')
-    `);
+    const sql = "INSERT OR REPLACE INTO \"SyncQueue\" (\"id\", \"entityType\", \"entityId\", \"operation\", \"payload\", \"status\", \"createdAt\", \"updatedAt\") VALUES ('" + id + "', '" + entityType + "', '" + entityId + "', '" + operation + "', '" + payloadStr + "', 'PENDING', '" + now + "', '" + now + "')";
+    await prisma.$executeRawUnsafe(sql);
   } catch (error) {
     console.error('[Suppliers] Failed to add to sync queue:', error);
   }
@@ -58,43 +57,44 @@ export function registerSuppliersHandlers() {
       const prisma = dbManager.getPrismaClient();
       if (!prisma) return { success: false, error: 'Database not initialized' };
 
-      const { page = 1, limit = 10, search, status, all = false } = params || {};
+      const page = (params && params.page) || 1;
+      const limit = (params && params.limit) || 10;
+      const search = params && params.search;
+      const status = params && params.status;
+      const all = params && params.all;
       const offset = (page - 1) * limit;
 
       let whereClause = 'WHERE 1=1';
 
-      if (search) {
-        const searchEscaped = escapeLike(search);
-        whereClause += ` AND ("name" LIKE '%${searchEscaped}%' OR "contactPerson" LIKE '%${searchEscaped}%' OR "email" LIKE '%${searchEscaped}%')`;
+      if (search && search.trim()) {
+        const searchEsc = escapeId(search.trim());
+        whereClause = whereClause + " AND (\"name\" LIKE '%" + searchEsc + "%' OR \"contactPerson\" LIKE '%" + searchEsc + "%' OR \"email\" LIKE '%" + searchEsc + "%')";
       }
 
-      if (status) {
-        const statusEscaped = status.replace(/'/g, "''");
-        whereClause += ` AND "status" = '${statusEscaped}'`;
+      if (status && status.trim()) {
+        const statusEsc = escapeId(status.trim());
+        whereClause = whereClause + " AND \"status\" = '" + statusEsc + "'";
       } else if (all) {
-        whereClause += ` AND "status" = 'ACTIVE'`;
+        whereClause = whereClause + " AND \"status\" = 'ACTIVE'";
       }
 
-      const countResult: any[] = await prisma.$queryRawUnsafe(
-        `SELECT COUNT(*) as count FROM "Supplier" ${whereClause}`
-      );
+      const countSql = 'SELECT COUNT(*) as count FROM "Supplier" ' + whereClause;
+      const countResult: any[] = await prisma.$queryRawUnsafe(countSql);
       const totalCount = Number(countResult[0]?.count || 0);
 
       let suppliers: any[];
       if (all) {
-        suppliers = await prisma.$queryRawUnsafe(
-          `SELECT * FROM "Supplier" ${whereClause} ORDER BY "name" ASC`
-        );
+        const selectSql = 'SELECT * FROM "Supplier" ' + whereClause + ' ORDER BY "name" ASC';
+        suppliers = await prisma.$queryRawUnsafe(selectSql);
       } else {
-        suppliers = await prisma.$queryRawUnsafe(
-          `SELECT * FROM "Supplier" ${whereClause} ORDER BY "createdAt" DESC LIMIT ${limit} OFFSET ${offset}`
-        );
+        const selectSql = 'SELECT * FROM "Supplier" ' + whereClause + ' ORDER BY "createdAt" DESC LIMIT ' + limit + ' OFFSET ' + offset;
+        suppliers = await prisma.$queryRawUnsafe(selectSql);
       }
 
       return {
         success: true,
-        suppliers,
-        pagination: { page, limit, totalCount, totalPages: Math.ceil(totalCount / limit) }
+        suppliers: suppliers,
+        pagination: { page: page, limit: limit, totalCount: totalCount, totalPages: Math.ceil(totalCount / limit) }
       };
     } catch (error) {
       console.error('[Suppliers] Error fetching suppliers:', error);
@@ -108,24 +108,23 @@ export function registerSuppliersHandlers() {
       const prisma = dbManager.getPrismaClient();
       if (!prisma) return { success: false, error: 'Database not initialized' };
 
-      if (!data.name?.trim()) {
+      if (!data.name || !data.name.trim()) {
         return { success: false, error: 'Supplier name is required' };
       }
 
       const now = formatDateTime();
       const id = randomUUID();
-      const name = data.name.trim().replace(/'/g, "''");
-      const contactPerson = escapeSQL(data.contactPerson?.trim());
-      const email = escapeSQL(data.email?.trim());
-      const phone = escapeSQL(data.phone?.trim());
-      const address = escapeSQL(data.address?.trim());
+      const nameEsc = escapeId(data.name.trim());
+      const contactPersonVal = escapeStr(data.contactPerson ? data.contactPerson.trim() : null);
+      const emailVal = escapeStr(data.email ? data.email.trim() : null);
+      const phoneVal = escapeStr(data.phone ? data.phone.trim() : null);
+      const addressVal = escapeStr(data.address ? data.address.trim() : null);
 
-      await prisma.$executeRawUnsafe(`
-        INSERT INTO "Supplier" ("id", "name", "contactPerson", "email", "phone", "address", "status", "createdAt", "updatedAt")
-        VALUES ('${id}', '${name}', ${contactPerson}, ${email}, ${phone}, ${address}, 'ACTIVE', '${now}', '${now}')
-      `);
+      const insertSql = 'INSERT INTO "Supplier" ("id", "name", "contactPerson", "email", "phone", "address", "status", "createdAt", "updatedAt") VALUES (\'' + id + '\', \'' + nameEsc + '\', ' + contactPersonVal + ', ' + emailVal + ', ' + phoneVal + ', ' + addressVal + ', \'ACTIVE\', \'' + now + '\', \'' + now + '\')';
+      await prisma.$executeRawUnsafe(insertSql);
 
-      const suppliers: any[] = await prisma.$queryRawUnsafe(`SELECT * FROM "Supplier" WHERE "id" = '${id}'`);
+      const selectSql = 'SELECT * FROM "Supplier" WHERE "id" = \'' + id + '\'';
+      const suppliers: any[] = await prisma.$queryRawUnsafe(selectSql);
       await addToSyncQueue(prisma, 'SUPPLIER', id, 'CREATE', suppliers[0]);
       return { success: true, supplier: suppliers[0] };
     } catch (error) {
@@ -141,20 +140,21 @@ export function registerSuppliersHandlers() {
       if (!prisma) return { success: false, error: 'Database not initialized' };
 
       if (!data.id) return { success: false, error: 'Supplier ID is required' };
-      if (!data.name?.trim()) return { success: false, error: 'Supplier name is required' };
+      if (!data.name || !data.name.trim()) return { success: false, error: 'Supplier name is required' };
 
       const now = formatDateTime();
-      const name = data.name.trim().replace(/'/g, "''");
-      const contactPerson = escapeSQL(data.contactPerson?.trim());
-      const email = escapeSQL(data.email?.trim());
-      const phone = escapeSQL(data.phone?.trim());
-      const address = escapeSQL(data.address?.trim());
+      const idEsc = escapeId(data.id);
+      const nameEsc = escapeId(data.name.trim());
+      const contactPersonVal = escapeStr(data.contactPerson ? data.contactPerson.trim() : null);
+      const emailVal = escapeStr(data.email ? data.email.trim() : null);
+      const phoneVal = escapeStr(data.phone ? data.phone.trim() : null);
+      const addressVal = escapeStr(data.address ? data.address.trim() : null);
 
-      await prisma.$executeRawUnsafe(`
-        UPDATE "Supplier" SET "name" = '${name}', "contactPerson" = ${contactPerson}, "email" = ${email}, "phone" = ${phone}, "address" = ${address}, "updatedAt" = '${now}' WHERE "id" = '${data.id}'
-      `);
+      const updateSql = 'UPDATE "Supplier" SET "name" = \'' + nameEsc + '\', "contactPerson" = ' + contactPersonVal + ', "email" = ' + emailVal + ', "phone" = ' + phoneVal + ', "address" = ' + addressVal + ', "updatedAt" = \'' + now + '\' WHERE "id" = \'' + idEsc + '\'';
+      await prisma.$executeRawUnsafe(updateSql);
 
-      const suppliers: any[] = await prisma.$queryRawUnsafe(`SELECT * FROM "Supplier" WHERE "id" = '${data.id}'`);
+      const selectSql = 'SELECT * FROM "Supplier" WHERE "id" = \'' + idEsc + '\'';
+      const suppliers: any[] = await prisma.$queryRawUnsafe(selectSql);
       await addToSyncQueue(prisma, 'SUPPLIER', data.id, 'UPDATE', suppliers[0]);
       return { success: true, supplier: suppliers[0] };
     } catch (error) {
@@ -169,17 +169,22 @@ export function registerSuppliersHandlers() {
       const prisma = dbManager.getPrismaClient();
       if (!prisma) return { success: false, error: 'Database not initialized' };
 
-      const poCount: any[] = await prisma.$queryRawUnsafe(`SELECT COUNT(*) as count FROM "PurchaseOrder" WHERE "supplierId" = '${id}'`);
+      const idEsc = escapeId(id);
+      const countSql = 'SELECT COUNT(*) as count FROM "PurchaseOrder" WHERE "supplierId" = \'' + idEsc + '\'';
+      const poCount: any[] = await prisma.$queryRawUnsafe(countSql);
 
       if (Number(poCount[0]?.count || 0) > 0) {
         const now = formatDateTime();
-        await prisma.$executeRawUnsafe(`UPDATE "Supplier" SET "status" = 'INACTIVE', "updatedAt" = '${now}' WHERE "id" = '${id}'`);
-        const suppliers: any[] = await prisma.$queryRawUnsafe(`SELECT * FROM "Supplier" WHERE "id" = '${id}'`);
+        const updateSql = 'UPDATE "Supplier" SET "status" = \'INACTIVE\', "updatedAt" = \'' + now + '\' WHERE "id" = \'' + idEsc + '\'';
+        await prisma.$executeRawUnsafe(updateSql);
+        const selectSql = 'SELECT * FROM "Supplier" WHERE "id" = \'' + idEsc + '\'';
+        const suppliers: any[] = await prisma.$queryRawUnsafe(selectSql);
         await addToSyncQueue(prisma, 'SUPPLIER', id, 'UPDATE', suppliers[0]);
         return { success: true, softDeleted: true };
       } else {
-        await prisma.$executeRawUnsafe(`DELETE FROM "Supplier" WHERE "id" = '${id}'`);
-        await addToSyncQueue(prisma, 'SUPPLIER', id, 'DELETE', { id });
+        const deleteSql = 'DELETE FROM "Supplier" WHERE "id" = \'' + idEsc + '\'';
+        await prisma.$executeRawUnsafe(deleteSql);
+        await addToSyncQueue(prisma, 'SUPPLIER', id, 'DELETE', { id: id });
         return { success: true, softDeleted: false };
       }
     } catch (error) {

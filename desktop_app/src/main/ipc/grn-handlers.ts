@@ -19,27 +19,30 @@ interface CreateGRNData {
 
 function generateGRNNumber(): string {
   const date = new Date();
-  const dateStr = date.toISOString().slice(0, 10).replace(/-/g, '');
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
   const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
-  return `GRN-${dateStr}-${random}`;
+  return 'GRN-' + y + m + d + '-' + random;
 }
 
-// Helper to format datetime for SQLite
 function formatDateTime(date?: Date | string): string {
-  if (!date) return new Date().toISOString().replace('T', ' ').replace('Z', '');
+  if (!date) {
+    const now = new Date();
+    return now.toISOString().replace('T', ' ').slice(0, 19);
+  }
   const d = typeof date === 'string' ? new Date(date) : date;
-  return d.toISOString().replace('T', ' ').replace('Z', '');
+  return d.toISOString().replace('T', ' ').slice(0, 19);
 }
 
-// Helper to escape SQL string values
-function escapeSQL(value: string | null | undefined): string {
+function escapeStr(value: string | null | undefined): string {
   if (value === null || value === undefined) return 'NULL';
-  return `'${String(value).replace(/'/g, "''")}'`;
+  const escaped = String(value).replace(/'/g, "''");
+  return "'" + escaped + "'";
 }
 
-// Helper to escape for LIKE clause
-function escapeLike(value: string): string {
-  return String(value).replace(/'/g, "''").replace(/%/g, '\\%').replace(/_/g, '\\_');
+function escapeId(value: string): string {
+  return String(value).replace(/'/g, "''");
 }
 
 async function addToSyncQueue(prisma: any, entityType: string, entityId: string, operation: string, payload: any = {}) {
@@ -47,10 +50,8 @@ async function addToSyncQueue(prisma: any, entityType: string, entityId: string,
   const id = randomUUID();
   const payloadStr = JSON.stringify(payload).replace(/'/g, "''");
   try {
-    await prisma.$executeRawUnsafe(`
-      INSERT OR REPLACE INTO "SyncQueue" ("id", "entityType", "entityId", "operation", "payload", "status", "createdAt", "updatedAt")
-      VALUES ('${id}', '${entityType}', '${entityId}', '${operation}', '${payloadStr}', 'PENDING', '${now}', '${now}')
-    `);
+    const sql = "INSERT OR REPLACE INTO \"SyncQueue\" (\"id\", \"entityType\", \"entityId\", \"operation\", \"payload\", \"status\", \"createdAt\", \"updatedAt\") VALUES ('" + id + "', '" + entityType + "', '" + entityId + "', '" + operation + "', '" + payloadStr + "', 'PENDING', '" + now + "', '" + now + "')";
+    await prisma.$executeRawUnsafe(sql);
   } catch (error) {
     console.error('[GRN] Failed to add to sync queue:', error);
   }
@@ -66,32 +67,33 @@ export function registerGRNHandlers() {
       const prisma = dbManager.getPrismaClient();
       if (!prisma) return { success: false, error: 'Database not initialized' };
 
-      const { page = 1, limit = 10, search } = params || {};
+      const page = (params && params.page) || 1;
+      const limit = (params && params.limit) || 10;
+      const search = params && params.search;
       const offset = (page - 1) * limit;
 
       let whereClause = 'WHERE 1=1';
 
-      if (search) {
-        const searchEscaped = escapeLike(search);
-        whereClause += ` AND (g."grnNumber" LIKE '%${searchEscaped}%' OR po."poNumber" LIKE '%${searchEscaped}%')`;
+      if (search && search.trim()) {
+        const searchEsc = escapeId(search.trim());
+        whereClause = whereClause + " AND (g.\"grnNumber\" LIKE '%" + searchEsc + "%' OR po.\"poNumber\" LIKE '%" + searchEsc + "%')";
       }
 
-      const countResult: any[] = await prisma.$queryRawUnsafe(
-        `SELECT COUNT(*) as count FROM "GoodsReceivedNote" g LEFT JOIN "PurchaseOrder" po ON g."purchaseOrderId" = po."id" ${whereClause}`
-      );
+      const countSql = 'SELECT COUNT(*) as count FROM "GoodsReceivedNote" g LEFT JOIN "PurchaseOrder" po ON g."purchaseOrderId" = po."id" ' + whereClause;
+      const countResult: any[] = await prisma.$queryRawUnsafe(countSql);
       const totalCount = Number(countResult[0]?.count || 0);
 
-      const grns: any[] = await prisma.$queryRawUnsafe(
-        `SELECT g.*, po."poNumber", s."name" as supplierName FROM "GoodsReceivedNote" g LEFT JOIN "PurchaseOrder" po ON g."purchaseOrderId" = po."id" LEFT JOIN "Supplier" s ON po."supplierId" = s."id" ${whereClause} ORDER BY g."receivedDate" DESC LIMIT ${limit} OFFSET ${offset}`
-      );
+      const selectSql = 'SELECT g.*, po."poNumber", s."name" as supplierName FROM "GoodsReceivedNote" g LEFT JOIN "PurchaseOrder" po ON g."purchaseOrderId" = po."id" LEFT JOIN "Supplier" s ON po."supplierId" = s."id" ' + whereClause + ' ORDER BY g."receivedDate" DESC LIMIT ' + limit + ' OFFSET ' + offset;
+      const grns: any[] = await prisma.$queryRawUnsafe(selectSql);
 
       for (const grn of grns) {
-        const grnIdEscaped = String(grn.id).replace(/'/g, "''");
-        grn.items = await prisma.$queryRawUnsafe(`SELECT * FROM "GRNItem" WHERE "grnId" = '${grnIdEscaped}'`);
+        const grnIdEsc = escapeId(grn.id);
+        const itemsSql = 'SELECT * FROM "GRNItem" WHERE "grnId" = \'' + grnIdEsc + '\'';
+        grn.items = await prisma.$queryRawUnsafe(itemsSql);
         grn.purchaseOrder = { id: grn.purchaseOrderId, poNumber: grn.poNumber, supplier: { name: grn.supplierName } };
       }
 
-      return { success: true, grns, pagination: { page, limit, totalCount, totalPages: Math.ceil(totalCount / limit) } };
+      return { success: true, grns: grns, pagination: { page: page, limit: limit, totalCount: totalCount, totalPages: Math.ceil(totalCount / limit) } };
     } catch (error) {
       console.error('[GRN] Error fetching GRNs:', error);
       return { success: false, error: String(error) };
@@ -104,18 +106,18 @@ export function registerGRNHandlers() {
       const prisma = dbManager.getPrismaClient();
       if (!prisma) return { success: false, error: 'Database not initialized' };
 
-      const idEscaped = String(id).replace(/'/g, "''");
-      const grns: any[] = await prisma.$queryRawUnsafe(
-        `SELECT g.*, po."poNumber", po."status" as poStatus, s."name" as supplierName FROM "GoodsReceivedNote" g LEFT JOIN "PurchaseOrder" po ON g."purchaseOrderId" = po."id" LEFT JOIN "Supplier" s ON po."supplierId" = s."id" WHERE g."id" = '${idEscaped}'`
-      );
+      const idEsc = escapeId(id);
+      const grnSql = 'SELECT g.*, po."poNumber", po."status" as poStatus, s."name" as supplierName FROM "GoodsReceivedNote" g LEFT JOIN "PurchaseOrder" po ON g."purchaseOrderId" = po."id" LEFT JOIN "Supplier" s ON po."supplierId" = s."id" WHERE g."id" = \'' + idEsc + '\'';
+      const grns: any[] = await prisma.$queryRawUnsafe(grnSql);
 
       if (grns.length === 0) return { success: false, error: 'GRN not found' };
 
       const grn = grns[0];
-      grn.items = await prisma.$queryRawUnsafe(`SELECT * FROM "GRNItem" WHERE "grnId" = '${idEscaped}'`);
+      const itemsSql = 'SELECT * FROM "GRNItem" WHERE "grnId" = \'' + idEsc + '\'';
+      grn.items = await prisma.$queryRawUnsafe(itemsSql);
       grn.purchaseOrder = { id: grn.purchaseOrderId, poNumber: grn.poNumber, status: grn.poStatus, supplier: { name: grn.supplierName } };
 
-      return { success: true, grn };
+      return { success: true, grn: grn };
     } catch (error) {
       console.error('[GRN] Error fetching GRN:', error);
       return { success: false, error: String(error) };
@@ -128,17 +130,17 @@ export function registerGRNHandlers() {
       const prisma = dbManager.getPrismaClient();
       if (!prisma) return { success: false, error: 'Database not initialized' };
 
-      const orders: any[] = await prisma.$queryRawUnsafe(
-        `SELECT po.*, s."name" as supplierName FROM "PurchaseOrder" po LEFT JOIN "Supplier" s ON po."supplierId" = s."id" WHERE po."status" IN ('SENT', 'PARTIAL') ORDER BY po."createdAt" DESC`
-      );
+      const ordersSql = 'SELECT po.*, s."name" as supplierName FROM "PurchaseOrder" po LEFT JOIN "Supplier" s ON po."supplierId" = s."id" WHERE po."status" IN (\'SENT\', \'PARTIAL\') ORDER BY po."createdAt" DESC';
+      const orders: any[] = await prisma.$queryRawUnsafe(ordersSql);
 
       for (const order of orders) {
-        const orderIdEscaped = String(order.id).replace(/'/g, "''");
-        order.items = await prisma.$queryRawUnsafe(`SELECT * FROM "PurchaseOrderItem" WHERE "purchaseOrderId" = '${orderIdEscaped}'`);
+        const orderIdEsc = escapeId(order.id);
+        const itemsSql = 'SELECT * FROM "PurchaseOrderItem" WHERE "purchaseOrderId" = \'' + orderIdEsc + '\'';
+        order.items = await prisma.$queryRawUnsafe(itemsSql);
         order.supplier = { id: order.supplierId, name: order.supplierName };
       }
 
-      return { success: true, orders };
+      return { success: true, orders: orders };
     } catch (error) {
       console.error('[GRN] Error fetching pending POs:', error);
       return { success: false, error: String(error) };
@@ -154,75 +156,73 @@ export function registerGRNHandlers() {
       if (!data.purchaseOrderId) return { success: false, error: 'Purchase order is required' };
       if (!data.items || data.items.length === 0) return { success: false, error: 'At least one item is required' };
 
-      const validItems = data.items.filter(item => 
-        item.medicineName?.trim() && item.batchNumber?.trim() && item.expiryDate && item.quantityReceived > 0 && item.unitCost > 0
-      );
+      const validItems = data.items.filter(function(item) {
+        return item.medicineName && item.medicineName.trim() && item.batchNumber && item.batchNumber.trim() && item.expiryDate && item.quantityReceived > 0 && item.unitCost > 0;
+      });
       if (validItems.length === 0) return { success: false, error: 'All items must have name, batch, expiry, quantity, and cost' };
 
       const now = formatDateTime();
       const grnId = randomUUID();
       const grnNumber = generateGRNNumber();
-      const notes = escapeSQL(data.notes);
+      const notesVal = escapeStr(data.notes);
+      const poIdEsc = escapeId(data.purchaseOrderId);
 
-      await prisma.$executeRawUnsafe(`
-        INSERT INTO "GoodsReceivedNote" ("id", "grnNumber", "purchaseOrderId", "receivedDate", "notes", "status", "createdAt", "updatedAt")
-        VALUES ('${grnId}', '${grnNumber}', '${data.purchaseOrderId}', '${now}', ${notes}, 'RECEIVED', '${now}', '${now}')
-      `);
+      const insertGrnSql = 'INSERT INTO "GoodsReceivedNote" ("id", "grnNumber", "purchaseOrderId", "receivedDate", "notes", "status", "createdAt", "updatedAt") VALUES (\'' + grnId + '\', \'' + grnNumber + '\', \'' + poIdEsc + '\', \'' + now + '\', ' + notesVal + ', \'RECEIVED\', \'' + now + '\', \'' + now + '\')';
+      await prisma.$executeRawUnsafe(insertGrnSql);
 
       for (const item of validItems) {
         const itemId = randomUUID();
         const itemTotal = item.quantityReceived * item.unitCost;
         const addToInv = data.addToInventory !== false ? 1 : 0;
-        const medicineName = item.medicineName.trim().replace(/'/g, "''");
-        const batchNumber = item.batchNumber.trim().replace(/'/g, "''");
+        const medicineNameEsc = escapeId(item.medicineName.trim());
+        const batchNumberEsc = escapeId(item.batchNumber.trim());
         const expiryDate = formatDateTime(item.expiryDate);
 
-        await prisma.$executeRawUnsafe(`
-          INSERT INTO "GRNItem" ("id", "grnId", "medicineName", "batchNumber", "expiryDate", "quantityReceived", "unitCost", "total", "addedToInventory")
-          VALUES ('${itemId}', '${grnId}', '${medicineName}', '${batchNumber}', '${expiryDate}', ${item.quantityReceived}, ${item.unitCost}, ${itemTotal}, ${addToInv})
-        `);
+        const insertItemSql = 'INSERT INTO "GRNItem" ("id", "grnId", "medicineName", "batchNumber", "expiryDate", "quantityReceived", "unitCost", "total", "addedToInventory") VALUES (\'' + itemId + '\', \'' + grnId + '\', \'' + medicineNameEsc + '\', \'' + batchNumberEsc + '\', \'' + expiryDate + '\', ' + item.quantityReceived + ', ' + item.unitCost + ', ' + itemTotal + ', ' + addToInv + ')';
+        await prisma.$executeRawUnsafe(insertItemSql);
 
         // Update PO item received quantity
-        await prisma.$executeRawUnsafe(`
-          UPDATE "PurchaseOrderItem" SET "receivedQty" = "receivedQty" + ${item.quantityReceived} WHERE "purchaseOrderId" = '${data.purchaseOrderId}' AND LOWER("medicineName") = LOWER('${medicineName}')
-        `);
+        const updatePoItemSql = 'UPDATE "PurchaseOrderItem" SET "receivedQty" = "receivedQty" + ' + item.quantityReceived + ' WHERE "purchaseOrderId" = \'' + poIdEsc + '\' AND LOWER("medicineName") = LOWER(\'' + medicineNameEsc + '\')';
+        await prisma.$executeRawUnsafe(updatePoItemSql);
 
         // Add to inventory if requested
         if (data.addToInventory !== false) {
-          const existing: any[] = await prisma.$queryRawUnsafe(
-            `SELECT "id", "quantity" FROM "Medicine" WHERE "batchNumber" = '${batchNumber}' AND LOWER("name") = LOWER('${medicineName}')`
-          );
+          const existingSql = 'SELECT "id", "quantity" FROM "Medicine" WHERE "batchNumber" = \'' + batchNumberEsc + '\' AND LOWER("name") = LOWER(\'' + medicineNameEsc + '\')';
+          const existing: any[] = await prisma.$queryRawUnsafe(existingSql);
 
           if (existing.length > 0) {
-            await prisma.$executeRawUnsafe(`UPDATE "Medicine" SET "quantity" = "quantity" + ${item.quantityReceived}, "updatedAt" = '${now}' WHERE "id" = '${existing[0].id}'`);
+            const updateMedSql = 'UPDATE "Medicine" SET "quantity" = "quantity" + ' + item.quantityReceived + ', "updatedAt" = \'' + now + '\' WHERE "id" = \'' + escapeId(existing[0].id) + '\'';
+            await prisma.$executeRawUnsafe(updateMedSql);
             await addToSyncQueue(prisma, 'MEDICINE', existing[0].id, 'UPDATE', { quantityAdded: item.quantityReceived });
           } else {
             const medicineId = randomUUID();
             const sellingPrice = item.unitCost * 1.3;
-            await prisma.$executeRawUnsafe(`
-              INSERT INTO "Medicine" ("id", "name", "batchNumber", "expiryDate", "quantity", "reorderLevel", "unitPrice", "category", "syncStatus", "createdAt", "updatedAt")
-              VALUES ('${medicineId}', '${medicineName}', '${batchNumber}', '${expiryDate}', ${item.quantityReceived}, 10, ${sellingPrice}, 'General', 'LOCAL', '${now}', '${now}')
-            `);
+            const insertMedSql = 'INSERT INTO "Medicine" ("id", "name", "batchNumber", "expiryDate", "quantity", "reorderLevel", "unitPrice", "category", "syncStatus", "createdAt", "updatedAt") VALUES (\'' + medicineId + '\', \'' + medicineNameEsc + '\', \'' + batchNumberEsc + '\', \'' + expiryDate + '\', ' + item.quantityReceived + ', 10, ' + sellingPrice + ', \'General\', \'LOCAL\', \'' + now + '\', \'' + now + '\')';
+            await prisma.$executeRawUnsafe(insertMedSql);
             await addToSyncQueue(prisma, 'MEDICINE', medicineId, 'CREATE', {});
           }
         }
       }
 
       // Update PO status based on received quantities
-      const poItems: any[] = await prisma.$queryRawUnsafe(
-        `SELECT "quantity", "receivedQty" FROM "PurchaseOrderItem" WHERE "purchaseOrderId" = '${data.purchaseOrderId}'`
-      );
+      const poItemsSql = 'SELECT "quantity", "receivedQty" FROM "PurchaseOrderItem" WHERE "purchaseOrderId" = \'' + poIdEsc + '\'';
+      const poItems: any[] = await prisma.$queryRawUnsafe(poItemsSql);
 
-      const totalOrdered = poItems.reduce((sum: number, i: any) => sum + i.quantity, 0);
-      const totalReceived = poItems.reduce((sum: number, i: any) => sum + i.receivedQty, 0);
+      let totalOrdered = 0;
+      let totalReceived = 0;
+      for (const i of poItems) {
+        totalOrdered = totalOrdered + Number(i.quantity || 0);
+        totalReceived = totalReceived + Number(i.receivedQty || 0);
+      }
 
       const newStatus = totalReceived >= totalOrdered ? 'RECEIVED' : 'PARTIAL';
-      await prisma.$executeRawUnsafe(`UPDATE "PurchaseOrder" SET "status" = '${newStatus}', "updatedAt" = '${now}' WHERE "id" = '${data.purchaseOrderId}'`);
+      const updatePoSql = 'UPDATE "PurchaseOrder" SET "status" = \'' + newStatus + '\', "updatedAt" = \'' + now + '\' WHERE "id" = \'' + poIdEsc + '\'';
+      await prisma.$executeRawUnsafe(updatePoSql);
 
       await addToSyncQueue(prisma, 'GRN', grnId, 'CREATE', {});
       await addToSyncQueue(prisma, 'PURCHASE_ORDER', data.purchaseOrderId, 'UPDATE', { status: newStatus });
 
-      return { success: true, grnId, grnNumber };
+      return { success: true, grnId: grnId, grnNumber: grnNumber };
     } catch (error) {
       console.error('[GRN] Error creating GRN:', error);
       return { success: false, error: String(error) };
