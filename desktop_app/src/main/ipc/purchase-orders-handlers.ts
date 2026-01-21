@@ -32,10 +32,15 @@ function formatDateTime(date?: Date | string): string {
   return d.toISOString().replace('T', ' ').replace('Z', '');
 }
 
-// Helper to escape SQL string values
+// Helper to escape SQL string values - returns quoted string or NULL
 function escapeSQL(value: string | null | undefined): string {
   if (value === null || value === undefined) return 'NULL';
   return `'${String(value).replace(/'/g, "''")}'`;
+}
+
+// Helper to escape for LIKE clause - returns value without quotes (for use in LIKE pattern)
+function escapeLike(value: string): string {
+  return String(value).replace(/'/g, "''").replace(/%/g, '\\%').replace(/_/g, '\\_');
 }
 
 async function addToSyncQueue(prisma: any, entityType: string, entityId: string, operation: string, payload: any = {}) {
@@ -68,30 +73,28 @@ export function registerPurchaseOrdersHandlers() {
       const offset = (page - 1) * limit;
 
       let whereClause = 'WHERE 1=1';
-      const queryParams: any[] = [];
 
       if (search) {
-        whereClause += ` AND (po."poNumber" LIKE ? OR s."name" LIKE ?)`;
-        queryParams.push(`%${search}%`, `%${search}%`);
+        const searchEscaped = escapeLike(search);
+        whereClause += ` AND (po."poNumber" LIKE '%${searchEscaped}%' OR s."name" LIKE '%${searchEscaped}%')`;
       }
       if (status) {
-        whereClause += ` AND po."status" = ?`;
-        queryParams.push(status);
+        const statusEscaped = status.replace(/'/g, "''");
+        whereClause += ` AND po."status" = '${statusEscaped}'`;
       }
 
       const countResult: any[] = await prisma.$queryRawUnsafe(
-        `SELECT COUNT(*) as count FROM "PurchaseOrder" po LEFT JOIN "Supplier" s ON po."supplierId" = s."id" ${whereClause}`,
-        ...queryParams
+        `SELECT COUNT(*) as count FROM "PurchaseOrder" po LEFT JOIN "Supplier" s ON po."supplierId" = s."id" ${whereClause}`
       );
       const totalCount = Number(countResult[0]?.count || 0);
 
       const orders: any[] = await prisma.$queryRawUnsafe(
-        `SELECT po.*, s."name" as supplierName FROM "PurchaseOrder" po LEFT JOIN "Supplier" s ON po."supplierId" = s."id" ${whereClause} ORDER BY po."createdAt" DESC LIMIT ? OFFSET ?`,
-        ...queryParams, limit, offset
+        `SELECT po.*, s."name" as supplierName FROM "PurchaseOrder" po LEFT JOIN "Supplier" s ON po."supplierId" = s."id" ${whereClause} ORDER BY po."createdAt" DESC LIMIT ${limit} OFFSET ${offset}`
       );
 
       for (const order of orders) {
-        const items: any[] = await prisma.$queryRawUnsafe(`SELECT * FROM "PurchaseOrderItem" WHERE "purchaseOrderId" = ?`, order.id);
+        const orderId = String(order.id).replace(/'/g, "''");
+        const items: any[] = await prisma.$queryRawUnsafe(`SELECT * FROM "PurchaseOrderItem" WHERE "purchaseOrderId" = '${orderId}'`);
         order.items = items;
         order.supplier = { id: order.supplierId, name: order.supplierName };
       }
@@ -109,16 +112,17 @@ export function registerPurchaseOrdersHandlers() {
       const prisma = dbManager.getPrismaClient();
       if (!prisma) return { success: false, error: 'Database not initialized' };
 
+      const idEscaped = String(id).replace(/'/g, "''");
       const orders: any[] = await prisma.$queryRawUnsafe(
-        `SELECT po.*, s."name" as supplierName, s."phone" as supplierPhone, s."email" as supplierEmail FROM "PurchaseOrder" po LEFT JOIN "Supplier" s ON po."supplierId" = s."id" WHERE po."id" = ?`, id
+        `SELECT po.*, s."name" as supplierName, s."phone" as supplierPhone, s."email" as supplierEmail FROM "PurchaseOrder" po LEFT JOIN "Supplier" s ON po."supplierId" = s."id" WHERE po."id" = '${idEscaped}'`
       );
 
       if (orders.length === 0) return { success: false, error: 'Purchase order not found' };
 
       const order = orders[0];
       order.supplier = { id: order.supplierId, name: order.supplierName, phone: order.supplierPhone, email: order.supplierEmail };
-      order.items = await prisma.$queryRawUnsafe(`SELECT * FROM "PurchaseOrderItem" WHERE "purchaseOrderId" = ?`, id);
-      order.grns = await prisma.$queryRawUnsafe(`SELECT * FROM "GoodsReceivedNote" WHERE "purchaseOrderId" = ? ORDER BY "receivedDate" DESC`, id);
+      order.items = await prisma.$queryRawUnsafe(`SELECT * FROM "PurchaseOrderItem" WHERE "purchaseOrderId" = '${idEscaped}'`);
+      order.grns = await prisma.$queryRawUnsafe(`SELECT * FROM "GoodsReceivedNote" WHERE "purchaseOrderId" = '${idEscaped}' ORDER BY "receivedDate" DESC`);
 
       return { success: true, order };
     } catch (error) {
@@ -198,16 +202,18 @@ export function registerPurchaseOrdersHandlers() {
       const prisma = dbManager.getPrismaClient();
       if (!prisma) return { success: false, error: 'Database not initialized' };
 
-      const grnCount: any[] = await prisma.$queryRawUnsafe(`SELECT COUNT(*) as count FROM "GoodsReceivedNote" WHERE "purchaseOrderId" = ?`, id);
+      const idEscaped = String(id).replace(/'/g, "''");
+      
+      const grnCount: any[] = await prisma.$queryRawUnsafe(`SELECT COUNT(*) as count FROM "GoodsReceivedNote" WHERE "purchaseOrderId" = '${idEscaped}'`);
       if (Number(grnCount[0]?.count || 0) > 0) return { success: false, error: 'Cannot delete PO with received goods' };
 
-      const orders: any[] = await prisma.$queryRawUnsafe(`SELECT "status" FROM "PurchaseOrder" WHERE "id" = ?`, id);
+      const orders: any[] = await prisma.$queryRawUnsafe(`SELECT "status" FROM "PurchaseOrder" WHERE "id" = '${idEscaped}'`);
       if (orders.length > 0 && !['DRAFT', 'CANCELLED'].includes(orders[0].status)) {
         return { success: false, error: 'Can only delete draft or cancelled orders' };
       }
 
-      await prisma.$executeRawUnsafe(`DELETE FROM "PurchaseOrderItem" WHERE "purchaseOrderId" = ?`, id);
-      await prisma.$executeRawUnsafe(`DELETE FROM "PurchaseOrder" WHERE "id" = ?`, id);
+      await prisma.$executeRawUnsafe(`DELETE FROM "PurchaseOrderItem" WHERE "purchaseOrderId" = '${idEscaped}'`);
+      await prisma.$executeRawUnsafe(`DELETE FROM "PurchaseOrder" WHERE "id" = '${idEscaped}'`);
       await addToSyncQueue(prisma, 'PURCHASE_ORDER', id, 'DELETE', { id });
       return { success: true };
     } catch (error) {

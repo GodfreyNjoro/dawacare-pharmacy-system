@@ -37,6 +37,11 @@ function escapeSQL(value: string | null | undefined): string {
   return `'${String(value).replace(/'/g, "''")}'`;
 }
 
+// Helper to escape for LIKE clause
+function escapeLike(value: string): string {
+  return String(value).replace(/'/g, "''").replace(/%/g, '\\%').replace(/_/g, '\\_');
+}
+
 async function addToSyncQueue(prisma: any, entityType: string, entityId: string, operation: string, payload: any = {}) {
   const now = formatDateTime();
   const id = randomUUID();
@@ -65,26 +70,24 @@ export function registerGRNHandlers() {
       const offset = (page - 1) * limit;
 
       let whereClause = 'WHERE 1=1';
-      const queryParams: any[] = [];
 
       if (search) {
-        whereClause += ` AND (g."grnNumber" LIKE ? OR po."poNumber" LIKE ?)`;
-        queryParams.push(`%${search}%`, `%${search}%`);
+        const searchEscaped = escapeLike(search);
+        whereClause += ` AND (g."grnNumber" LIKE '%${searchEscaped}%' OR po."poNumber" LIKE '%${searchEscaped}%')`;
       }
 
       const countResult: any[] = await prisma.$queryRawUnsafe(
-        `SELECT COUNT(*) as count FROM "GoodsReceivedNote" g LEFT JOIN "PurchaseOrder" po ON g."purchaseOrderId" = po."id" ${whereClause}`,
-        ...queryParams
+        `SELECT COUNT(*) as count FROM "GoodsReceivedNote" g LEFT JOIN "PurchaseOrder" po ON g."purchaseOrderId" = po."id" ${whereClause}`
       );
       const totalCount = Number(countResult[0]?.count || 0);
 
       const grns: any[] = await prisma.$queryRawUnsafe(
-        `SELECT g.*, po."poNumber", s."name" as supplierName FROM "GoodsReceivedNote" g LEFT JOIN "PurchaseOrder" po ON g."purchaseOrderId" = po."id" LEFT JOIN "Supplier" s ON po."supplierId" = s."id" ${whereClause} ORDER BY g."receivedDate" DESC LIMIT ? OFFSET ?`,
-        ...queryParams, limit, offset
+        `SELECT g.*, po."poNumber", s."name" as supplierName FROM "GoodsReceivedNote" g LEFT JOIN "PurchaseOrder" po ON g."purchaseOrderId" = po."id" LEFT JOIN "Supplier" s ON po."supplierId" = s."id" ${whereClause} ORDER BY g."receivedDate" DESC LIMIT ${limit} OFFSET ${offset}`
       );
 
       for (const grn of grns) {
-        grn.items = await prisma.$queryRawUnsafe(`SELECT * FROM "GRNItem" WHERE "grnId" = ?`, grn.id);
+        const grnIdEscaped = String(grn.id).replace(/'/g, "''");
+        grn.items = await prisma.$queryRawUnsafe(`SELECT * FROM "GRNItem" WHERE "grnId" = '${grnIdEscaped}'`);
         grn.purchaseOrder = { id: grn.purchaseOrderId, poNumber: grn.poNumber, supplier: { name: grn.supplierName } };
       }
 
@@ -101,14 +104,15 @@ export function registerGRNHandlers() {
       const prisma = dbManager.getPrismaClient();
       if (!prisma) return { success: false, error: 'Database not initialized' };
 
+      const idEscaped = String(id).replace(/'/g, "''");
       const grns: any[] = await prisma.$queryRawUnsafe(
-        `SELECT g.*, po."poNumber", po."status" as poStatus, s."name" as supplierName FROM "GoodsReceivedNote" g LEFT JOIN "PurchaseOrder" po ON g."purchaseOrderId" = po."id" LEFT JOIN "Supplier" s ON po."supplierId" = s."id" WHERE g."id" = ?`, id
+        `SELECT g.*, po."poNumber", po."status" as poStatus, s."name" as supplierName FROM "GoodsReceivedNote" g LEFT JOIN "PurchaseOrder" po ON g."purchaseOrderId" = po."id" LEFT JOIN "Supplier" s ON po."supplierId" = s."id" WHERE g."id" = '${idEscaped}'`
       );
 
       if (grns.length === 0) return { success: false, error: 'GRN not found' };
 
       const grn = grns[0];
-      grn.items = await prisma.$queryRawUnsafe(`SELECT * FROM "GRNItem" WHERE "grnId" = ?`, id);
+      grn.items = await prisma.$queryRawUnsafe(`SELECT * FROM "GRNItem" WHERE "grnId" = '${idEscaped}'`);
       grn.purchaseOrder = { id: grn.purchaseOrderId, poNumber: grn.poNumber, status: grn.poStatus, supplier: { name: grn.supplierName } };
 
       return { success: true, grn };
@@ -129,7 +133,8 @@ export function registerGRNHandlers() {
       );
 
       for (const order of orders) {
-        order.items = await prisma.$queryRawUnsafe(`SELECT * FROM "PurchaseOrderItem" WHERE "purchaseOrderId" = ?`, order.id);
+        const orderIdEscaped = String(order.id).replace(/'/g, "''");
+        order.items = await prisma.$queryRawUnsafe(`SELECT * FROM "PurchaseOrderItem" WHERE "purchaseOrderId" = '${orderIdEscaped}'`);
         order.supplier = { id: order.supplierId, name: order.supplierName };
       }
 

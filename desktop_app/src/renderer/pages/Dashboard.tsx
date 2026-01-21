@@ -133,76 +133,6 @@ export default function Dashboard() {
     await loadSyncStatus();
   };
 
-  const handleSyncDownload = async () => {
-    setSyncError('');
-    setSyncSuccess('');
-    
-    if (!syncStatus.isAuthenticated) {
-      setSyncError('Please authenticate with the cloud server first');
-      setShowSyncModal(true);
-      return;
-    }
-    
-    const result = await window.electronAPI.syncDownload();
-    
-    if (result.success) {
-      setSyncSuccess(`Sync completed! Downloaded: ${result.stats.medicines} medicines, ${result.stats.customers} customers, ${result.stats.suppliers} suppliers`);
-      await loadSyncStatus();
-      await loadAppInfo(); // Refresh stats
-    } else {
-      setSyncError(result.error || 'Sync failed');
-    }
-  };
-
-  const handleForceFullSync = async () => {
-    setSyncError('');
-    setSyncSuccess('');
-    
-    if (!syncStatus.isAuthenticated) {
-      setSyncError('Please authenticate with the cloud server first');
-      setShowSyncModal(true);
-      return;
-    }
-    
-    // First reset the sync state
-    const resetResult = await window.electronAPI.syncReset();
-    if (!resetResult.success) {
-      setSyncError(resetResult.error || 'Failed to reset sync state');
-      return;
-    }
-    
-    // Now do a full download
-    const result = await window.electronAPI.syncDownload();
-    
-    if (result.success) {
-      setSyncSuccess(`Full sync completed! Downloaded: ${result.stats.medicines} medicines, ${result.stats.customers} customers, ${result.stats.suppliers} suppliers`);
-      await loadSyncStatus();
-      await loadAppInfo(); // Refresh stats
-    } else {
-      setSyncError(result.error || 'Sync failed');
-    }
-  };
-
-  const handleSyncUpload = async () => {
-    setSyncError('');
-    setSyncSuccess('');
-    
-    if (!syncStatus.isAuthenticated) {
-      setSyncError('Please authenticate with the cloud server first');
-      setShowSyncModal(true);
-      return;
-    }
-    
-    const result = await window.electronAPI.syncUpload();
-    
-    if (result.success) {
-      setSyncSuccess(`Upload completed! Synced ${result.results.salesSynced} sales, ${result.results.customersSynced} customers`);
-      await loadSyncStatus();
-    } else {
-      setSyncError(result.error || 'Upload failed');
-    }
-  };
-
   const formatLastSync = (timestamp: string | null): string => {
     if (!timestamp) return 'Never';
     const date = new Date(timestamp);
@@ -404,57 +334,6 @@ export default function Dashboard() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
               </svg>
               <span className="text-sm font-medium text-pink-700">Customers</span>
-            </button>
-
-            <button 
-              onClick={handleSyncDownload}
-              disabled={syncStatus.isSyncing || !syncStatus.isAuthenticated}
-              className={`flex flex-col items-center p-6 border-2 rounded-lg transition-all ${
-                syncStatus.isAuthenticated && !syncStatus.isSyncing
-                  ? 'border-blue-500 bg-blue-50 hover:bg-blue-100'
-                  : 'border-gray-200 opacity-50 cursor-not-allowed'
-              }`}
-            >
-              <svg className={`w-8 h-8 mb-2 ${syncStatus.isAuthenticated ? 'text-blue-600' : 'text-gray-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-              </svg>
-              <span className={`text-sm font-medium ${syncStatus.isAuthenticated ? 'text-blue-700' : 'text-gray-400'}`}>
-                {syncStatus.isSyncing ? 'Syncing...' : 'Download Data'}
-              </span>
-            </button>
-
-            <button 
-              onClick={handleForceFullSync}
-              disabled={syncStatus.isSyncing || !syncStatus.isAuthenticated}
-              className={`flex flex-col items-center p-6 border-2 rounded-lg transition-all ${
-                syncStatus.isAuthenticated && !syncStatus.isSyncing
-                  ? 'border-orange-500 bg-orange-50 hover:bg-orange-100'
-                  : 'border-gray-200 opacity-50 cursor-not-allowed'
-              }`}
-            >
-              <svg className={`w-8 h-8 mb-2 ${syncStatus.isAuthenticated ? 'text-orange-600' : 'text-gray-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-              <span className={`text-sm font-medium ${syncStatus.isAuthenticated ? 'text-orange-700' : 'text-gray-400'}`}>
-                {syncStatus.isSyncing ? 'Syncing...' : 'Force Full Sync'}
-              </span>
-            </button>
-
-            <button 
-              onClick={handleSyncUpload}
-              disabled={syncStatus.isSyncing || !syncStatus.isAuthenticated || syncStatus.pendingChanges === 0}
-              className={`flex flex-col items-center p-6 border-2 rounded-lg transition-all ${
-                syncStatus.isAuthenticated && !syncStatus.isSyncing && syncStatus.pendingChanges > 0
-                  ? 'border-purple-500 bg-purple-50 hover:bg-purple-100'
-                  : 'border-gray-200 opacity-50 cursor-not-allowed'
-              }`}
-            >
-              <svg className={`w-8 h-8 mb-2 ${syncStatus.isAuthenticated && syncStatus.pendingChanges > 0 ? 'text-purple-600' : 'text-gray-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-              </svg>
-              <span className={`text-sm font-medium ${syncStatus.isAuthenticated && syncStatus.pendingChanges > 0 ? 'text-purple-700' : 'text-gray-400'}`}>
-                Upload Changes ({syncStatus.pendingChanges})
-              </span>
             </button>
           </div>
         </div>

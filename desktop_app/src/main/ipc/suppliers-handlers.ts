@@ -23,6 +23,11 @@ function escapeSQL(value: string | null | undefined): string {
   return `'${String(value).replace(/'/g, "''")}'`;
 }
 
+// Helper to escape for LIKE clause
+function escapeLike(value: string): string {
+  return String(value).replace(/'/g, "''").replace(/%/g, '\\%').replace(/_/g, '\\_');
+}
+
 async function addToSyncQueue(prisma: any, entityType: string, entityId: string, operation: string, payload: any = {}) {
   const now = formatDateTime();
   const id = randomUUID();
@@ -57,36 +62,32 @@ export function registerSuppliersHandlers() {
       const offset = (page - 1) * limit;
 
       let whereClause = 'WHERE 1=1';
-      const queryParams: any[] = [];
 
       if (search) {
-        whereClause += ` AND ("name" LIKE ? OR "contactPerson" LIKE ? OR "email" LIKE ?)`;
-        queryParams.push(`%${search}%`, `%${search}%`, `%${search}%`);
+        const searchEscaped = escapeLike(search);
+        whereClause += ` AND ("name" LIKE '%${searchEscaped}%' OR "contactPerson" LIKE '%${searchEscaped}%' OR "email" LIKE '%${searchEscaped}%')`;
       }
 
       if (status) {
-        whereClause += ` AND "status" = ?`;
-        queryParams.push(status);
+        const statusEscaped = status.replace(/'/g, "''");
+        whereClause += ` AND "status" = '${statusEscaped}'`;
       } else if (all) {
         whereClause += ` AND "status" = 'ACTIVE'`;
       }
 
       const countResult: any[] = await prisma.$queryRawUnsafe(
-        `SELECT COUNT(*) as count FROM "Supplier" ${whereClause}`,
-        ...queryParams
+        `SELECT COUNT(*) as count FROM "Supplier" ${whereClause}`
       );
       const totalCount = Number(countResult[0]?.count || 0);
 
       let suppliers: any[];
       if (all) {
         suppliers = await prisma.$queryRawUnsafe(
-          `SELECT * FROM "Supplier" ${whereClause} ORDER BY "name" ASC`,
-          ...queryParams
+          `SELECT * FROM "Supplier" ${whereClause} ORDER BY "name" ASC`
         );
       } else {
         suppliers = await prisma.$queryRawUnsafe(
-          `SELECT * FROM "Supplier" ${whereClause} ORDER BY "createdAt" DESC LIMIT ? OFFSET ?`,
-          ...queryParams, limit, offset
+          `SELECT * FROM "Supplier" ${whereClause} ORDER BY "createdAt" DESC LIMIT ${limit} OFFSET ${offset}`
         );
       }
 
