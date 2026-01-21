@@ -18,6 +18,10 @@ interface CreatePOData {
   tax?: number;
 }
 
+// Use explicit character codes to avoid encoding issues
+const Q = String.fromCharCode(39); // single quote
+const DQ = String.fromCharCode(34); // double quote
+
 function generatePONumber(): string {
   const date = new Date();
   const y = date.getFullYear();
@@ -36,22 +40,26 @@ function formatDateTime(date?: Date | string): string {
   return d.toISOString().replace('T', ' ').slice(0, 19);
 }
 
-function escapeStr(value: string | null | undefined): string {
+function esc(value: string | null | undefined): string {
   if (value === null || value === undefined) return 'NULL';
-  const escaped = String(value).replace(/'/g, "''");
-  return "'" + escaped + "'";
+  const escaped = String(value).split(Q).join(Q + Q);
+  return Q + escaped + Q;
 }
 
-function escapeId(value: string): string {
-  return String(value).replace(/'/g, "''");
+function escId(value: string): string {
+  return String(value).split(Q).join(Q + Q);
+}
+
+function col(name: string): string {
+  return DQ + name + DQ;
 }
 
 async function addToSyncQueue(prisma: any, entityType: string, entityId: string, operation: string, payload: any = {}) {
   const now = formatDateTime();
   const id = randomUUID();
-  const payloadStr = JSON.stringify(payload).replace(/'/g, "''");
+  const payloadStr = JSON.stringify(payload).split(Q).join(Q + Q);
   try {
-    const sql = "INSERT OR REPLACE INTO \"SyncQueue\" (\"id\", \"entityType\", \"entityId\", \"operation\", \"payload\", \"status\", \"createdAt\", \"updatedAt\") VALUES ('" + id + "', '" + entityType + "', '" + entityId + "', '" + operation + "', '" + payloadStr + "', 'PENDING', '" + now + "', '" + now + "')";
+    const sql = 'INSERT OR REPLACE INTO ' + col('SyncQueue') + ' (' + col('id') + ', ' + col('entityType') + ', ' + col('entityId') + ', ' + col('operation') + ', ' + col('payload') + ', ' + col('status') + ', ' + col('createdAt') + ', ' + col('updatedAt') + ') VALUES (' + Q + id + Q + ', ' + Q + entityType + Q + ', ' + Q + entityId + Q + ', ' + Q + operation + Q + ', ' + Q + payloadStr + Q + ', ' + Q + 'PENDING' + Q + ', ' + Q + now + Q + ', ' + Q + now + Q + ')';
     await prisma.$executeRawUnsafe(sql);
   } catch (error) {
     console.error('[PurchaseOrders] Failed to add to sync queue:', error);
@@ -62,7 +70,6 @@ export function registerPurchaseOrdersHandlers() {
   console.log('[IPC] Registering Purchase Orders handlers...');
   const dbManager = DatabaseManager.getInstance();
 
-  // Get purchase orders with pagination
   ipcMain.handle('getPurchaseOrdersPaginated', async (_, params: {
     page?: number; limit?: number; search?: string; status?: string;
   }) => {
@@ -79,24 +86,26 @@ export function registerPurchaseOrdersHandlers() {
       let whereClause = 'WHERE 1=1';
 
       if (search && search.trim()) {
-        const searchEsc = escapeId(search.trim());
-        whereClause = whereClause + " AND (po.\"poNumber\" LIKE '%" + searchEsc + "%' ESCAPE '\\' OR s.\"name\" LIKE '%" + searchEsc + "%' ESCAPE '\\')";
+        const searchEsc = escId(search.trim());
+        whereClause = whereClause + ' AND (po.' + col('poNumber') + ' LIKE ' + Q + '%' + searchEsc + '%' + Q + ' OR s.' + col('name') + ' LIKE ' + Q + '%' + searchEsc + '%' + Q + ')';
       }
       if (status && status.trim()) {
-        const statusEsc = escapeId(status.trim());
-        whereClause = whereClause + " AND po.\"status\" = '" + statusEsc + "'";
+        const statusEsc = escId(status.trim());
+        whereClause = whereClause + ' AND po.' + col('status') + ' = ' + Q + statusEsc + Q;
       }
 
-      const countSql = 'SELECT COUNT(*) as count FROM "PurchaseOrder" po LEFT JOIN "Supplier" s ON po."supplierId" = s."id" ' + whereClause;
+      const countSql = 'SELECT COUNT(*) as count FROM ' + col('PurchaseOrder') + ' po LEFT JOIN ' + col('Supplier') + ' s ON po.' + col('supplierId') + ' = s.' + col('id') + ' ' + whereClause;
+      console.log('[PurchaseOrders] Count SQL:', countSql);
       const countResult: any[] = await prisma.$queryRawUnsafe(countSql);
       const totalCount = Number(countResult[0]?.count || 0);
 
-      const selectSql = 'SELECT po.*, s."name" as supplierName FROM "PurchaseOrder" po LEFT JOIN "Supplier" s ON po."supplierId" = s."id" ' + whereClause + ' ORDER BY po."createdAt" DESC LIMIT ' + limit + ' OFFSET ' + offset;
+      const selectSql = 'SELECT po.*, s.' + col('name') + ' as supplierName FROM ' + col('PurchaseOrder') + ' po LEFT JOIN ' + col('Supplier') + ' s ON po.' + col('supplierId') + ' = s.' + col('id') + ' ' + whereClause + ' ORDER BY po.' + col('createdAt') + ' DESC LIMIT ' + limit + ' OFFSET ' + offset;
+      console.log('[PurchaseOrders] Select SQL:', selectSql);
       const orders: any[] = await prisma.$queryRawUnsafe(selectSql);
 
       for (const order of orders) {
-        const orderId = escapeId(order.id);
-        const itemsSql = 'SELECT * FROM "PurchaseOrderItem" WHERE "purchaseOrderId" = \'' + orderId + '\'';
+        const orderId = escId(order.id);
+        const itemsSql = 'SELECT * FROM ' + col('PurchaseOrderItem') + ' WHERE ' + col('purchaseOrderId') + ' = ' + Q + orderId + Q;
         const items: any[] = await prisma.$queryRawUnsafe(itemsSql);
         order.items = items;
         order.supplier = { id: order.supplierId, name: order.supplierName };
@@ -113,14 +122,13 @@ export function registerPurchaseOrdersHandlers() {
     }
   });
 
-  // Get single purchase order
   ipcMain.handle('getPurchaseOrderById', async (_, id: string) => {
     try {
       const prisma = dbManager.getPrismaClient();
       if (!prisma) return { success: false, error: 'Database not initialized' };
 
-      const idEsc = escapeId(id);
-      const orderSql = 'SELECT po.*, s."name" as supplierName, s."phone" as supplierPhone, s."email" as supplierEmail FROM "PurchaseOrder" po LEFT JOIN "Supplier" s ON po."supplierId" = s."id" WHERE po."id" = \'' + idEsc + '\'';
+      const idEsc = escId(id);
+      const orderSql = 'SELECT po.*, s.' + col('name') + ' as supplierName, s.' + col('phone') + ' as supplierPhone, s.' + col('email') + ' as supplierEmail FROM ' + col('PurchaseOrder') + ' po LEFT JOIN ' + col('Supplier') + ' s ON po.' + col('supplierId') + ' = s.' + col('id') + ' WHERE po.' + col('id') + ' = ' + Q + idEsc + Q;
       const orders: any[] = await prisma.$queryRawUnsafe(orderSql);
 
       if (orders.length === 0) return { success: false, error: 'Purchase order not found' };
@@ -128,10 +136,10 @@ export function registerPurchaseOrdersHandlers() {
       const order = orders[0];
       order.supplier = { id: order.supplierId, name: order.supplierName, phone: order.supplierPhone, email: order.supplierEmail };
       
-      const itemsSql = 'SELECT * FROM "PurchaseOrderItem" WHERE "purchaseOrderId" = \'' + idEsc + '\'';
+      const itemsSql = 'SELECT * FROM ' + col('PurchaseOrderItem') + ' WHERE ' + col('purchaseOrderId') + ' = ' + Q + idEsc + Q;
       order.items = await prisma.$queryRawUnsafe(itemsSql);
       
-      const grnSql = 'SELECT * FROM "GoodsReceivedNote" WHERE "purchaseOrderId" = \'' + idEsc + '\' ORDER BY "receivedDate" DESC';
+      const grnSql = 'SELECT * FROM ' + col('GoodsReceivedNote') + ' WHERE ' + col('purchaseOrderId') + ' = ' + Q + idEsc + Q + ' ORDER BY ' + col('receivedDate') + ' DESC';
       order.grns = await prisma.$queryRawUnsafe(grnSql);
 
       return { success: true, order: order };
@@ -141,7 +149,6 @@ export function registerPurchaseOrdersHandlers() {
     }
   });
 
-  // Create purchase order
   ipcMain.handle('createPurchaseOrder', async (_, data: CreatePOData) => {
     try {
       const prisma = dbManager.getPrismaClient();
@@ -166,21 +173,21 @@ export function registerPurchaseOrdersHandlers() {
       const tax = data.tax || 0;
       const total = subtotal + tax;
 
-      const notesVal = escapeStr(data.notes);
-      const expectedDateVal = data.expectedDate ? escapeStr(data.expectedDate) : 'NULL';
-      const supplierIdEsc = escapeId(data.supplierId);
+      const notesVal = esc(data.notes);
+      const expectedDateVal = data.expectedDate ? esc(data.expectedDate) : 'NULL';
+      const supplierIdEsc = escId(data.supplierId);
 
-      const insertPoSql = 'INSERT INTO "PurchaseOrder" ("id", "poNumber", "supplierId", "status", "subtotal", "tax", "total", "notes", "expectedDate", "createdAt", "updatedAt") VALUES (\'' + poId + '\', \'' + poNumber + '\', \'' + supplierIdEsc + '\', \'DRAFT\', ' + subtotal + ', ' + tax + ', ' + total + ', ' + notesVal + ', ' + expectedDateVal + ', \'' + now + '\', \'' + now + '\')';
+      const insertPoSql = 'INSERT INTO ' + col('PurchaseOrder') + ' (' + col('id') + ', ' + col('poNumber') + ', ' + col('supplierId') + ', ' + col('status') + ', ' + col('subtotal') + ', ' + col('tax') + ', ' + col('total') + ', ' + col('notes') + ', ' + col('expectedDate') + ', ' + col('createdAt') + ', ' + col('updatedAt') + ') VALUES (' + Q + poId + Q + ', ' + Q + poNumber + Q + ', ' + Q + supplierIdEsc + Q + ', ' + Q + 'DRAFT' + Q + ', ' + subtotal + ', ' + tax + ', ' + total + ', ' + notesVal + ', ' + expectedDateVal + ', ' + Q + now + Q + ', ' + Q + now + Q + ')';
       await prisma.$executeRawUnsafe(insertPoSql);
 
       for (const item of validItems) {
         const itemId = randomUUID();
         const itemTotal = item.quantity * item.unitCost;
-        const medicineNameEsc = escapeId(item.medicineName.trim());
-        const genericNameVal = escapeStr(item.genericName ? item.genericName.trim() : null);
-        const categoryVal = escapeStr(item.category);
+        const medicineNameEsc = escId(item.medicineName.trim());
+        const genericNameVal = esc(item.genericName ? item.genericName.trim() : null);
+        const categoryVal = esc(item.category);
         
-        const insertItemSql = 'INSERT INTO "PurchaseOrderItem" ("id", "purchaseOrderId", "medicineName", "genericName", "quantity", "receivedQty", "unitCost", "total", "category") VALUES (\'' + itemId + '\', \'' + poId + '\', \'' + medicineNameEsc + '\', ' + genericNameVal + ', ' + item.quantity + ', 0, ' + item.unitCost + ', ' + itemTotal + ', ' + categoryVal + ')';
+        const insertItemSql = 'INSERT INTO ' + col('PurchaseOrderItem') + ' (' + col('id') + ', ' + col('purchaseOrderId') + ', ' + col('medicineName') + ', ' + col('genericName') + ', ' + col('quantity') + ', ' + col('receivedQty') + ', ' + col('unitCost') + ', ' + col('total') + ', ' + col('category') + ') VALUES (' + Q + itemId + Q + ', ' + Q + poId + Q + ', ' + Q + medicineNameEsc + Q + ', ' + genericNameVal + ', ' + item.quantity + ', 0, ' + item.unitCost + ', ' + itemTotal + ', ' + categoryVal + ')';
         await prisma.$executeRawUnsafe(insertItemSql);
       }
 
@@ -192,16 +199,15 @@ export function registerPurchaseOrdersHandlers() {
     }
   });
 
-  // Update purchase order status
   ipcMain.handle('updatePurchaseOrderStatus', async (_, params: { id: string; status: string; }) => {
     try {
       const prisma = dbManager.getPrismaClient();
       if (!prisma) return { success: false, error: 'Database not initialized' };
 
       const now = formatDateTime();
-      const idEsc = escapeId(params.id);
-      const statusEsc = escapeId(params.status);
-      const updateSql = 'UPDATE "PurchaseOrder" SET "status" = \'' + statusEsc + '\', "updatedAt" = \'' + now + '\' WHERE "id" = \'' + idEsc + '\'';
+      const idEsc = escId(params.id);
+      const statusEsc = escId(params.status);
+      const updateSql = 'UPDATE ' + col('PurchaseOrder') + ' SET ' + col('status') + ' = ' + Q + statusEsc + Q + ', ' + col('updatedAt') + ' = ' + Q + now + Q + ' WHERE ' + col('id') + ' = ' + Q + idEsc + Q;
       await prisma.$executeRawUnsafe(updateSql);
       await addToSyncQueue(prisma, 'PURCHASE_ORDER', params.id, 'UPDATE', { status: params.status });
       return { success: true };
@@ -211,28 +217,27 @@ export function registerPurchaseOrdersHandlers() {
     }
   });
 
-  // Delete purchase order
   ipcMain.handle('deletePurchaseOrder', async (_, id: string) => {
     try {
       const prisma = dbManager.getPrismaClient();
       if (!prisma) return { success: false, error: 'Database not initialized' };
 
-      const idEsc = escapeId(id);
+      const idEsc = escId(id);
       
-      const grnCountSql = 'SELECT COUNT(*) as count FROM "GoodsReceivedNote" WHERE "purchaseOrderId" = \'' + idEsc + '\'';
+      const grnCountSql = 'SELECT COUNT(*) as count FROM ' + col('GoodsReceivedNote') + ' WHERE ' + col('purchaseOrderId') + ' = ' + Q + idEsc + Q;
       const grnCount: any[] = await prisma.$queryRawUnsafe(grnCountSql);
       if (Number(grnCount[0]?.count || 0) > 0) return { success: false, error: 'Cannot delete PO with received goods' };
 
-      const statusSql = 'SELECT "status" FROM "PurchaseOrder" WHERE "id" = \'' + idEsc + '\'';
+      const statusSql = 'SELECT ' + col('status') + ' FROM ' + col('PurchaseOrder') + ' WHERE ' + col('id') + ' = ' + Q + idEsc + Q;
       const orders: any[] = await prisma.$queryRawUnsafe(statusSql);
       if (orders.length > 0 && orders[0].status !== 'DRAFT' && orders[0].status !== 'CANCELLED') {
         return { success: false, error: 'Can only delete draft or cancelled orders' };
       }
 
-      const deleteItemsSql = 'DELETE FROM "PurchaseOrderItem" WHERE "purchaseOrderId" = \'' + idEsc + '\'';
+      const deleteItemsSql = 'DELETE FROM ' + col('PurchaseOrderItem') + ' WHERE ' + col('purchaseOrderId') + ' = ' + Q + idEsc + Q;
       await prisma.$executeRawUnsafe(deleteItemsSql);
       
-      const deletePoSql = 'DELETE FROM "PurchaseOrder" WHERE "id" = \'' + idEsc + '\'';
+      const deletePoSql = 'DELETE FROM ' + col('PurchaseOrder') + ' WHERE ' + col('id') + ' = ' + Q + idEsc + Q;
       await prisma.$executeRawUnsafe(deletePoSql);
       
       await addToSyncQueue(prisma, 'PURCHASE_ORDER', id, 'DELETE', { id: id });
