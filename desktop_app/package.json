@@ -1,6 +1,6 @@
 {
   "name": "dawacare-pos",
-  "version": "1.0.37",
+  "version": "1.0.38",
   "description": "DawaCare POS - Offline-First Pharmacy Management Desktop Application",
   "main": "dist/main/src/main/main.js",
   "author": {
@@ -21,7 +21,8 @@
     "package:mac": "electron-builder --mac",
     "package:linux": "electron-builder --linux",
     "package:all": "electron-builder -mwl",
-    "postinstall": "prisma generate"
+    "postinstall": "npm run prisma:generate",
+    "prisma:generate": "prisma generate --schema=prisma/sqlite/schema.prisma && prisma generate --schema=prisma/postgresql/schema.prisma"
   },
   "dependencies": {
     "@prisma/client": "^6.7.0",

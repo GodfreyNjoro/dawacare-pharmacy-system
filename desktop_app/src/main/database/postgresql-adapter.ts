@@ -1,5 +1,5 @@
 import type { DatabaseAdapter } from '../../shared/types';
-import { getPrismaClientClass } from '../prisma-helper';
+import { getPostgreSQLPrismaClientClass } from '../prisma-helper';
 
 export class PostgreSQLAdapter implements DatabaseAdapter {
   private prisma: any = null;
@@ -15,8 +15,8 @@ export class PostgreSQLAdapter implements DatabaseAdapter {
       // Set DATABASE_URL environment variable for Prisma
       process.env.DATABASE_URL = this.connectionString;
 
-      // Get PrismaClient dynamically (after env is configured)
-      const PrismaClient = getPrismaClientClass();
+      // Get PostgreSQL-specific PrismaClient
+      const PrismaClient = getPostgreSQLPrismaClientClass();
       
       this.prisma = new PrismaClient({
         datasources: {
@@ -65,9 +65,20 @@ export class PostgreSQLAdapter implements DatabaseAdapter {
   }
 
   async runMigrations(): Promise<void> {
-    // PostgreSQL migrations are typically run via external migration tools
-    // or handled by the cloud database. This is a no-op for now.
-    console.log('[PostgreSQL] Migrations handled externally');
+    // For PostgreSQL, we'll use Prisma's db push to create/update schema
+    // In production, migrations should be run externally or via prisma migrate
+    console.log('[PostgreSQL] Schema will be created via Prisma db push or migrations');
+    
+    // Try to create tables if they don't exist using raw SQL
+    if (this.prisma) {
+      try {
+        // Check if User table exists
+        await this.prisma.$queryRaw`SELECT 1 FROM "User" LIMIT 1`;
+        console.log('[PostgreSQL] Tables already exist');
+      } catch {
+        console.log('[PostgreSQL] Tables need to be created. Please run: npx prisma db push --schema=prisma/postgresql/schema.prisma');
+      }
+    }
   }
 
   private async seedDefaultData(): Promise<void> {

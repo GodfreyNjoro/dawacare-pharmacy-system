@@ -2,7 +2,7 @@ import path from 'path';
 import { app } from 'electron';
 import type { DatabaseAdapter } from '../../shared/types';
 import { DEFAULT_SQLITE_DB_NAME } from '../../shared/constants';
-import { getPrismaClientClass } from '../prisma-helper';
+import { getSQLitePrismaClientClass } from '../prisma-helper';
 
 export class SQLiteAdapter implements DatabaseAdapter {
   private prisma: any = null;
@@ -20,7 +20,7 @@ export class SQLiteAdapter implements DatabaseAdapter {
       process.env.DATABASE_URL = `file:${this.dbPath}`;
 
       // Get PrismaClient dynamically (after env is configured)
-      const PrismaClient = getPrismaClientClass();
+      const PrismaClient = getSQLitePrismaClientClass();
       
       this.prisma = new PrismaClient({
         datasources: {

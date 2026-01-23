@@ -5,17 +5,24 @@ import Module from 'module';
 
 let prismaConfigured = false;
 let unpackedNodeModulesPath: string | null = null;
-let dotPrismaClientPath: string | null = null;
+let dotPrismaClientSqlitePath: string | null = null;
+let dotPrismaClientPostgresPath: string | null = null;
+
+// Track which client we need to load
+let currentClientType: 'sqlite' | 'postgresql' = 'sqlite';
 
 /**
  * Configure Prisma for production Electron app
  */
-export function configurePrismaForProduction(): void {
+export function configurePrismaForProduction(clientType: 'sqlite' | 'postgresql' = 'sqlite'): void {
+  currentClientType = clientType;
+  
   if (prismaConfigured) return;
   prismaConfigured = true;
 
   const isPackaged = app.isPackaged;
   console.log('[Prisma] App is packaged:', isPackaged);
+  console.log('[Prisma] Client type:', clientType);
 
   if (!isPackaged) {
     console.log('[Prisma] Development mode');
@@ -26,7 +33,14 @@ export function configurePrismaForProduction(): void {
   const resourcesPath = path.dirname(appPath);
   const unpackedPath = path.join(resourcesPath, 'app.asar.unpacked');
   unpackedNodeModulesPath = path.join(unpackedPath, 'node_modules');
-  dotPrismaClientPath = path.join(unpackedNodeModulesPath, '.prisma', 'client');
+  dotPrismaClientSqlitePath = path.join(unpackedNodeModulesPath, '.prisma', 'client-sqlite');
+  dotPrismaClientPostgresPath = path.join(unpackedNodeModulesPath, '.prisma', 'client-postgresql');
+  
+  // Fallback to old single client path for backwards compatibility
+  const dotPrismaClientPath = path.join(unpackedNodeModulesPath, '.prisma', 'client');
+  if (!fs.existsSync(dotPrismaClientSqlitePath) && fs.existsSync(dotPrismaClientPath)) {
+    dotPrismaClientSqlitePath = dotPrismaClientPath;
+  }
   
   console.log('[Prisma] Resources path:', resourcesPath);
   console.log('[Prisma] Unpacked path:', unpackedPath);
@@ -63,21 +77,24 @@ export function configurePrismaForProduction(): void {
     console.error('[Prisma] ERROR: unpacked node_modules does not exist!');
   }
 
+  // Get the correct client path based on type
+  const activeClientPath = clientType === 'postgresql' ? dotPrismaClientPostgresPath : dotPrismaClientSqlitePath;
+  
   // Check .prisma/client
-  if (fs.existsSync(dotPrismaClientPath)) {
-    const files = fs.readdirSync(dotPrismaClientPath);
-    console.log('[Prisma] .prisma/client files:', files);
+  if (activeClientPath && fs.existsSync(activeClientPath)) {
+    const files = fs.readdirSync(activeClientPath);
+    console.log('[Prisma] .prisma/' + (clientType === 'postgresql' ? 'client-postgresql' : 'client-sqlite') + ' files:', files);
     
-    const defaultJsPath = path.join(dotPrismaClientPath, 'default.js');
+    const defaultJsPath = path.join(activeClientPath, 'default.js');
     console.log('[Prisma] default.js exists:', fs.existsSync(defaultJsPath));
     
     const engineFile = files.find(f => f.includes('query_engine') || f.includes('query-engine'));
     if (engineFile) {
-      process.env.PRISMA_QUERY_ENGINE_LIBRARY = path.join(dotPrismaClientPath, engineFile);
+      process.env.PRISMA_QUERY_ENGINE_LIBRARY = path.join(activeClientPath, engineFile);
       console.log('[Prisma] Engine:', process.env.PRISMA_QUERY_ENGINE_LIBRARY);
     }
   } else {
-    console.error('[Prisma] ERROR: .prisma/client NOT FOUND!');
+    console.error('[Prisma] ERROR: .prisma/' + (clientType === 'postgresql' ? 'client-postgresql' : 'client-sqlite') + ' NOT FOUND!');
     const prismaDir = path.join(unpackedNodeModulesPath, '.prisma');
     console.log('[Prisma] .prisma dir exists:', fs.existsSync(prismaDir));
     if (fs.existsSync(prismaDir)) {
@@ -98,9 +115,14 @@ export function configurePrismaForProduction(): void {
       return originalResolveFilename.call(this, request, parent, isMain, options);
     }
 
+    // Get the correct client path based on current type
+    const activeClientPath = currentClientType === 'postgresql' ? dotPrismaClientPostgresPath : dotPrismaClientSqlitePath;
+
     // Handle .prisma/client/default specifically (the main issue)
-    if (request === '.prisma/client/default' || request === '.prisma\\client\\default') {
-      const targetPath = path.join(dotPrismaClientPath!, 'default.js');
+    if (request === '.prisma/client/default' || request === '.prisma\\client\\default' ||
+        request === '.prisma/client-sqlite/default' || request === '.prisma\\client-sqlite\\default' ||
+        request === '.prisma/client-postgresql/default' || request === '.prisma\\client-postgresql\\default') {
+      const targetPath = path.join(activeClientPath!, 'default.js');
       console.log('[Prisma] Intercepting .prisma/client/default ->', targetPath);
       if (fs.existsSync(targetPath)) {
         return targetPath;
@@ -110,8 +132,8 @@ export function configurePrismaForProduction(): void {
     
     // Handle other .prisma paths
     if (request.startsWith('.prisma/') || request.startsWith('.prisma\\')) {
-      const relativePart = request.replace(/^\.prisma[\/\\]/, '');
-      const targetPath = path.join(unpackedNodeModulesPath, '.prisma', relativePart);
+      const relativePart = request.replace(/^\.prisma[\/\\](client-sqlite|client-postgresql|client)[\/\\]?/, '');
+      const targetPath = path.join(activeClientPath!, relativePart);
       
       const candidates = [targetPath, targetPath + '.js', targetPath + '.node'];
       for (const candidate of candidates) {
@@ -122,10 +144,6 @@ export function configurePrismaForProduction(): void {
       }
     }
     
-    // Handle @prisma paths - DON'T redirect these, let Node resolve them naturally
-    // after we've set up the module paths
-    // The key is to intercept .prisma/client which is the generated client
-    
     return originalResolveFilename.call(this, request, parent, isMain, options);
   };
 
@@ -133,13 +151,56 @@ export function configurePrismaForProduction(): void {
 }
 
 /**
- * Get PrismaClient dynamically
+ * Get PrismaClient for SQLite dynamically
  */
-export function getPrismaClientClass(): any {
-  configurePrismaForProduction();
+export function getSQLitePrismaClientClass(): any {
+  configurePrismaForProduction('sqlite');
   
+  try {
+    // Try the separate client path first
+    const clientPath = path.join(process.cwd(), 'node_modules', '.prisma', 'client-sqlite');
+    if (fs.existsSync(clientPath)) {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { PrismaClient } = require(clientPath);
+      console.log('[Prisma] SQLite PrismaClient loaded from client-sqlite');
+      return PrismaClient;
+    }
+  } catch {
+    // Fallback
+  }
+  
+  // Fallback to default client path
   // eslint-disable-next-line @typescript-eslint/no-var-requires
   const { PrismaClient } = require('@prisma/client');
-  console.log('[Prisma] PrismaClient loaded');
+  console.log('[Prisma] SQLite PrismaClient loaded from default');
   return PrismaClient;
+}
+
+/**
+ * Get PrismaClient for PostgreSQL dynamically
+ */
+export function getPostgreSQLPrismaClientClass(): any {
+  configurePrismaForProduction('postgresql');
+  
+  try {
+    // Try the separate client path first
+    const clientPath = path.join(process.cwd(), 'node_modules', '.prisma', 'client-postgresql');
+    if (fs.existsSync(clientPath)) {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { PrismaClient } = require(clientPath);
+      console.log('[Prisma] PostgreSQL PrismaClient loaded from client-postgresql');
+      return PrismaClient;
+    }
+  } catch {
+    // Fallback
+  }
+  
+  throw new Error('PostgreSQL Prisma client not found. Make sure to run: prisma generate --schema=prisma/postgresql/schema.prisma');
+}
+
+/**
+ * Get PrismaClient dynamically (backwards compatible - defaults to SQLite)
+ */
+export function getPrismaClientClass(): any {
+  return getSQLitePrismaClientClass();
 }
