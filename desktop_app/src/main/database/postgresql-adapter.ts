@@ -12,31 +12,68 @@ export class PostgreSQLAdapter implements DatabaseAdapter {
 
   async connect(): Promise<void> {
     try {
+      // Parse connection string for debugging
+      console.log('[PostgreSQL] Attempting connection...');
+      console.log('[PostgreSQL] Connection string (masked):', this.connectionString.replace(/:[^:@]+@/, ':****@'));
+      
+      // Parse and use individual parameters for better compatibility
+      let host = 'localhost';
+      let port = 5432;
+      let database = 'dawacare';
+      let user = 'postgres';
+      let password = '';
+      
+      try {
+        // Convert postgresql:// to http:// for URL parsing (URL class doesn't support postgresql protocol)
+        const parseableString = this.connectionString.replace(/^postgresql:\/\//, 'http://');
+        const url = new URL(parseableString);
+        host = url.hostname || 'localhost';
+        port = parseInt(url.port) || 5432;
+        database = url.pathname.slice(1) || 'dawacare';
+        user = url.username || 'postgres';
+        password = decodeURIComponent(url.password || '');
+        console.log('[PostgreSQL] Parsed connection - host:', host, 'port:', port, 'database:', database, 'user:', user);
+      } catch (parseError) {
+        console.log('[PostgreSQL] Could not parse as URL, using connection string directly:', parseError);
+      }
+      
+      console.log('[PostgreSQL] Connecting to:', { host, port, database, user });
+      
       this.pool = new Pool({
-        connectionString: this.connectionString,
+        host,
+        port,
+        database,
+        user,
+        password,
         max: 10,
         idleTimeoutMillis: 30000,
-        connectionTimeoutMillis: 5000,
+        connectionTimeoutMillis: 10000,
       });
 
       // Test the connection
       const client = await this.pool.connect();
-      await client.query('SELECT 1');
+      const result = await client.query('SELECT current_database() as db');
+      console.log('[PostgreSQL] Connected to database:', result.rows[0]?.db);
       client.release();
       
       this.connected = true;
-      console.log('[PostgreSQL] Connected to database');
+      console.log('[PostgreSQL] Connection successful!');
     } catch (error: any) {
       console.error('[PostgreSQL] Connection error:', error);
+      console.error('[PostgreSQL] Error code:', error.code);
+      console.error('[PostgreSQL] Error detail:', error.detail);
+      
       let message = error.message || 'Failed to connect';
-      if (message.includes('ECONNREFUSED')) {
-        message = 'Connection refused. Make sure PostgreSQL is running on the specified host and port.';
-      } else if (message.includes('authentication failed') || message.includes('password authentication')) {
-        message = 'Authentication failed. Check your username and password.';
-      } else if (message.includes('does not exist')) {
-        message = 'Database does not exist. Please create it in pgAdmin first.';
-      } else if (message.includes('ENOTFOUND')) {
+      if (error.code === 'ECONNREFUSED') {
+        message = 'Connection refused. Make sure PostgreSQL is running. Check Windows Services for "postgresql-x64-XX".';
+      } else if (error.code === '28P01' || message.includes('password authentication')) {
+        message = 'Authentication failed. Check your postgres password.';
+      } else if (error.code === '3D000' || message.includes('does not exist')) {
+        message = `Database "${error.message.match(/"([^"]+)"/)?.[1] || 'unknown'}" does not exist. Verify the exact database name in pgAdmin (case-sensitive).`;
+      } else if (error.code === 'ENOTFOUND') {
         message = 'Host not found. Check the hostname.';
+      } else if (error.code === 'ETIMEDOUT') {
+        message = 'Connection timed out. Check if PostgreSQL is accepting connections on the specified host/port.';
       }
       throw new Error(`Failed to connect to PostgreSQL database: ${message}`);
     }
