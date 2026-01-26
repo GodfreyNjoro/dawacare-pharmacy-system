@@ -641,8 +641,36 @@ class PostgreSQLModel {
       const conditions: string[] = [];
       for (const [key, value] of Object.entries(options.where)) {
         if (value !== undefined && value !== null) {
-          conditions.push(`"${key}" = $${paramIndex++}`);
-          params.push(value);
+          // Handle nested where conditions like supplier: { name: { contains: 'x' } }
+          if (typeof value === 'object' && !Array.isArray(value)) {
+            // Check if it's an operator object (gte, lte, contains, etc.)
+            const operators = ['gte', 'lte', 'gt', 'lt', 'contains', 'startsWith', 'endsWith'];
+            const hasOperator = Object.keys(value).some(k => operators.includes(k));
+            if (hasOperator) {
+              for (const [op, opValue] of Object.entries(value)) {
+                if (op === 'contains') {
+                  conditions.push(`"${key}" ILIKE $${paramIndex++}`);
+                  params.push(`%${opValue}%`);
+                } else if (op === 'startsWith') {
+                  conditions.push(`"${key}" ILIKE $${paramIndex++}`);
+                  params.push(`${opValue}%`);
+                } else if (op === 'endsWith') {
+                  conditions.push(`"${key}" ILIKE $${paramIndex++}`);
+                  params.push(`%${opValue}`);
+                } else if (op === 'gte') {
+                  conditions.push(`"${key}" >= $${paramIndex++}`);
+                  params.push(opValue);
+                } else if (op === 'lte') {
+                  conditions.push(`"${key}" <= $${paramIndex++}`);
+                  params.push(opValue);
+                }
+              }
+            }
+            // Skip nested relation conditions for now (handled via include)
+          } else {
+            conditions.push(`"${key}" = $${paramIndex++}`);
+            params.push(value);
+          }
         }
       }
       if (conditions.length > 0) {
@@ -672,11 +700,103 @@ class PostgreSQLModel {
     }
 
     const result = await this.pool.query(sql, params);
-    return result.rows;
+    let records = result.rows;
+    
+    // Handle includes
+    if (options?.include && records.length > 0) {
+      records = await this.loadIncludes(records, options.include);
+    }
+    
+    return records;
+  }
+  
+  private async loadIncludes(records: any[], include: Record<string, boolean | object>): Promise<any[]> {
+    const relationMappings: Record<string, Record<string, { table: string; foreignKey: string; type: 'many' | 'one' }>> = {
+      'PurchaseOrder': {
+        'supplier': { table: 'Supplier', foreignKey: 'supplierId', type: 'one' },
+        'items': { table: 'PurchaseOrderItem', foreignKey: 'purchaseOrderId', type: 'many' },
+        'grns': { table: 'GoodsReceivedNote', foreignKey: 'purchaseOrderId', type: 'many' },
+      },
+      'Sale': {
+        'items': { table: 'SaleItem', foreignKey: 'saleId', type: 'many' },
+        'customer': { table: 'Customer', foreignKey: 'customerId', type: 'one' },
+      },
+      'GoodsReceivedNote': {
+        'purchaseOrder': { table: 'PurchaseOrder', foreignKey: 'purchaseOrderId', type: 'one' },
+        'items': { table: 'GRNItem', foreignKey: 'grnId', type: 'many' },
+      },
+      'User': {
+        'branch': { table: 'Branch', foreignKey: 'branchId', type: 'one' },
+      },
+      'StockTransfer': {
+        'items': { table: 'StockTransferItem', foreignKey: 'transferId', type: 'many' },
+        'fromBranch': { table: 'Branch', foreignKey: 'fromBranchId', type: 'one' },
+        'toBranch': { table: 'Branch', foreignKey: 'toBranchId', type: 'one' },
+      },
+    };
+    
+    const tableRelations = relationMappings[this.tableName] || {};
+    
+    for (const [relationName, includeValue] of Object.entries(include)) {
+      if (!includeValue) continue;
+      
+      const relation = tableRelations[relationName];
+      if (!relation) continue;
+      
+      if (relation.type === 'many') {
+        // Fetch related records for all main records
+        const ids = records.map(r => r.id);
+        if (ids.length === 0) continue;
+        
+        const placeholders = ids.map((_, i) => `$${i + 1}`).join(', ');
+        const relSql = `SELECT * FROM "${relation.table}" WHERE "${relation.foreignKey}" IN (${placeholders})`;
+        const relResult = await this.pool.query(relSql, ids);
+        
+        // Group by foreign key
+        const groupedItems: Record<string, any[]> = {};
+        for (const item of relResult.rows) {
+          const fkValue = item[relation.foreignKey];
+          if (!groupedItems[fkValue]) groupedItems[fkValue] = [];
+          groupedItems[fkValue].push(item);
+        }
+        
+        // Attach to records
+        for (const record of records) {
+          record[relationName] = groupedItems[record.id] || [];
+        }
+      } else if (relation.type === 'one') {
+        // Fetch related single records
+        const fkValues = [...new Set(records.map(r => r[relation.foreignKey]).filter(Boolean))];
+        if (fkValues.length === 0) {
+          for (const record of records) {
+            record[relationName] = null;
+          }
+          continue;
+        }
+        
+        const placeholders = fkValues.map((_, i) => `$${i + 1}`).join(', ');
+        const relSql = `SELECT * FROM "${relation.table}" WHERE "id" IN (${placeholders})`;
+        const relResult = await this.pool.query(relSql, fkValues);
+        
+        // Create lookup map
+        const lookup: Record<string, any> = {};
+        for (const item of relResult.rows) {
+          lookup[item.id] = item;
+        }
+        
+        // Attach to records
+        for (const record of records) {
+          record[relationName] = lookup[record[relation.foreignKey]] || null;
+        }
+      }
+    }
+    
+    return records;
   }
 
   async findFirst(options?: {
     where?: Record<string, any>;
+    include?: Record<string, boolean | object>;
   }): Promise<any | null> {
     const results = await this.findMany({ ...options, take: 1 });
     return results[0] || null;
@@ -684,21 +804,101 @@ class PostgreSQLModel {
 
   async findUnique(options: {
     where: Record<string, any>;
+    include?: Record<string, boolean | object>;
   }): Promise<any | null> {
     return this.findFirst(options);
   }
 
   async create(options: {
     data: Record<string, any>;
+    include?: Record<string, boolean | object>;
   }): Promise<any> {
-    const { data } = options;
-    const keys = Object.keys(data);
-    const values = Object.values(data);
+    const { data, include } = options;
+    
+    // Separate nested creates from regular fields
+    const regularData: Record<string, any> = {};
+    const nestedCreates: { field: string; items: any[]; foreignKey: string }[] = [];
+    
+    // Map of relation field names to their table and foreign key
+    const relationMappings: Record<string, { table: string; foreignKey: string }> = {
+      items: { table: this.getItemsTable(), foreignKey: this.getForeignKey() },
+      saleItems: { table: 'SaleItem', foreignKey: 'saleId' },
+    };
+    
+    for (const [key, value] of Object.entries(data)) {
+      if (value && typeof value === 'object' && value.create) {
+        // This is a nested create
+        const mapping = relationMappings[key];
+        if (mapping) {
+          const createData = Array.isArray(value.create) ? value.create : [value.create];
+          nestedCreates.push({
+            field: key,
+            items: createData,
+            foreignKey: mapping.foreignKey,
+          });
+        }
+      } else if (value !== undefined) {
+        regularData[key] = value;
+      }
+    }
+    
+    // Insert the main record
+    const keys = Object.keys(regularData);
+    const values = Object.values(regularData);
     const placeholders = keys.map((_, i) => `$${i + 1}`);
 
     const sql = `INSERT INTO "${this.tableName}" ("${keys.join('", "')}") VALUES (${placeholders.join(', ')}) RETURNING *`;
     const result = await this.pool.query(sql, values);
-    return result.rows[0];
+    const mainRecord = result.rows[0];
+    
+    // Handle nested creates
+    for (const nested of nestedCreates) {
+      const itemsTable = this.getItemsTableForField(nested.field);
+      const createdItems: any[] = [];
+      
+      for (const item of nested.items) {
+        const itemData = { ...item, [nested.foreignKey]: mainRecord.id };
+        const itemKeys = Object.keys(itemData);
+        const itemValues = Object.values(itemData);
+        const itemPlaceholders = itemKeys.map((_, i) => `$${i + 1}`);
+        
+        const itemSql = `INSERT INTO "${itemsTable}" ("${itemKeys.join('", "')}") VALUES (${itemPlaceholders.join(', ')}) RETURNING *`;
+        const itemResult = await this.pool.query(itemSql, itemValues);
+        createdItems.push(itemResult.rows[0]);
+      }
+      
+      mainRecord[nested.field] = createdItems;
+    }
+    
+    return mainRecord;
+  }
+  
+  private getItemsTable(): string {
+    const tableToItems: Record<string, string> = {
+      'PurchaseOrder': 'PurchaseOrderItem',
+      'Sale': 'SaleItem',
+      'GoodsReceivedNote': 'GRNItem',
+      'StockTransfer': 'StockTransferItem',
+    };
+    return tableToItems[this.tableName] || `${this.tableName}Item`;
+  }
+  
+  private getForeignKey(): string {
+    const tableToFK: Record<string, string> = {
+      'PurchaseOrder': 'purchaseOrderId',
+      'Sale': 'saleId',
+      'GoodsReceivedNote': 'grnId',
+      'StockTransfer': 'transferId',
+    };
+    return tableToFK[this.tableName] || `${this.tableName.charAt(0).toLowerCase() + this.tableName.slice(1)}Id`;
+  }
+  
+  private getItemsTableForField(field: string): string {
+    const fieldToTable: Record<string, string> = {
+      'items': this.getItemsTable(),
+      'saleItems': 'SaleItem',
+    };
+    return fieldToTable[field] || this.getItemsTable();
   }
 
   async update(options: {
@@ -742,6 +942,68 @@ class PostgreSQLModel {
     const sql = `DELETE FROM "${this.tableName}" WHERE ${whereParts.join(' AND ')} RETURNING *`;
     const result = await this.pool.query(sql, params);
     return result.rows[0];
+  }
+  
+  async deleteMany(options: {
+    where: Record<string, any>;
+  }): Promise<{ count: number }> {
+    const { where } = options;
+    const whereParts: string[] = [];
+    const params: any[] = [];
+    let paramIndex = 1;
+
+    for (const [key, value] of Object.entries(where)) {
+      whereParts.push(`"${key}" = $${paramIndex++}`);
+      params.push(value);
+    }
+
+    const sql = `DELETE FROM "${this.tableName}" WHERE ${whereParts.join(' AND ')}`;
+    const result = await this.pool.query(sql, params);
+    return { count: result.rowCount || 0 };
+  }
+  
+  async upsert(options: {
+    where: Record<string, any>;
+    create: Record<string, any>;
+    update: Record<string, any>;
+  }): Promise<any> {
+    const { where, create, update } = options;
+    
+    // Try to find existing record
+    const existing = await this.findFirst({ where });
+    
+    if (existing) {
+      // Update existing record
+      return this.update({ where, data: update });
+    } else {
+      // Create new record
+      return this.create({ data: create });
+    }
+  }
+  
+  async updateMany(options: {
+    where: Record<string, any>;
+    data: Record<string, any>;
+  }): Promise<{ count: number }> {
+    const { where, data } = options;
+    const setParts: string[] = [];
+    const params: any[] = [];
+    let paramIndex = 1;
+
+    for (const [key, value] of Object.entries(data)) {
+      setParts.push(`"${key}" = $${paramIndex++}`);
+      params.push(value);
+    }
+
+    const whereParts: string[] = [];
+    for (const [key, value] of Object.entries(where)) {
+      whereParts.push(`"${key}" = $${paramIndex++}`);
+      params.push(value);
+    }
+
+    const sql = `UPDATE "${this.tableName}" SET ${setParts.join(', ')} WHERE ${whereParts.join(' AND ')}`;
+    const result = await this.pool.query(sql, params);
+    return { count: result.rowCount || 0 };
   }
 
   async count(options?: {
