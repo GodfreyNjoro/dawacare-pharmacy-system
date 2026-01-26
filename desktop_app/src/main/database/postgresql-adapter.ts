@@ -767,4 +767,243 @@ class PostgreSQLModel {
     const result = await this.pool.query(sql, params);
     return parseInt(result.rows[0].count, 10);
   }
+
+  async aggregate(options: {
+    where?: Record<string, any>;
+    _sum?: Record<string, boolean>;
+    _count?: boolean | Record<string, boolean>;
+    _avg?: Record<string, boolean>;
+    _min?: Record<string, boolean>;
+    _max?: Record<string, boolean>;
+  }): Promise<any> {
+    const selectParts: string[] = [];
+    
+    // Handle _sum
+    if (options._sum) {
+      for (const [field, include] of Object.entries(options._sum)) {
+        if (include) {
+          selectParts.push(`COALESCE(SUM("${field}"), 0) as "_sum_${field}"`);
+        }
+      }
+    }
+    
+    // Handle _count
+    if (options._count === true) {
+      selectParts.push(`COUNT(*) as "_count"`);
+    } else if (typeof options._count === 'object') {
+      for (const [field, include] of Object.entries(options._count)) {
+        if (include) {
+          selectParts.push(`COUNT("${field}") as "_count_${field}"`);
+        }
+      }
+    }
+    
+    // Handle _avg
+    if (options._avg) {
+      for (const [field, include] of Object.entries(options._avg)) {
+        if (include) {
+          selectParts.push(`AVG("${field}") as "_avg_${field}"`);
+        }
+      }
+    }
+    
+    // Handle _min
+    if (options._min) {
+      for (const [field, include] of Object.entries(options._min)) {
+        if (include) {
+          selectParts.push(`MIN("${field}") as "_min_${field}"`);
+        }
+      }
+    }
+    
+    // Handle _max
+    if (options._max) {
+      for (const [field, include] of Object.entries(options._max)) {
+        if (include) {
+          selectParts.push(`MAX("${field}") as "_max_${field}"`);
+        }
+      }
+    }
+    
+    if (selectParts.length === 0) {
+      selectParts.push('COUNT(*) as "_count"');
+    }
+    
+    let sql = `SELECT ${selectParts.join(', ')} FROM "${this.tableName}"`;
+    const params: any[] = [];
+    let paramIndex = 1;
+
+    if (options.where) {
+      const conditions: string[] = [];
+      for (const [key, value] of Object.entries(options.where)) {
+        if (value !== undefined && value !== null) {
+          if (typeof value === 'object' && value !== null) {
+            // Handle operators like gte, lte, gt, lt
+            for (const [op, opValue] of Object.entries(value)) {
+              if (op === 'gte') {
+                conditions.push(`"${key}" >= $${paramIndex++}`);
+                params.push(opValue);
+              } else if (op === 'lte') {
+                conditions.push(`"${key}" <= $${paramIndex++}`);
+                params.push(opValue);
+              } else if (op === 'gt') {
+                conditions.push(`"${key}" > $${paramIndex++}`);
+                params.push(opValue);
+              } else if (op === 'lt') {
+                conditions.push(`"${key}" < $${paramIndex++}`);
+                params.push(opValue);
+              }
+            }
+          } else {
+            conditions.push(`"${key}" = $${paramIndex++}`);
+            params.push(value);
+          }
+        }
+      }
+      if (conditions.length > 0) {
+        sql += ` WHERE ${conditions.join(' AND ')}`;
+      }
+    }
+
+    const result = await this.pool.query(sql, params);
+    const row = result.rows[0];
+    
+    // Transform result to Prisma format
+    const response: any = {};
+    
+    if (options._sum) {
+      response._sum = {};
+      for (const field of Object.keys(options._sum)) {
+        response._sum[field] = parseFloat(row[`_sum_${field}`]) || 0;
+      }
+    }
+    
+    if (options._count === true) {
+      response._count = parseInt(row['_count'], 10) || 0;
+    } else if (typeof options._count === 'object') {
+      response._count = {};
+      for (const field of Object.keys(options._count)) {
+        response._count[field] = parseInt(row[`_count_${field}`], 10) || 0;
+      }
+    }
+    
+    if (options._avg) {
+      response._avg = {};
+      for (const field of Object.keys(options._avg)) {
+        response._avg[field] = parseFloat(row[`_avg_${field}`]) || null;
+      }
+    }
+    
+    if (options._min) {
+      response._min = {};
+      for (const field of Object.keys(options._min)) {
+        response._min[field] = row[`_min_${field}`];
+      }
+    }
+    
+    if (options._max) {
+      response._max = {};
+      for (const field of Object.keys(options._max)) {
+        response._max[field] = row[`_max_${field}`];
+      }
+    }
+    
+    return response;
+  }
+
+  async groupBy(options: {
+    by: string[];
+    where?: Record<string, any>;
+    _sum?: Record<string, boolean>;
+    _count?: boolean | Record<string, boolean>;
+    orderBy?: Record<string, 'asc' | 'desc'> | Record<string, 'asc' | 'desc'>[];
+    take?: number;
+  }): Promise<any[]> {
+    const selectParts: string[] = [...options.by.map(f => `"${f}"`)];
+    
+    if (options._sum) {
+      for (const [field, include] of Object.entries(options._sum)) {
+        if (include) {
+          selectParts.push(`COALESCE(SUM("${field}"), 0) as "_sum_${field}"`);
+        }
+      }
+    }
+    
+    if (options._count === true) {
+      selectParts.push(`COUNT(*) as "_count"`);
+    }
+    
+    let sql = `SELECT ${selectParts.join(', ')} FROM "${this.tableName}"`;
+    const params: any[] = [];
+    let paramIndex = 1;
+
+    if (options.where) {
+      const conditions: string[] = [];
+      for (const [key, value] of Object.entries(options.where)) {
+        if (value !== undefined && value !== null) {
+          if (typeof value === 'object' && value !== null) {
+            for (const [op, opValue] of Object.entries(value)) {
+              if (op === 'gte') {
+                conditions.push(`"${key}" >= $${paramIndex++}`);
+                params.push(opValue);
+              } else if (op === 'lte') {
+                conditions.push(`"${key}" <= $${paramIndex++}`);
+                params.push(opValue);
+              }
+            }
+          } else {
+            conditions.push(`"${key}" = $${paramIndex++}`);
+            params.push(value);
+          }
+        }
+      }
+      if (conditions.length > 0) {
+        sql += ` WHERE ${conditions.join(' AND ')}`;
+      }
+    }
+    
+    sql += ` GROUP BY ${options.by.map(f => `"${f}"`).join(', ')}`;
+    
+    if (options.orderBy) {
+      const orderParts: string[] = [];
+      const orderByArray = Array.isArray(options.orderBy) ? options.orderBy : [options.orderBy];
+      for (const order of orderByArray) {
+        for (const [key, dir] of Object.entries(order)) {
+          if (key.startsWith('_sum')) {
+            const field = key.replace('_sum', '').replace(/^\./, '');
+            orderParts.push(`"_sum_${field}" ${dir.toUpperCase()}`);
+          } else {
+            orderParts.push(`"${key}" ${dir.toUpperCase()}`);
+          }
+        }
+      }
+      if (orderParts.length > 0) {
+        sql += ` ORDER BY ${orderParts.join(', ')}`;
+      }
+    }
+    
+    if (options.take) {
+      sql += ` LIMIT ${options.take}`;
+    }
+
+    const result = await this.pool.query(sql, params);
+    
+    // Transform results to Prisma format
+    return result.rows.map(row => {
+      const item: any = {};
+      for (const field of options.by) {
+        item[field] = row[field];
+      }
+      if (options._sum) {
+        item._sum = {};
+        for (const field of Object.keys(options._sum)) {
+          item._sum[field] = parseFloat(row[`_sum_${field}`]) || 0;
+        }
+      }
+      if (options._count === true) {
+        item._count = parseInt(row['_count'], 10) || 0;
+      }
+      return item;
+    });
+  }
 }
