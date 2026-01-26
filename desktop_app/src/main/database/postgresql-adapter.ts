@@ -626,6 +626,127 @@ class PostgreSQLModel {
     this.tableName = tableName;
   }
 
+  // Helper method to build WHERE clause with support for OR, AND, operators
+  private buildWhereClause(
+    where: Record<string, any>,
+    params: any[],
+    paramIndex: number
+  ): { conditions: string | null; newParamIndex: number } {
+    const andConditions: string[] = [];
+
+    for (const [key, value] of Object.entries(where)) {
+      if (value === undefined || value === null) continue;
+
+      // Handle OR conditions: { OR: [{ name: { contains: 'x' } }, { code: { contains: 'x' } }] }
+      if (key === 'OR' && Array.isArray(value)) {
+        const orParts: string[] = [];
+        for (const orCondition of value) {
+          const { conditions: subCond, newParamIndex: newIdx } = this.buildWhereClause(orCondition, params, paramIndex);
+          paramIndex = newIdx;
+          if (subCond) {
+            orParts.push(`(${subCond})`);
+          }
+        }
+        if (orParts.length > 0) {
+          andConditions.push(`(${orParts.join(' OR ')})`);
+        }
+        continue;
+      }
+
+      // Handle AND conditions: { AND: [{ ... }, { ... }] }
+      if (key === 'AND' && Array.isArray(value)) {
+        const andParts: string[] = [];
+        for (const andCondition of value) {
+          const { conditions: subCond, newParamIndex: newIdx } = this.buildWhereClause(andCondition, params, paramIndex);
+          paramIndex = newIdx;
+          if (subCond) {
+            andParts.push(`(${subCond})`);
+          }
+        }
+        if (andParts.length > 0) {
+          andConditions.push(`(${andParts.join(' AND ')})`);
+        }
+        continue;
+      }
+
+      // Handle NOT conditions
+      if (key === 'NOT') {
+        const { conditions: subCond, newParamIndex: newIdx } = this.buildWhereClause(value, params, paramIndex);
+        paramIndex = newIdx;
+        if (subCond) {
+          andConditions.push(`NOT (${subCond})`);
+        }
+        continue;
+      }
+
+      // Handle object values (operators or nested relations)
+      if (typeof value === 'object' && !Array.isArray(value)) {
+        const operators = ['gte', 'lte', 'gt', 'lt', 'contains', 'startsWith', 'endsWith', 'equals', 'not', 'in', 'notIn'];
+        const hasOperator = Object.keys(value).some(k => operators.includes(k));
+        
+        if (hasOperator) {
+          for (const [op, opValue] of Object.entries(value)) {
+            if (op === 'contains') {
+              andConditions.push(`"${key}" ILIKE $${paramIndex++}`);
+              params.push(`%${opValue}%`);
+            } else if (op === 'startsWith') {
+              andConditions.push(`"${key}" ILIKE $${paramIndex++}`);
+              params.push(`${opValue}%`);
+            } else if (op === 'endsWith') {
+              andConditions.push(`"${key}" ILIKE $${paramIndex++}`);
+              params.push(`%${opValue}`);
+            } else if (op === 'gte') {
+              andConditions.push(`"${key}" >= $${paramIndex++}`);
+              params.push(opValue);
+            } else if (op === 'lte') {
+              andConditions.push(`"${key}" <= $${paramIndex++}`);
+              params.push(opValue);
+            } else if (op === 'gt') {
+              andConditions.push(`"${key}" > $${paramIndex++}`);
+              params.push(opValue);
+            } else if (op === 'lt') {
+              andConditions.push(`"${key}" < $${paramIndex++}`);
+              params.push(opValue);
+            } else if (op === 'equals') {
+              andConditions.push(`"${key}" = $${paramIndex++}`);
+              params.push(opValue);
+            } else if (op === 'not') {
+              andConditions.push(`"${key}" != $${paramIndex++}`);
+              params.push(opValue);
+            } else if (op === 'in' && Array.isArray(opValue)) {
+              const placeholders = opValue.map(() => `$${paramIndex++}`).join(', ');
+              andConditions.push(`"${key}" IN (${placeholders})`);
+              params.push(...opValue);
+            } else if (op === 'notIn' && Array.isArray(opValue)) {
+              const placeholders = opValue.map(() => `$${paramIndex++}`).join(', ');
+              andConditions.push(`"${key}" NOT IN (${placeholders})`);
+              params.push(...opValue);
+            }
+          }
+        }
+        // Skip nested relation conditions (like supplier: { name: ... })
+        continue;
+      }
+
+      // Handle array values (IN clause)
+      if (Array.isArray(value)) {
+        const placeholders = value.map(() => `$${paramIndex++}`).join(', ');
+        andConditions.push(`"${key}" IN (${placeholders})`);
+        params.push(...value);
+        continue;
+      }
+
+      // Simple equality
+      andConditions.push(`"${key}" = $${paramIndex++}`);
+      params.push(value);
+    }
+
+    return {
+      conditions: andConditions.length > 0 ? andConditions.join(' AND ') : null,
+      newParamIndex: paramIndex,
+    };
+  }
+
   async findMany(options?: {
     where?: Record<string, any>;
     orderBy?: Record<string, 'asc' | 'desc'> | Record<string, 'asc' | 'desc'>[];
@@ -638,43 +759,10 @@ class PostgreSQLModel {
     let paramIndex = 1;
 
     if (options?.where) {
-      const conditions: string[] = [];
-      for (const [key, value] of Object.entries(options.where)) {
-        if (value !== undefined && value !== null) {
-          // Handle nested where conditions like supplier: { name: { contains: 'x' } }
-          if (typeof value === 'object' && !Array.isArray(value)) {
-            // Check if it's an operator object (gte, lte, contains, etc.)
-            const operators = ['gte', 'lte', 'gt', 'lt', 'contains', 'startsWith', 'endsWith'];
-            const hasOperator = Object.keys(value).some(k => operators.includes(k));
-            if (hasOperator) {
-              for (const [op, opValue] of Object.entries(value)) {
-                if (op === 'contains') {
-                  conditions.push(`"${key}" ILIKE $${paramIndex++}`);
-                  params.push(`%${opValue}%`);
-                } else if (op === 'startsWith') {
-                  conditions.push(`"${key}" ILIKE $${paramIndex++}`);
-                  params.push(`${opValue}%`);
-                } else if (op === 'endsWith') {
-                  conditions.push(`"${key}" ILIKE $${paramIndex++}`);
-                  params.push(`%${opValue}`);
-                } else if (op === 'gte') {
-                  conditions.push(`"${key}" >= $${paramIndex++}`);
-                  params.push(opValue);
-                } else if (op === 'lte') {
-                  conditions.push(`"${key}" <= $${paramIndex++}`);
-                  params.push(opValue);
-                }
-              }
-            }
-            // Skip nested relation conditions for now (handled via include)
-          } else {
-            conditions.push(`"${key}" = $${paramIndex++}`);
-            params.push(value);
-          }
-        }
-      }
-      if (conditions.length > 0) {
-        sql += ` WHERE ${conditions.join(' AND ')}`;
+      const { conditions, newParamIndex } = this.buildWhereClause(options.where, params, paramIndex);
+      paramIndex = newParamIndex;
+      if (conditions) {
+        sql += ` WHERE ${conditions}`;
       }
     }
 
@@ -1067,37 +1155,9 @@ class PostgreSQLModel {
     let paramIndex = 1;
 
     if (options?.where) {
-      const conditions: string[] = [];
-      for (const [key, value] of Object.entries(options.where)) {
-        if (value !== undefined && value !== null) {
-          if (typeof value === 'object' && !Array.isArray(value)) {
-            // Handle operators like gte, lte, gt, lt
-            for (const [op, opValue] of Object.entries(value)) {
-              if (op === 'gte') {
-                conditions.push(`"${key}" >= $${paramIndex++}`);
-                params.push(opValue);
-              } else if (op === 'lte') {
-                conditions.push(`"${key}" <= $${paramIndex++}`);
-                params.push(opValue);
-              } else if (op === 'gt') {
-                conditions.push(`"${key}" > $${paramIndex++}`);
-                params.push(opValue);
-              } else if (op === 'lt') {
-                conditions.push(`"${key}" < $${paramIndex++}`);
-                params.push(opValue);
-              } else if (op === 'contains') {
-                conditions.push(`"${key}" ILIKE $${paramIndex++}`);
-                params.push(`%${opValue}%`);
-              }
-            }
-          } else {
-            conditions.push(`"${key}" = $${paramIndex++}`);
-            params.push(value);
-          }
-        }
-      }
-      if (conditions.length > 0) {
-        sql += ` WHERE ${conditions.join(' AND ')}`;
+      const { conditions } = this.buildWhereClause(options.where, params, paramIndex);
+      if (conditions) {
+        sql += ` WHERE ${conditions}`;
       }
     }
 
@@ -1171,34 +1231,9 @@ class PostgreSQLModel {
     let paramIndex = 1;
 
     if (options.where) {
-      const conditions: string[] = [];
-      for (const [key, value] of Object.entries(options.where)) {
-        if (value !== undefined && value !== null) {
-          if (typeof value === 'object' && value !== null) {
-            // Handle operators like gte, lte, gt, lt
-            for (const [op, opValue] of Object.entries(value)) {
-              if (op === 'gte') {
-                conditions.push(`"${key}" >= $${paramIndex++}`);
-                params.push(opValue);
-              } else if (op === 'lte') {
-                conditions.push(`"${key}" <= $${paramIndex++}`);
-                params.push(opValue);
-              } else if (op === 'gt') {
-                conditions.push(`"${key}" > $${paramIndex++}`);
-                params.push(opValue);
-              } else if (op === 'lt') {
-                conditions.push(`"${key}" < $${paramIndex++}`);
-                params.push(opValue);
-              }
-            }
-          } else {
-            conditions.push(`"${key}" = $${paramIndex++}`);
-            params.push(value);
-          }
-        }
-      }
-      if (conditions.length > 0) {
-        sql += ` WHERE ${conditions.join(' AND ')}`;
+      const { conditions } = this.buildWhereClause(options.where, params, paramIndex);
+      if (conditions) {
+        sql += ` WHERE ${conditions}`;
       }
     }
 
