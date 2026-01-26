@@ -298,92 +298,6 @@ export default function POS() {
     return availableCredit >= total;
   };
 
-  // Process sale
-  const processSale = async () => {
-    if (cart.length === 0) {
-      alert('Cart is empty');
-      return;
-    }
-
-    if (paymentMethod === 'CREDIT' && !selectedCustomer) {
-      alert('Please select a customer for credit purchase');
-      return;
-    }
-
-    if (paymentMethod === 'CREDIT' && !canUseCredit()) {
-      alert('Customer has insufficient credit limit');
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      const result = await window.electronAPI.createSale({
-        items: cart.map((item) => ({
-          medicineId: item.medicine.id,
-          quantity: item.quantity,
-        })),
-        customerId: selectedCustomer?.id,
-        customerName: selectedCustomer?.name || walkInName || undefined,
-        customerPhone: selectedCustomer?.phone || walkInPhone || undefined,
-        discount,
-        loyaltyPointsUsed: usePoints ? pointsToUse : 0,
-        paymentMethod,
-        notes: notes || undefined,
-        soldBy: user?.email,
-      });
-
-      if (result.success) {
-        setLastSale({
-          id: result.sale.id,
-          invoiceNumber: result.sale.invoiceNumber,
-          subtotal: result.sale.subtotal,
-          discount: result.sale.discount || 0,
-          total: result.sale.total,
-          loyaltyPointsEarned: result.sale.loyaltyPointsEarned,
-          customerName: result.sale.customerName,
-          customerPhone: result.sale.customerPhone,
-          paymentMethod: result.sale.paymentMethod,
-          createdAt: result.sale.createdAt || new Date().toISOString(),
-          items: result.sale.items.map((item: any) => ({
-            medicineName: item.medicineName,
-            batchNumber: item.batchNumber || '',
-            quantity: item.quantity,
-            unitPrice: item.unitPrice,
-            total: item.total,
-          })),
-        });
-        setShowSuccess(true);
-        
-        // Reset form
-        setCart([]);
-        setSelectedCustomer(null);
-        setWalkInName('');
-        setWalkInPhone('');
-        setDiscount(0);
-        setNotes('');
-        setUsePoints(false);
-        setPointsToUse(0);
-        
-        // Refresh data
-        fetchMedicines();
-        fetchCustomers();
-        fetchTodayStats();
-      } else {
-        alert(result.error || 'Failed to process sale');
-      }
-    } catch (error) {
-      console.error('Error processing sale:', error);
-      alert('Failed to process sale');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleLogout = async () => {
-    await logout();
-    navigate('/login');
-  };
-
   // Print receipt function
   const handlePrintReceipt = (sale: Sale) => {
     const formatDate = (dateStr: string) => {
@@ -493,6 +407,96 @@ export default function POS() {
     };
   };
 
+  // Process sale
+  const processSale = async () => {
+    if (cart.length === 0) {
+      alert('Cart is empty');
+      return;
+    }
+
+    if (paymentMethod === 'CREDIT' && !selectedCustomer) {
+      alert('Please select a customer for credit purchase');
+      return;
+    }
+
+    if (paymentMethod === 'CREDIT' && !canUseCredit()) {
+      alert('Customer has insufficient credit limit');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const result = await window.electronAPI.createSale({
+        items: cart.map((item) => ({
+          medicineId: item.medicine.id,
+          quantity: item.quantity,
+        })),
+        customerId: selectedCustomer?.id,
+        customerName: selectedCustomer?.name || walkInName || undefined,
+        customerPhone: selectedCustomer?.phone || walkInPhone || undefined,
+        discount,
+        loyaltyPointsUsed: usePoints ? pointsToUse : 0,
+        paymentMethod,
+        notes: notes || undefined,
+        soldBy: user?.email,
+      });
+
+      if (result.success) {
+        const saleData: Sale = {
+          id: result.sale.id,
+          invoiceNumber: result.sale.invoiceNumber,
+          subtotal: result.sale.subtotal,
+          discount: result.sale.discount || 0,
+          total: result.sale.total,
+          loyaltyPointsEarned: result.sale.loyaltyPointsEarned,
+          customerName: result.sale.customerName,
+          customerPhone: result.sale.customerPhone,
+          paymentMethod: result.sale.paymentMethod,
+          createdAt: result.sale.createdAt || new Date().toISOString(),
+          items: result.sale.items.map((item: any) => ({
+            medicineName: item.medicineName,
+            batchNumber: item.batchNumber || '',
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            total: item.total,
+          })),
+        };
+        setLastSale(saleData);
+        setShowSuccess(true);
+        
+        // Auto-print receipt after checkout
+        handlePrintReceipt(saleData);
+        
+        // Reset form
+        setCart([]);
+        setSelectedCustomer(null);
+        setWalkInName('');
+        setWalkInPhone('');
+        setDiscount(0);
+        setNotes('');
+        setUsePoints(false);
+        setPointsToUse(0);
+        
+        // Refresh data
+        fetchMedicines();
+        fetchCustomers();
+        fetchTodayStats();
+      } else {
+        alert(result.error || 'Failed to process sale');
+      }
+    } catch (error) {
+      console.error('Error processing sale:', error);
+      alert('Failed to process sale');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login');
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -583,6 +587,10 @@ export default function POS() {
               )}
             </div>
             <div className="space-y-2">
+              <p className="text-sm text-gray-500 mb-2">
+                <Printer className="w-4 h-4 inline mr-1" />
+                Receipt sent to printer
+              </p>
               <div className="flex gap-2">
                 <Button
                   variant="outline"
@@ -590,7 +598,7 @@ export default function POS() {
                   onClick={() => handlePrintReceipt(lastSale)}
                 >
                   <Printer className="w-4 h-4 mr-2" />
-                  Print Receipt
+                  Reprint
                 </Button>
                 <Button
                   variant="outline"
