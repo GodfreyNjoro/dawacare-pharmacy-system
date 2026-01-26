@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Search,
   ShoppingCart,
@@ -19,6 +19,8 @@ import {
   AlertCircle,
   Cloud,
   CloudOff,
+  Printer,
+  FileText,
 } from 'lucide-react';
 import { Button, Input, Card, CardContent, CardHeader, Badge, Modal } from '../components/ui';
 import { useAuth } from '../lib/auth-context';
@@ -55,10 +57,17 @@ interface Customer {
 interface Sale {
   id: string;
   invoiceNumber: string;
+  subtotal: number;
+  discount: number;
   total: number;
   loyaltyPointsEarned: number;
+  customerName: string | null;
+  customerPhone: string | null;
+  paymentMethod: string;
+  createdAt: string;
   items: Array<{
     medicineName: string;
+    batchNumber: string;
     quantity: number;
     unitPrice: number;
     total: number;
@@ -327,10 +336,17 @@ export default function POS() {
         setLastSale({
           id: result.sale.id,
           invoiceNumber: result.sale.invoiceNumber,
+          subtotal: result.sale.subtotal,
+          discount: result.sale.discount || 0,
           total: result.sale.total,
           loyaltyPointsEarned: result.sale.loyaltyPointsEarned,
+          customerName: result.sale.customerName,
+          customerPhone: result.sale.customerPhone,
+          paymentMethod: result.sale.paymentMethod,
+          createdAt: result.sale.createdAt || new Date().toISOString(),
           items: result.sale.items.map((item: any) => ({
             medicineName: item.medicineName,
+            batchNumber: item.batchNumber || '',
             quantity: item.quantity,
             unitPrice: item.unitPrice,
             total: item.total,
@@ -366,6 +382,115 @@ export default function POS() {
   const handleLogout = async () => {
     await logout();
     navigate('/login');
+  };
+
+  // Print receipt function
+  const handlePrintReceipt = (sale: Sale) => {
+    const formatDate = (dateStr: string) => {
+      return new Date(dateStr).toLocaleDateString('en-KE', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+    };
+
+    const printWindow = window.open('', '', 'height=600,width=400');
+    if (!printWindow) {
+      alert('Please allow popups to print receipts');
+      return;
+    }
+
+    const receiptHTML = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Receipt - ${sale.invoiceNumber}</title>
+          <style>
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body { 
+              font-family: 'Courier New', monospace; 
+              padding: 10px;
+              font-size: 12px;
+              width: 80mm;
+              max-width: 80mm;
+            }
+            .header { text-align: center; margin-bottom: 15px; border-bottom: 1px dashed #000; padding-bottom: 10px; }
+            .header h1 { font-size: 18px; font-weight: bold; margin-bottom: 5px; }
+            .header p { font-size: 10px; color: #333; }
+            .info { margin-bottom: 10px; }
+            .info p { display: flex; justify-content: space-between; margin: 3px 0; }
+            .items { border-top: 1px dashed #000; border-bottom: 1px dashed #000; padding: 10px 0; margin: 10px 0; }
+            .item { margin-bottom: 5px; }
+            .item-name { font-weight: bold; }
+            .item-details { display: flex; justify-content: space-between; font-size: 11px; }
+            .totals { margin-bottom: 15px; }
+            .totals p { display: flex; justify-content: space-between; margin: 3px 0; }
+            .totals .total { font-weight: bold; font-size: 14px; border-top: 1px solid #000; padding-top: 5px; margin-top: 5px; }
+            .footer { text-align: center; font-size: 10px; border-top: 1px dashed #000; padding-top: 10px; }
+            .footer p { margin: 3px 0; }
+            @media print {
+              body { width: 80mm; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>DawaCare Pharmacy</h1>
+            <p>Your Trusted Healthcare Partner</p>
+            <p>Tel: +254 700 000 000</p>
+            <p>Nairobi, Kenya</p>
+          </div>
+          
+          <div class="info">
+            <p><span>Invoice:</span><span>${sale.invoiceNumber}</span></p>
+            <p><span>Date:</span><span>${formatDate(sale.createdAt)}</span></p>
+            <p><span>Customer:</span><span>${sale.customerName || 'Walk-in'}</span></p>
+            ${sale.customerPhone ? `<p><span>Phone:</span><span>${sale.customerPhone}</span></p>` : ''}
+            <p><span>Payment:</span><span>${sale.paymentMethod}</span></p>
+          </div>
+          
+          <div class="items">
+            ${sale.items.map(item => `
+              <div class="item">
+                <div class="item-name">${item.medicineName}</div>
+                <div class="item-details">
+                  <span>${item.quantity} x KES ${item.unitPrice.toFixed(2)}</span>
+                  <span>KES ${item.total.toFixed(2)}</span>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+          
+          <div class="totals">
+            <p><span>Subtotal:</span><span>KES ${sale.subtotal.toFixed(2)}</span></p>
+            ${sale.discount > 0 ? `<p><span>Discount:</span><span>- KES ${sale.discount.toFixed(2)}</span></p>` : ''}
+            <p class="total"><span>TOTAL:</span><span>KES ${sale.total.toFixed(2)}</span></p>
+          </div>
+          
+          ${sale.loyaltyPointsEarned > 0 ? `
+            <div style="text-align: center; margin-bottom: 10px; font-size: 11px;">
+              ⭐ Earned ${sale.loyaltyPointsEarned} loyalty points!
+            </div>
+          ` : ''}
+          
+          <div class="footer">
+            <p>Thank you for choosing DawaCare!</p>
+            <p>Get well soon!</p>
+            <p style="margin-top: 10px;">Served by: ${user?.name || user?.email || 'Staff'}</p>
+          </div>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.write(receiptHTML);
+    printWindow.document.close();
+    
+    // Wait for content to load, then print
+    printWindow.onload = () => {
+      printWindow.print();
+    };
   };
 
   return (
@@ -440,7 +565,13 @@ export default function POS() {
                   </div>
                 ))}
               </div>
-              <div className="border-t mt-3 pt-3 font-bold flex justify-between">
+              {lastSale.discount > 0 && (
+                <div className="border-t mt-2 pt-2 flex justify-between text-sm text-red-600">
+                  <span>Discount</span>
+                  <span>- KES {lastSale.discount.toFixed(2)}</span>
+                </div>
+              )}
+              <div className="border-t mt-2 pt-2 font-bold flex justify-between">
                 <span>Total</span>
                 <span>KES {lastSale.total.toFixed(2)}</span>
               </div>
@@ -451,9 +582,32 @@ export default function POS() {
                 </div>
               )}
             </div>
-            <Button onClick={() => setShowSuccess(false)} className="w-full">
-              Continue
-            </Button>
+            <div className="space-y-2">
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => handlePrintReceipt(lastSale)}
+                >
+                  <Printer className="w-4 h-4 mr-2" />
+                  Print Receipt
+                </Button>
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => {
+                    setShowSuccess(false);
+                    navigate(`/invoice/${lastSale.id}`);
+                  }}
+                >
+                  <FileText className="w-4 h-4 mr-2" />
+                  View Invoice
+                </Button>
+              </div>
+              <Button onClick={() => setShowSuccess(false)} className="w-full">
+                Continue
+              </Button>
+            </div>
           </div>
         )}
       </Modal>
