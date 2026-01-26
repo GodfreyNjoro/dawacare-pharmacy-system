@@ -911,8 +911,32 @@ class PostgreSQLModel {
     let paramIndex = 1;
 
     for (const [key, value] of Object.entries(data)) {
-      setParts.push(`"${key}" = $${paramIndex++}`);
-      params.push(value);
+      if (value && typeof value === 'object' && !Array.isArray(value)) {
+        // Handle Prisma operators like increment, decrement
+        if ('increment' in value) {
+          setParts.push(`"${key}" = "${key}" + $${paramIndex++}`);
+          params.push(value.increment);
+        } else if ('decrement' in value) {
+          setParts.push(`"${key}" = "${key}" - $${paramIndex++}`);
+          params.push(value.decrement);
+        } else if ('multiply' in value) {
+          setParts.push(`"${key}" = "${key}" * $${paramIndex++}`);
+          params.push(value.multiply);
+        } else if ('divide' in value) {
+          setParts.push(`"${key}" = "${key}" / $${paramIndex++}`);
+          params.push(value.divide);
+        } else if ('set' in value) {
+          setParts.push(`"${key}" = $${paramIndex++}`);
+          params.push(value.set);
+        } else {
+          // Regular object value (like JSON)
+          setParts.push(`"${key}" = $${paramIndex++}`);
+          params.push(JSON.stringify(value));
+        }
+      } else {
+        setParts.push(`"${key}" = $${paramIndex++}`);
+        params.push(value);
+      }
     }
 
     const whereParts: string[] = [];
@@ -991,14 +1015,43 @@ class PostgreSQLModel {
     let paramIndex = 1;
 
     for (const [key, value] of Object.entries(data)) {
-      setParts.push(`"${key}" = $${paramIndex++}`);
-      params.push(value);
+      if (value && typeof value === 'object' && !Array.isArray(value)) {
+        // Handle Prisma operators like increment, decrement
+        if ('increment' in value) {
+          setParts.push(`"${key}" = "${key}" + $${paramIndex++}`);
+          params.push(value.increment);
+        } else if ('decrement' in value) {
+          setParts.push(`"${key}" = "${key}" - $${paramIndex++}`);
+          params.push(value.decrement);
+        } else if ('set' in value) {
+          setParts.push(`"${key}" = $${paramIndex++}`);
+          params.push(value.set);
+        } else {
+          setParts.push(`"${key}" = $${paramIndex++}`);
+          params.push(JSON.stringify(value));
+        }
+      } else {
+        setParts.push(`"${key}" = $${paramIndex++}`);
+        params.push(value);
+      }
     }
 
     const whereParts: string[] = [];
     for (const [key, value] of Object.entries(where)) {
-      whereParts.push(`"${key}" = $${paramIndex++}`);
-      params.push(value);
+      if (value && typeof value === 'object' && !Array.isArray(value)) {
+        for (const [op, opValue] of Object.entries(value)) {
+          if (op === 'gte') {
+            whereParts.push(`"${key}" >= $${paramIndex++}`);
+            params.push(opValue);
+          } else if (op === 'lte') {
+            whereParts.push(`"${key}" <= $${paramIndex++}`);
+            params.push(opValue);
+          }
+        }
+      } else {
+        whereParts.push(`"${key}" = $${paramIndex++}`);
+        params.push(value);
+      }
     }
 
     const sql = `UPDATE "${this.tableName}" SET ${setParts.join(', ')} WHERE ${whereParts.join(' AND ')}`;
@@ -1017,8 +1070,30 @@ class PostgreSQLModel {
       const conditions: string[] = [];
       for (const [key, value] of Object.entries(options.where)) {
         if (value !== undefined && value !== null) {
-          conditions.push(`"${key}" = $${paramIndex++}`);
-          params.push(value);
+          if (typeof value === 'object' && !Array.isArray(value)) {
+            // Handle operators like gte, lte, gt, lt
+            for (const [op, opValue] of Object.entries(value)) {
+              if (op === 'gte') {
+                conditions.push(`"${key}" >= $${paramIndex++}`);
+                params.push(opValue);
+              } else if (op === 'lte') {
+                conditions.push(`"${key}" <= $${paramIndex++}`);
+                params.push(opValue);
+              } else if (op === 'gt') {
+                conditions.push(`"${key}" > $${paramIndex++}`);
+                params.push(opValue);
+              } else if (op === 'lt') {
+                conditions.push(`"${key}" < $${paramIndex++}`);
+                params.push(opValue);
+              } else if (op === 'contains') {
+                conditions.push(`"${key}" ILIKE $${paramIndex++}`);
+                params.push(`%${opValue}%`);
+              }
+            }
+          } else {
+            conditions.push(`"${key}" = $${paramIndex++}`);
+            params.push(value);
+          }
         }
       }
       if (conditions.length > 0) {
