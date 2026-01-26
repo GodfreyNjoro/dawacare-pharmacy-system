@@ -59,7 +59,7 @@
   "build": {
     "appId": "com.dawacare.pos",
     "productName": "DawaCare POS",
-    "copyright": "Copyright © 2025 DawaCare",
+    "copyright": "Copyright \u00a9 2025 DawaCare",
     "directories": {
       "output": "release",
       "buildResources": "build"
@@ -128,7 +128,13 @@
           "**/*"
         ]
       }
-    ]
+    ],
+    "publish": {
+      "provider": "github",
+      "owner": "GodfreyNjoro",
+      "repo": "dawacare-pharmacy-system",
+      "releaseType": "release"
+    }
   },
   "homepage": "https://github.com/GodfreyNjoro/dawacare-pharmacy-system"
 }

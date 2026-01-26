@@ -124,6 +124,13 @@ export interface ElectronAPI {
   getStockReport: (options?: { status?: string; category?: string; search?: string }) => Promise<any>;
   getTopSellersReport: (options?: { startDate?: string; endDate?: string; limit?: number }) => Promise<any>;
   exportAccountingData: (options: { type: string; startDate?: string; endDate?: string }) => Promise<any>;
+
+  // Auto-Update
+  checkForUpdates: () => Promise<any>;
+  downloadUpdate: () => Promise<any>;
+  installUpdate: () => Promise<any>;
+  getVersionInfo: () => Promise<{ version: string; name: string }>;
+  onUpdateStatus: (callback: (data: { status: string; data?: any }) => void) => () => void;
 }
 
 declare global {

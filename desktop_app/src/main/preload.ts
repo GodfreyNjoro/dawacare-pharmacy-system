@@ -239,6 +239,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke(IPC_CHANNELS.REPORT_TOP_SELLERS, options),
   exportAccountingData: (options: { type: string; startDate?: string; endDate?: string }) =>
     ipcRenderer.invoke(IPC_CHANNELS.EXPORT_ACCOUNTING, options),
+
+  // Auto-Update APIs
+  checkForUpdates: () => ipcRenderer.invoke('update:check'),
+  downloadUpdate: () => ipcRenderer.invoke('update:download'),
+  installUpdate: () => ipcRenderer.invoke('update:install'),
+  getVersionInfo: () => ipcRenderer.invoke('update:get-version'),
+  onUpdateStatus: (callback: (data: { status: string; data?: any }) => void) => {
+    ipcRenderer.on('update-status', (_, data) => callback(data));
+    return () => ipcRenderer.removeAllListeners('update-status');
+  },
 });
 
 // Type definitions for TypeScript
@@ -355,6 +365,13 @@ export interface ElectronAPI {
   getStockReport: (options?: { status?: string; category?: string; search?: string }) => Promise<any>;
   getTopSellersReport: (options?: { startDate?: string; endDate?: string; limit?: number }) => Promise<any>;
   exportAccountingData: (options: { type: string; startDate?: string; endDate?: string }) => Promise<any>;
+
+  // Auto-Update
+  checkForUpdates: () => Promise<any>;
+  downloadUpdate: () => Promise<any>;
+  installUpdate: () => Promise<any>;
+  getVersionInfo: () => Promise<{ version: string; name: string }>;
+  onUpdateStatus: (callback: (data: { status: string; data?: any }) => void) => () => void;
 }
 
 declare global {
