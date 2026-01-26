@@ -102,22 +102,27 @@ jobs:
       - name: Package for Linux
         if: matrix.platform == 'linux'
         working-directory: desktop_app
-        run: npx electron-builder --linux
+        run: npx electron-builder --linux --publish never
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       # Windows-specific build
       - name: Package for Windows
         if: matrix.platform == 'windows'
         working-directory: desktop_app
-        run: npx electron-builder --win
+        run: npx electron-builder --win --publish never
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       # macOS-specific build
       - name: Package for macOS
         if: matrix.platform == 'macos'
         working-directory: desktop_app
-        run: npx electron-builder --mac
+        run: npx electron-builder --mac --publish never
         env:
           # Skip code signing for now (requires Apple Developer account)
           CSC_IDENTITY_AUTO_DISCOVERY: false
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       # Upload artifacts for each platform
       - name: Upload Linux artifacts
