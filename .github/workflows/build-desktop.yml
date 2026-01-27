@@ -133,6 +133,7 @@ jobs:
           path: |
             desktop_app/release/*.AppImage
             desktop_app/release/*.deb
+            desktop_app/release/latest-linux.yml
           retention-days: 7
 
       - name: Upload Windows artifacts
@@ -140,7 +141,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: dawacare-pos-windows
-          path: desktop_app/release/*.exe
+          path: |
+            desktop_app/release/*.exe
+            desktop_app/release/latest.yml
           retention-days: 7
 
       - name: Upload macOS artifacts
@@ -148,7 +151,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: dawacare-pos-macos
-          path: desktop_app/release/*.dmg
+          path: |
+            desktop_app/release/*.dmg
+            desktop_app/release/latest-mac.yml
           retention-days: 7
 
   release:

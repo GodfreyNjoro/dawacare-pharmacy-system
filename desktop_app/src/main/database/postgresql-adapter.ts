@@ -614,6 +614,121 @@ export class PostgreSQLQueryInterface {
   get syncQueue() {
     return new PostgreSQLModel(this.pool, 'SyncQueue');
   }
+
+  // Transaction support
+  async $transaction<T>(
+    callback: (tx: PostgreSQLQueryInterface) => Promise<T>
+  ): Promise<T> {
+    const client = await this.pool.connect();
+    
+    try {
+      // Begin transaction
+      await client.query('BEGIN');
+      
+      // Create transaction client with same interface
+      const txInterface = new PostgreSQLTransactionClient(client);
+      
+      // Execute callback
+      const result = await callback(txInterface as any);
+      
+      // Commit transaction
+      await client.query('COMMIT');
+      
+      return result;
+    } catch (error) {
+      // Rollback on error
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      // Release client back to pool
+      client.release();
+    }
+  }
+}
+
+// Transaction client - similar to PostgreSQLQueryInterface but uses a specific client
+class PostgreSQLTransactionClient {
+  private client: PoolClient;
+
+  constructor(client: PoolClient) {
+    this.client = client;
+  }
+
+  // Generic query methods
+  async $queryRaw(sql: string, ...params: any[]): Promise<any[]> {
+    const result = await this.client.query(sql, params);
+    return result.rows;
+  }
+
+  async $executeRaw(sql: string, ...params: any[]): Promise<number> {
+    const result = await this.client.query(sql, params);
+    return result.rowCount || 0;
+  }
+
+  // User model
+  get user() {
+    return new PostgreSQLTransactionModel(this.client, 'User');
+  }
+
+  // Branch model  
+  get branch() {
+    return new PostgreSQLTransactionModel(this.client, 'Branch');
+  }
+
+  // Medicine model
+  get medicine() {
+    return new PostgreSQLTransactionModel(this.client, 'Medicine');
+  }
+
+  // Customer model
+  get customer() {
+    return new PostgreSQLTransactionModel(this.client, 'Customer');
+  }
+
+  // Sale model
+  get sale() {
+    return new PostgreSQLTransactionModel(this.client, 'Sale');
+  }
+
+  // SaleItem model
+  get saleItem() {
+    return new PostgreSQLTransactionModel(this.client, 'SaleItem');
+  }
+
+  // Supplier model
+  get supplier() {
+    return new PostgreSQLTransactionModel(this.client, 'Supplier');
+  }
+
+  // PurchaseOrder model
+  get purchaseOrder() {
+    return new PostgreSQLTransactionModel(this.client, 'PurchaseOrder');
+  }
+
+  // PurchaseOrderItem model
+  get purchaseOrderItem() {
+    return new PostgreSQLTransactionModel(this.client, 'PurchaseOrderItem');
+  }
+
+  // GoodsReceivedNote model
+  get goodsReceivedNote() {
+    return new PostgreSQLTransactionModel(this.client, 'GoodsReceivedNote');
+  }
+
+  // GRNItem model
+  get gRNItem() {
+    return new PostgreSQLTransactionModel(this.client, 'GRNItem');
+  }
+
+  // AppSettings model
+  get appSettings() {
+    return new PostgreSQLTransactionModel(this.client, 'AppSettings');
+  }
+
+  // SyncQueue model
+  get syncQueue() {
+    return new PostgreSQLTransactionModel(this.client, 'SyncQueue');
+  }
 }
 
 // Simple Prisma-like model interface
@@ -1379,3 +1494,383 @@ class PostgreSQLModel {
     });
   }
 }
+
+// Transaction model - same as PostgreSQLModel but uses PoolClient instead of Pool
+class PostgreSQLTransactionModel {
+  private client: PoolClient;
+  private tableName: string;
+
+  constructor(client: PoolClient, tableName: string) {
+    this.client = client;
+    this.tableName = tableName;
+  }
+
+  // Helper method to build WHERE clause with support for OR, AND, operators
+  private buildWhereClause(
+    where: any,
+    params: any[],
+    startIndex: number = 1
+  ): { sql: string; paramIndex: number } {
+    if (!where || Object.keys(where).length === 0) {
+      return { sql: "", paramIndex: startIndex };
+    }
+
+    const conditions: string[] = [];
+    let paramIndex = startIndex;
+
+    for (const [key, value] of Object.entries(where)) {
+      // Handle logical operators
+      if (key === "OR" && Array.isArray(value)) {
+        const orConditions: string[] = [];
+        for (const orClause of value) {
+          const result = this.buildWhereClause(orClause, params, paramIndex);
+          if (result.sql) {
+            orConditions.push(`(${result.sql})`);
+            paramIndex = result.paramIndex;
+          }
+        }
+        if (orConditions.length > 0) {
+          conditions.push(`(${orConditions.join(" OR ")})`);
+        }
+        continue;
+      }
+
+      if (key === "AND" && Array.isArray(value)) {
+        const andConditions: string[] = [];
+        for (const andClause of value) {
+          const result = this.buildWhereClause(andClause, params, paramIndex);
+          if (result.sql) {
+            andConditions.push(`(${result.sql})`);
+            paramIndex = result.paramIndex;
+          }
+        }
+        if (andConditions.length > 0) {
+          conditions.push(`(${andConditions.join(" AND ")})`);
+        }
+        continue;
+      }
+
+      if (key === "NOT") {
+        const result = this.buildWhereClause(value, params, paramIndex);
+        if (result.sql) {
+          conditions.push(`NOT (${result.sql})`);
+          paramIndex = result.paramIndex;
+        }
+        continue;
+      }
+
+      // Handle nested objects (comparison operators)
+      if (typeof value === "object" && value !== null && !Array.isArray(value)) {
+        for (const [op, opValue] of Object.entries(value)) {
+          if (op === "contains" && typeof opValue === "string") {
+            conditions.push(`"${key}" ILIKE $${paramIndex}`);
+            params.push(`%${opValue}%`);
+            paramIndex++;
+          } else if (op === "in" && Array.isArray(opValue)) {
+            const placeholders = opValue.map(() => `$${paramIndex++}`).join(", ");
+            conditions.push(`"${key}" IN (${placeholders})`);
+            params.push(...opValue);
+          } else if (op === "notIn" && Array.isArray(opValue)) {
+            const placeholders = opValue.map(() => `$${paramIndex++}`).join(", ");
+            conditions.push(`"${key}" NOT IN (${placeholders})`);
+            params.push(...opValue);
+          } else if (op === "gte") {
+            conditions.push(`"${key}" >= $${paramIndex}`);
+            params.push(opValue);
+            paramIndex++;
+          } else if (op === "lte") {
+            conditions.push(`"${key}" <= $${paramIndex}`);
+            params.push(opValue);
+            paramIndex++;
+          } else if (op === "gt") {
+            conditions.push(`"${key}" > $${paramIndex}`);
+            params.push(opValue);
+            paramIndex++;
+          } else if (op === "lt") {
+            conditions.push(`"${key}" < $${paramIndex}`);
+            params.push(opValue);
+            paramIndex++;
+          } else if (op === "not") {
+            conditions.push(`"${key}" != $${paramIndex}`);
+            params.push(opValue);
+            paramIndex++;
+          } else {
+            console.warn(`[PostgreSQL] Unsupported operator: ${op}`);
+          }
+        }
+      } else {
+        // Simple equality
+        conditions.push(`"${key}" = $${paramIndex}`);
+        params.push(value);
+        paramIndex++;
+      }
+    }
+
+    return {
+      sql: conditions.length > 0 ? conditions.join(" AND ") : "",
+      paramIndex,
+    };
+  }
+
+  async findMany(options: any = {}): Promise<any[]> {
+    const params: any[] = [];
+    let paramIndex = 1;
+
+    // Build WHERE clause
+    const whereResult = this.buildWhereClause(options.where || {}, params, paramIndex);
+    paramIndex = whereResult.paramIndex;
+
+    // Build SELECT clause with nested relations
+    let selectFields = "*";
+    let joins = "";
+    if (options.include) {
+      // Handle nested includes
+      const fields: string[] = [];
+      for (const field in options.include) {
+        if (field === "items" || field === "customer") {
+          // Will handle with separate queries
+        }
+      }
+    }
+
+    // Build ORDER BY clause
+    let orderBy = "";
+    if (options.orderBy) {
+      const orderClauses: string[] = [];
+      for (const [field, direction] of Object.entries(options.orderBy)) {
+        orderClauses.push(`"${field}" ${direction === "asc" ? "ASC" : "DESC"}`);
+      }
+      if (orderClauses.length > 0) {
+        orderBy = `ORDER BY ${orderClauses.join(", ")}`;
+      }
+    }
+
+    // Build LIMIT/OFFSET clause
+    let limitOffset = "";
+    if (options.take !== undefined) {
+      limitOffset += ` LIMIT $${paramIndex}`;
+      params.push(options.take);
+      paramIndex++;
+    }
+    if (options.skip !== undefined) {
+      limitOffset += ` OFFSET $${paramIndex}`;
+      params.push(options.skip);
+      paramIndex++;
+    }
+
+    const sql = `
+      SELECT ${selectFields}
+      FROM "${this.tableName}"
+      ${joins}
+      ${whereResult.sql ? `WHERE ${whereResult.sql}` : ""}
+      ${orderBy}
+      ${limitOffset}
+    `;
+
+    const result = await this.client.query(sql, params);
+    const rows = result.rows;
+
+    // Handle nested includes
+    if (options.include && rows.length > 0) {
+      for (const row of rows) {
+        for (const [field, includeOptions] of Object.entries(options.include)) {
+          if (field === "items") {
+            // Load related items
+            const itemsResult = await this.client.query(
+              `SELECT * FROM "SaleItem" WHERE "saleId" = $1`,
+              [row.id]
+            );
+            row.items = itemsResult.rows;
+          } else if (field === "customer" && row.customerId) {
+            const customerResult = await this.client.query(
+              `SELECT * FROM "Customer" WHERE id = $1`,
+              [row.customerId]
+            );
+            row.customer = customerResult.rows[0] || null;
+          }
+        }
+      }
+    }
+
+    return rows;
+  }
+
+  async findUnique(options: any): Promise<any | null> {
+    const params: any[] = [];
+    let paramIndex = 1;
+
+    const whereResult = this.buildWhereClause(options.where, params, paramIndex);
+    paramIndex = whereResult.paramIndex;
+
+    const sql = `
+      SELECT *
+      FROM "${this.tableName}"
+      WHERE ${whereResult.sql}
+      LIMIT 1
+    `;
+
+    const result = await this.client.query(sql, params);
+    const row = result.rows[0] || null;
+
+    // Handle nested includes
+    if (row && options.include) {
+      for (const [field, includeOptions] of Object.entries(options.include)) {
+        if (field === "items") {
+          const itemsResult = await this.client.query(
+            `SELECT * FROM "SaleItem" WHERE "saleId" = $1`,
+            [row.id]
+          );
+          row.items = itemsResult.rows;
+        } else if (field === "customer" && row.customerId) {
+          const customerResult = await this.client.query(
+            `SELECT * FROM "Customer" WHERE id = $1`,
+            [row.customerId]
+          );
+          row.customer = customerResult.rows[0] || null;
+        }
+      }
+    }
+
+    return row;
+  }
+
+  async create(options: any): Promise<any> {
+    const data = options.data;
+    const fields: string[] = [];
+    const values: any[] = [];
+    const placeholders: string[] = [];
+    let paramIndex = 1;
+
+    // Handle nested creates
+    const nestedCreates: { [key: string]: any } = {};
+    for (const [key, value] of Object.entries(data)) {
+      if (typeof value === "object" && value !== null && "create" in value) {
+        nestedCreates[key] = value.create;
+      } else {
+        fields.push(`"${key}"`);
+        values.push(value);
+        placeholders.push(`$${paramIndex++}`);
+      }
+    }
+
+    const sql = `
+      INSERT INTO "${this.tableName}" (${fields.join(", ")})
+      VALUES (${placeholders.join(", ")})
+      RETURNING *
+    `;
+
+    const result = await this.client.query(sql, values);
+    const row = result.rows[0];
+
+    // Handle nested creates
+    for (const [field, nestedData] of Object.entries(nestedCreates)) {
+      if (field === "items" && Array.isArray(nestedData)) {
+        const createdItems: any[] = [];
+        for (const item of nestedData) {
+          const itemModel = new PostgreSQLTransactionModel(this.client, "SaleItem");
+          const createdItem = await itemModel.create({
+            data: {
+              ...item,
+              saleId: row.id,
+            },
+          });
+          createdItems.push(createdItem);
+        }
+        row.items = createdItems;
+      }
+    }
+
+    return row;
+  }
+
+  async update(options: any): Promise<any> {
+    const params: any[] = [];
+    let paramIndex = 1;
+
+    const whereResult = this.buildWhereClause(options.where, params, paramIndex);
+    paramIndex = whereResult.paramIndex;
+
+    const setClauses: string[] = [];
+    for (const [key, value] of Object.entries(options.data)) {
+      if (typeof value === "object" && value !== null) {
+        // Handle atomic operations
+        if ("increment" in value) {
+          setClauses.push(`"${key}" = "${key}" + $${paramIndex}`);
+          params.push(value.increment);
+          paramIndex++;
+        } else if ("decrement" in value) {
+          setClauses.push(`"${key}" = "${key}" - $${paramIndex}`);
+          params.push(value.decrement);
+          paramIndex++;
+        } else if ("multiply" in value) {
+          setClauses.push(`"${key}" = "${key}" * $${paramIndex}`);
+          params.push(value.multiply);
+          paramIndex++;
+        } else if ("divide" in value) {
+          setClauses.push(`"${key}" = "${key}" / $${paramIndex}`);
+          params.push(value.divide);
+          paramIndex++;
+        }
+      } else {
+        setClauses.push(`"${key}" = $${paramIndex}`);
+        params.push(value);
+        paramIndex++;
+      }
+    }
+
+    const sql = `
+      UPDATE "${this.tableName}"
+      SET ${setClauses.join(", ")}
+      WHERE ${whereResult.sql}
+      RETURNING *
+    `;
+
+    const result = await this.client.query(sql, params);
+    return result.rows[0] || null;
+  }
+
+  async upsert(options: any): Promise<any> {
+    const existing = await this.findUnique({ where: options.where });
+    if (existing) {
+      return this.update({
+        where: options.where,
+        data: options.update,
+      });
+    } else {
+      return this.create({ data: options.create });
+    }
+  }
+
+  async delete(options: any): Promise<any> {
+    const params: any[] = [];
+    let paramIndex = 1;
+
+    const whereResult = this.buildWhereClause(options.where, params, paramIndex);
+
+    const sql = `
+      DELETE FROM "${this.tableName}"
+      WHERE ${whereResult.sql}
+      RETURNING *
+    `;
+
+    const result = await this.client.query(sql, params);
+    return result.rows[0] || null;
+  }
+
+  async count(options: any = {}): Promise<number> {
+    const params: any[] = [];
+    let paramIndex = 1;
+
+    const whereResult = this.buildWhereClause(options.where || {}, params, paramIndex);
+
+    const sql = `
+      SELECT COUNT(*) as count
+      FROM "${this.tableName}"
+      ${whereResult.sql ? `WHERE ${whereResult.sql}` : ""}
+    `;
+
+    const result = await this.client.query(sql, params);
+    return parseInt(result.rows[0]?.count || "0", 10);
+  }
+}
+
