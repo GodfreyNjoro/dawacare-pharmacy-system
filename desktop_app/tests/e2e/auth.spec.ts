@@ -35,12 +35,13 @@ test.describe('Authentication', () => {
   test('should login successfully with admin credentials', async () => {
     await login(window, TEST_USERS.admin.email, TEST_USERS.admin.password);
     
-    // Verify user is logged in
+    // Verify user is logged in by checking for navigation menu
     await window.waitForTimeout(2000);
-    const bodyText = await window.textContent('body');
-    const isLoggedIn = bodyText.match(/(Dashboard|Point of Sale|Inventory|Medicines|Sales|POS)/);
+    const navMenuCount = await window.locator('nav a[href="/pos"]').count();
+    const hasLogoutButton = await window.locator('button:has-text("Logout"), button:has-text("Sign Out")').count();
     
-    expect(isLoggedIn).toBeTruthy();
+    // Should have navigation menu OR logout button if logged in
+    expect(navMenuCount + hasLogoutButton).toBeGreaterThan(0);
     
     // Take screenshot
     await window.screenshot({ path: 'test-results/screenshots/logged-in-admin.png' });
@@ -49,12 +50,13 @@ test.describe('Authentication', () => {
   test('should login successfully with cashier credentials', async () => {
     await login(window, TEST_USERS.cashier.email, TEST_USERS.cashier.password);
     
-    // Verify user is logged in
+    // Verify user is logged in by checking for navigation menu
     await window.waitForTimeout(2000);
-    const bodyText = await window.textContent('body');
-    const isLoggedIn = bodyText.match(/(Dashboard|Point of Sale|Inventory|Medicines|Sales|POS)/);
+    const navMenuCount = await window.locator('nav a[href="/pos"]').count();
+    const hasLogoutButton = await window.locator('button:has-text("Logout"), button:has-text("Sign Out")').count();
     
-    expect(isLoggedIn).toBeTruthy();
+    // Should have navigation menu OR logout button if logged in
+    expect(navMenuCount + hasLogoutButton).toBeGreaterThan(0);
     
     // Take screenshot
     await window.screenshot({ path: 'test-results/screenshots/logged-in-cashier.png' });

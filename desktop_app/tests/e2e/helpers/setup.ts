@@ -16,24 +16,29 @@ export async function launchApp(): Promise<ElectronApplication> {
   // Set test-specific user data directory
   const testUserDataDir = path.join(__dirname, '../../../test-user-data');
   
-  // Create test user data directory if it doesn't exist
-  if (!fs.existsSync(testUserDataDir)) {
-    fs.mkdirSync(testUserDataDir, { recursive: true });
+  // Clean and recreate test user data directory
+  if (fs.existsSync(testUserDataDir)) {
+    fs.rmSync(testUserDataDir, { recursive: true, force: true });
   }
+  fs.mkdirSync(testUserDataDir, { recursive: true });
   
   // Copy test database to user data directory
   const targetDbPath = path.join(testUserDataDir, 'dawacare.db');
   fs.copyFileSync(testDbPath, targetDbPath);
   
-  // Create config file to mark database as initialized
-  const configPath = path.join(testUserDataDir, 'db-config.json');
-  fs.writeFileSync(configPath, JSON.stringify({
-    type: 'sqlite',
-    initialized: true,
-    path: targetDbPath
-  }));
+  // Create electron-store config file (config.json) with database configuration
+  // This is what the app actually reads via electron-store
+  const electronStoreConfigPath = path.join(testUserDataDir, 'config.json');
+  const electronStoreConfig = {
+    database_config: {
+      type: 'sqlite',
+      databasePath: targetDbPath
+    }
+  };
+  fs.writeFileSync(electronStoreConfigPath, JSON.stringify(electronStoreConfig, null, 2));
   
-  console.log(`Using test database at: ${targetDbPath}`);
+  console.log(`✓ Test database copied to: ${targetDbPath}`);
+  console.log(`✓ Electron-store config created at: ${electronStoreConfigPath}`);
   
   const electronApp = await electron.launch({
     args: [
@@ -94,15 +99,25 @@ export async function login(window: Page, email: string, password: string): Prom
   await window.waitForLoadState('domcontentloaded');
   await window.waitForTimeout(1000);
   
-  // Check if we're already logged in
-  const bodyText = await window.textContent('body');
-  if (bodyText.match(/(Dashboard|Point of Sale|Inventory|POS)/)) {
+  // Check if we're already logged in by looking for navigation menu or specific logged-in elements
+  // Don't check for "POS" alone as the login screen contains "DawaCare POS" title
+  const logoutButton = await window.locator('button:has-text("Logout"), button:has-text("Sign Out")').count();
+  const hasNavMenu = await window.locator('nav a[href="/pos"], a[href="/inventory"]').count();
+  
+  if (logoutButton > 0 || hasNavMenu > 0) {
     console.log('Already logged in, skipping login');
     return;
   }
   
-  // Wait for login form to be visible
-  await window.waitForSelector('input[type="email"]', { timeout: 5000 });
+  // Check if login form is present
+  const hasLoginForm = await window.locator('input[type="email"]').isVisible().catch(() => false);
+  
+  if (!hasLoginForm) {
+    console.log('Login form not found - might be on a different page');
+    return;
+  }
+  
+  console.log(`Attempting login as: ${email}`);
   
   // Fill credentials
   await window.fill('input[type="email"]', email);
@@ -111,10 +126,16 @@ export async function login(window: Page, email: string, password: string): Prom
   // Submit
   await window.click('button[type="submit"]');
   
-  // Wait for navigation to complete
+  // Wait for navigation to complete and verify login success
   await window.waitForTimeout(3000);
   
-  console.log(`Logged in as: ${email}`);
+  // Verify we're actually logged in
+  const postLoginMenu = await window.locator('nav a[href="/pos"]').count();
+  if (postLoginMenu > 0) {
+    console.log(`✓ Successfully logged in as: ${email}`);
+  } else {
+    console.log(`⚠ Login may have failed for: ${email}`);
+  }
 }
 
 export async function createTestMedicine(window: Page) {

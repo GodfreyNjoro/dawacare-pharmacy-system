@@ -1,0 +1,576 @@
+{
+  "config": {
+    "configFile": "/home/ubuntu/pharmacy_management_system/desktop_app/playwright.config.ts",
+    "rootDir": "/home/ubuntu/pharmacy_management_system/desktop_app/tests/e2e",
+    "forbidOnly": false,
+    "fullyParallel": false,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "/home/ubuntu/pharmacy_management_system/desktop_app/test-results",
+        "repeatEach": 1,
+        "retries": 2,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "electron",
+        "name": "electron",
+        "testDir": "/home/ubuntu/pharmacy_management_system/desktop_app/tests/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "/.*\\.spec\\.ts/"
+        ],
+        "timeout": 60000
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "html",
+        {
+          "outputFolder": "test-results/html"
+        }
+      ],
+      [
+        "json",
+        {
+          "outputFile": "test-results/results.json"
+        }
+      ],
+      [
+        "list",
+        null
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "runAgents": "none",
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.58.0",
+    "workers": 1,
+    "webServer": null
+  },
+  "suites": [
+    {
+      "title": "auth.spec.ts",
+      "file": "auth.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Authentication",
+          "file": "auth.spec.ts",
+          "line": 4,
+          "column": 6,
+          "specs": [
+            {
+              "title": "should display login screen on app launch",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "electron",
+                  "projectName": "electron",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 4554,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "✓ Test database copied to: /home/ubuntu/pharmacy_management_system/desktop_app/test-user-data/dawacare.db\n"
+                        },
+                        {
+                          "text": "✓ Electron-store config created at: /home/ubuntu/pharmacy_management_system/desktop_app/test-user-data/config.json\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-01-27T20:12:27.727Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-3b18474bd84f34ac0bfc",
+              "file": "auth.spec.ts",
+              "line": 20,
+              "column": 7
+            },
+            {
+              "title": "should login successfully with admin credentials",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "electron",
+                  "projectName": "electron",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 8799,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "✓ Test database copied to: /home/ubuntu/pharmacy_management_system/desktop_app/test-user-data/dawacare.db\n"
+                        },
+                        {
+                          "text": "✓ Electron-store config created at: /home/ubuntu/pharmacy_management_system/desktop_app/test-user-data/config.json\n"
+                        },
+                        {
+                          "text": "Attempting login as: admin@dawacare.local\n"
+                        },
+                        {
+                          "text": "⚠ Login may have failed for: admin@dawacare.local\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-01-27T20:12:32.306Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-bb57cc5b7b0c6644b888",
+              "file": "auth.spec.ts",
+              "line": 35,
+              "column": 7
+            },
+            {
+              "title": "should login successfully with cashier credentials",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "electron",
+                  "projectName": "electron",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 8734,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "✓ Test database copied to: /home/ubuntu/pharmacy_management_system/desktop_app/test-user-data/dawacare.db\n"
+                        },
+                        {
+                          "text": "✓ Electron-store config created at: /home/ubuntu/pharmacy_management_system/desktop_app/test-user-data/config.json\n"
+                        },
+                        {
+                          "text": "Attempting login as: cashier@dawacare.local\n"
+                        },
+                        {
+                          "text": "⚠ Login may have failed for: cashier@dawacare.local\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-01-27T20:12:41.117Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-469bb5047672b6903be6",
+              "file": "auth.spec.ts",
+              "line": 50,
+              "column": 7
+            },
+            {
+              "title": "should show error with invalid credentials",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "electron",
+                  "projectName": "electron",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 5108,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "✓ Test database copied to: /home/ubuntu/pharmacy_management_system/desktop_app/test-user-data/dawacare.db\n"
+                        },
+                        {
+                          "text": "✓ Electron-store config created at: /home/ubuntu/pharmacy_management_system/desktop_app/test-user-data/config.json\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-01-27T20:12:49.863Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-192b48aec233620c5e45",
+              "file": "auth.spec.ts",
+              "line": 65,
+              "column": 7
+            },
+            {
+              "title": "should prevent empty login submission",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "electron",
+                  "projectName": "electron",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 4168,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "✓ Test database copied to: /home/ubuntu/pharmacy_management_system/desktop_app/test-user-data/dawacare.db\n"
+                        },
+                        {
+                          "text": "✓ Electron-store config created at: /home/ubuntu/pharmacy_management_system/desktop_app/test-user-data/config.json\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-01-27T20:12:54.982Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-11761b322308b4d0b2a9",
+              "file": "auth.spec.ts",
+              "line": 82,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "pos.spec.ts",
+      "file": "pos.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Point of Sale (POS)",
+          "file": "pos.spec.ts",
+          "line": 4,
+          "column": 6,
+          "specs": [
+            {
+              "title": "should display POS interface with medicine inventory",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "electron",
+                  "projectName": "electron",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 8801,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "✓ Test database copied to: /home/ubuntu/pharmacy_management_system/desktop_app/test-user-data/dawacare.db\n"
+                        },
+                        {
+                          "text": "✓ Electron-store config created at: /home/ubuntu/pharmacy_management_system/desktop_app/test-user-data/config.json\n"
+                        },
+                        {
+                          "text": "Attempting login as: cashier@dawacare.local\n"
+                        },
+                        {
+                          "text": "⚠ Login may have failed for: cashier@dawacare.local\n"
+                        },
+                        {
+                          "text": "Paracetamol visible: \u001b[33mtrue\u001b[39m\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-01-27T20:12:59.165Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "8d72c8cda0dde62ea615-da8a3625564be272a681",
+              "file": "pos.spec.ts",
+              "line": 31,
+              "column": 7
+            },
+            {
+              "title": "should search for Paracetamol medicine",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "electron",
+                  "projectName": "electron",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 9831,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "✓ Test database copied to: /home/ubuntu/pharmacy_management_system/desktop_app/test-user-data/dawacare.db\n"
+                        },
+                        {
+                          "text": "✓ Electron-store config created at: /home/ubuntu/pharmacy_management_system/desktop_app/test-user-data/config.json\n"
+                        },
+                        {
+                          "text": "Attempting login as: cashier@dawacare.local\n"
+                        },
+                        {
+                          "text": "⚠ Login may have failed for: cashier@dawacare.local\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-01-27T20:13:07.976Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "8d72c8cda0dde62ea615-fa7a52275955ebf26c33",
+              "file": "pos.spec.ts",
+              "line": 44,
+              "column": 7
+            },
+            {
+              "title": "should display cart section",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "electron",
+                  "projectName": "electron",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 8728,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "✓ Test database copied to: /home/ubuntu/pharmacy_management_system/desktop_app/test-user-data/dawacare.db\n"
+                        },
+                        {
+                          "text": "✓ Electron-store config created at: /home/ubuntu/pharmacy_management_system/desktop_app/test-user-data/config.json\n"
+                        },
+                        {
+                          "text": "Attempting login as: cashier@dawacare.local\n"
+                        },
+                        {
+                          "text": "⚠ Login may have failed for: cashier@dawacare.local\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-01-27T20:13:17.817Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "8d72c8cda0dde62ea615-559159b3a76949a348e5",
+              "file": "pos.spec.ts",
+              "line": 66,
+              "column": 7
+            },
+            {
+              "title": "should display payment method options",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "electron",
+                  "projectName": "electron",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 8665,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "✓ Test database copied to: /home/ubuntu/pharmacy_management_system/desktop_app/test-user-data/dawacare.db\n"
+                        },
+                        {
+                          "text": "✓ Electron-store config created at: /home/ubuntu/pharmacy_management_system/desktop_app/test-user-data/config.json\n"
+                        },
+                        {
+                          "text": "Attempting login as: cashier@dawacare.local\n"
+                        },
+                        {
+                          "text": "⚠ Login may have failed for: cashier@dawacare.local\n"
+                        },
+                        {
+                          "text": "Payment option found: CASH\n"
+                        },
+                        {
+                          "text": "Payment methods section present: \u001b[33mtrue\u001b[39m\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-01-27T20:13:26.552Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "8d72c8cda0dde62ea615-9859c1fcc8079863b725",
+              "file": "pos.spec.ts",
+              "line": 77,
+              "column": 7
+            },
+            {
+              "title": "should show medicine categories",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "electron",
+                  "projectName": "electron",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 8917,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "✓ Test database copied to: /home/ubuntu/pharmacy_management_system/desktop_app/test-user-data/dawacare.db\n"
+                        },
+                        {
+                          "text": "✓ Electron-store config created at: /home/ubuntu/pharmacy_management_system/desktop_app/test-user-data/config.json\n"
+                        },
+                        {
+                          "text": "Attempting login as: cashier@dawacare.local\n"
+                        },
+                        {
+                          "text": "⚠ Login may have failed for: cashier@dawacare.local\n"
+                        },
+                        {
+                          "text": "Found categories: []\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-01-27T20:13:35.226Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "8d72c8cda0dde62ea615-7e3d184ce34d21fcc41f",
+              "file": "pos.spec.ts",
+              "line": 98,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-01-27T20:12:25.761Z",
+    "duration": 78466.681,
+    "expected": 10,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  }
+}

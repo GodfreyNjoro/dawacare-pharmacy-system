@@ -1,3 +1,2 @@
-2026/01/27-19:53:59.534 1248 Reusing MANIFEST /home/ubuntu/pharmacy_management_system/desktop_app/test-user-data/Local Storage/leveldb/MANIFEST-000001
-2026/01/27-19:53:59.544 1248 Recovering log #3
-2026/01/27-19:53:59.552 1248 Reusing old log /home/ubuntu/pharmacy_management_system/desktop_app/test-user-data/Local Storage/leveldb/000003.log 
+2026/01/27-20:13:37.725 2763 Creating DB /home/ubuntu/pharmacy_management_system/desktop_app/test-user-data/Local Storage/leveldb since it was missing.
+2026/01/27-20:13:37.783 2763 Reusing MANIFEST /home/ubuntu/pharmacy_management_system/desktop_app/test-user-data/Local Storage/leveldb/MANIFEST-000001
