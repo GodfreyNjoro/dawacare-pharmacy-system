@@ -30,8 +30,17 @@ export default function Login() {
       <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-8 animate-slide-in">
         {/* Logo/Header */}
         <div className="text-center mb-8">
-          <div className="bg-blue-600 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-            <span className="text-white text-2xl font-bold">DC</span>
+          <div className="flex items-center justify-center mx-auto mb-4">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" className="w-20 h-20">
+              <rect width="256" height="256" fill="#2d8659" rx="20"/>
+              <path d="M128 60 L160 80 L160 100 L96 100 L96 80 Z" fill="#ffffff"/>
+              <ellipse cx="128" cy="100" rx="32" ry="8" fill="#e8f5e9"/>
+              <path d="M96 100 L96 180 Q96 200 128 200 Q160 200 160 180 L160 100 Z" fill="#ffffff"/>
+              <ellipse cx="128" cy="180" rx="32" ry="12" fill="#e8f5e9"/>
+              <path d="M165 75 L185 65 Q190 62 193 67 L203 85 Q206 90 201 93 L181 103 Z" fill="#a5d6a7"/>
+              <rect x="118" y="130" width="20" height="40" fill="#2d8659" rx="2"/>
+              <rect x="108" y="140" width="40" height="20" fill="#2d8659" rx="2"/>
+            </svg>
           </div>
           <h1 className="text-3xl font-bold text-gray-900">DawaCare POS</h1>
           <p className="text-gray-600 mt-2">Sign in to your account</p>
