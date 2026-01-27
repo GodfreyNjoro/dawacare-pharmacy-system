@@ -1,5 +1,6 @@
 import { Pool, PoolClient } from 'pg';
 import type { DatabaseAdapter } from '../../shared/types';
+import crypto from 'crypto';
 
 export class PostgreSQLAdapter implements DatabaseAdapter {
   private pool: Pool | null = null;
@@ -1045,6 +1046,12 @@ class PostgreSQLModel {
       }
     }
     
+    // Generate ID if not provided (for tables with cuid/uuid defaults)
+    if (!regularData.id && ['Sale', 'SaleItem', 'Medicine', 'Customer', 'Supplier', 'PurchaseOrder', 'PurchaseOrderItem', 'GoodsReceivedNote', 'GRNItem', 'User', 'Branch'].includes(this.tableName)) {
+      // Generate a CUID-like ID using crypto
+      regularData.id = 'c' + crypto.randomBytes(12).toString('base64').replace(/[+/=]/g, '').substring(0, 24);
+    }
+    
     // Insert the main record
     const keys = Object.keys(regularData);
     const values = Object.values(regularData);
@@ -1061,6 +1068,12 @@ class PostgreSQLModel {
       
       for (const item of nested.items) {
         const itemData = { ...item, [nested.foreignKey]: mainRecord.id };
+        
+        // Generate ID for nested item if not provided
+        if (!itemData.id && ['SaleItem', 'PurchaseOrderItem', 'GRNItem', 'StockTransferItem'].includes(itemsTable)) {
+          itemData.id = 'c' + crypto.randomBytes(12).toString('base64').replace(/[+/=]/g, '').substring(0, 24);
+        }
+        
         const itemKeys = Object.keys(itemData);
         const itemValues = Object.values(itemData);
         const itemPlaceholders = itemKeys.map((_, i) => `$${i + 1}`);
@@ -1735,11 +1748,17 @@ class PostgreSQLTransactionModel {
   }
 
   async create(options: any): Promise<any> {
-    const data = options.data;
+    const data = { ...options.data };
     const fields: string[] = [];
     const values: any[] = [];
     const placeholders: string[] = [];
     let paramIndex = 1;
+
+    // Generate ID if not provided (for tables with cuid/uuid defaults)
+    if (!data.id && ['Sale', 'SaleItem', 'Medicine', 'Customer', 'Supplier', 'PurchaseOrder', 'PurchaseOrderItem', 'GoodsReceivedNote', 'GRNItem', 'User', 'Branch'].includes(this.tableName)) {
+      // Generate a CUID-like ID using crypto
+      data.id = 'c' + crypto.randomBytes(12).toString('base64').replace(/[+/=]/g, '').substring(0, 24);
+    }
 
     // Handle nested creates
     const nestedCreates: { [key: string]: any } = {};
