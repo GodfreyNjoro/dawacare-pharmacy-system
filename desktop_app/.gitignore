@@ -31,3 +31,8 @@ Thumbs.db
 
 # Electron
 .webpack/
+
+# Test database and data
+test.db
+test.db-journal
+test-user-data/
