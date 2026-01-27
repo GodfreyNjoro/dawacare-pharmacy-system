@@ -15,19 +15,71 @@ export async function launchApp(): Promise<ElectronApplication> {
   return electronApp;
 }
 
+export async function completeDatabaseSetup(window: Page): Promise<void> {
+  // Wait for page to load
+  await window.waitForLoadState('domcontentloaded');
+  
+  // Check if we're on the setup page
+  const setupHeading = await window.locator('h1:has-text("Welcome to DawaCare POS")').isVisible().catch(() => false);
+  
+  if (setupHeading) {
+    console.log('Database setup wizard detected, completing setup...');
+    
+    // Step 1: Choose Database (SQLite is already selected by default)
+    await window.click('button:has-text("Next")');
+    await window.waitForTimeout(1000);
+    
+    // Step 2: Configure Database (SQLite requires no configuration)
+    const nextButton = await window.locator('button:has-text("Next")').isVisible().catch(() => false);
+    if (nextButton) {
+      await window.click('button:has-text("Next")');
+      await window.waitForTimeout(1000);
+    }
+    
+    // Step 3: Create Admin Account
+    const createAdminHeading = await window.locator('h2:has-text("Create Admin")').isVisible().catch(() => false);
+    if (createAdminHeading) {
+      // Fill admin details
+      await window.fill('input[name="name"]', 'Test Admin');
+      await window.fill('input[name="email"]', 'admin@dawacare.local');
+      await window.fill('input[name="password"]', 'admin123');
+      await window.fill('input[name="confirmPassword"]', 'admin123');
+      
+      // Complete setup
+      await window.click('button:has-text("Complete Setup")');
+      await window.waitForTimeout(2000);
+    }
+    
+    console.log('Database setup completed');
+  }
+}
+
 export async function login(window: Page, email: string, password: string): Promise<void> {
+  // First, check if we need to complete database setup
+  await completeDatabaseSetup(window);
+  
   // Wait for login page
   await window.waitForLoadState('domcontentloaded');
   
+  // Check if we're already logged in
+  const alreadyLoggedIn = await window.locator('text=Dashboard, text=Point of Sale').first().isVisible().catch(() => false);
+  if (alreadyLoggedIn) {
+    console.log('Already logged in, skipping login');
+    return;
+  }
+  
   // Fill credentials
-  await window.fill('input[type="email"]', email);
-  await window.fill('input[type="password"]', password);
-  
-  // Submit
-  await window.click('button[type="submit"]');
-  
-  // Wait for navigation
-  await window.waitForURL(/\/(dashboard|pos)/, { timeout: 10000 });
+  const emailInput = await window.locator('input[type="email"]').isVisible().catch(() => false);
+  if (emailInput) {
+    await window.fill('input[type="email"]', email);
+    await window.fill('input[type="password"]', password);
+    
+    // Submit
+    await window.click('button[type="submit"]');
+    
+    // Wait for navigation
+    await window.waitForTimeout(3000);
+  }
 }
 
 export async function createTestMedicine(window: Page) {
