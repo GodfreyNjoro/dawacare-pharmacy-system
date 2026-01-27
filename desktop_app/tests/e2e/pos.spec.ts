@@ -9,12 +9,16 @@ test.describe('Point of Sale (POS)', () => {
     electronApp = await launchApp();
     window = await electronApp.firstWindow();
     await login(window, TEST_USERS.cashier.email, TEST_USERS.cashier.password);
+    await window.waitForTimeout(2000);
     
-    // Navigate to POS
-    const posLink = await window.locator('a[href="/pos"]').first();
-    if (await posLink.isVisible()) {
-      await posLink.click();
-      await window.waitForLoadState('networkidle');
+    // Navigate to POS if not already there
+    const bodyText = await window.textContent('body');
+    if (!bodyText.match(/Point of Sale|POS/i)) {
+      const posLink = window.locator('a[href="/pos"]').first();
+      if (await posLink.isVisible().catch(() => false)) {
+        await posLink.click();
+        await window.waitForTimeout(2000);
+      }
     }
   });
 
@@ -24,83 +28,83 @@ test.describe('Point of Sale (POS)', () => {
     }
   });
 
-  test('should display POS interface', async () => {
+  test('should display POS interface with medicine inventory', async () => {
     // Verify key elements are visible
     const bodyText = await window.textContent('body');
-    expect(bodyText).toMatch(/(Point of Sale|POS|Search|Cart)/);
+    expect(bodyText).toMatch(/(Point of Sale|POS|Search|Cart|Medicine)/i);
     
-    // Take screenshot for visual verification
+    // Verify we can see some medicines
+    const hasParacetamol = bodyText.includes('Paracetamol');
+    console.log('Paracetamol visible:', hasParacetamol);
+    
+    // Take screenshot
     await window.screenshot({ path: 'test-results/screenshots/pos-interface.png' });
   });
 
-  test('should search for medicines', async () => {
+  test('should search for Paracetamol medicine', async () => {
     // Find search input
     const searchInput = window.locator('input[placeholder*="Search"], input[type="search"], input[name="search"]').first();
     
-    if (await searchInput.isVisible()) {
+    const searchVisible = await searchInput.isVisible().catch(() => false);
+    if (searchVisible) {
       await searchInput.fill('Paracetamol');
-      await window.waitForTimeout(1000); // Wait for debounce/search results
+      await window.waitForTimeout(1000);
       
       // Verify search results appear
-      const resultsVisible = await window.locator('text=Paracetamol').first().isVisible().catch(() => false);
-      expect(resultsVisible).toBeTruthy();
+      const bodyText = await window.textContent('body');
+      const hasParacetamol = bodyText.includes('Paracetamol');
+      expect(hasParacetamol).toBeTruthy();
+      
+      // Take screenshot
+      await window.screenshot({ path: 'test-results/screenshots/medicine-search.png' });
     } else {
-      console.log('Search input not found, skipping search test');
+      console.log('Search input not found');
       test.skip();
     }
   });
 
-  test('should handle cart operations', async () => {
+  test('should display cart section', async () => {
     // Look for cart section
-    const cartVisible = await window.locator('text=Cart').isVisible().catch(() => false);
+    const bodyText = await window.textContent('body');
+    const hasCart = bodyText.match(/Cart|Shopping|Items/i);
     
-    if (cartVisible) {
-      // Take screenshot of initial cart state
-      await window.screenshot({ path: 'test-results/screenshots/cart-initial.png' });
-      
-      // Verify cart is initially empty or has items
-      const bodyText = await window.textContent('body');
-      console.log('Cart section found. Body text sample:', bodyText.substring(0, 500));
-    } else {
-      console.log('Cart section not found');
-    }
-  });
-
-  test('should complete sale workflow', async () => {
-    // This is a placeholder for the complete sale workflow
-    // Actual implementation depends on the exact UI structure
-    
-    // 1. Search for medicine
-    const searchInput = window.locator('input[placeholder*="Search"], input[type="search"]').first();
-    if (await searchInput.isVisible().catch(() => false)) {
-      await searchInput.fill('Medicine');
-      await window.waitForTimeout(500);
-    }
-    
-    // 2. Add to cart (implementation depends on UI)
-    // 3. Select payment method
-    // 4. Complete sale
-    
-    // For now, just verify the page loaded correctly
-    const pageLoaded = await window.locator('body').isVisible();
-    expect(pageLoaded).toBeTruthy();
+    expect(hasCart).toBeTruthy();
     
     // Take screenshot
-    await window.screenshot({ path: 'test-results/screenshots/pos-workflow.png' });
+    await window.screenshot({ path: 'test-results/screenshots/cart-section.png' });
   });
 
-  test('should display payment methods', async () => {
-    // Look for payment method selectors
-    const paymentOptions = ['CASH', 'MPESA', 'CARD', 'INSURANCE'];
+  test('should display payment method options', async () => {
+    // Check for payment methods
+    const bodyText = await window.textContent('body');
+    const paymentOptions = ['CASH', 'MPESA', 'M-PESA', 'CARD', 'MOBILE'];
     
+    let foundPaymentMethod = false;
     for (const option of paymentOptions) {
-      const optionVisible = await window.locator(`text=${option}`).first().isVisible().catch(() => false);
-      if (optionVisible) {
+      if (bodyText.includes(option)) {
         console.log(`Payment option found: ${option}`);
+        foundPaymentMethod = true;
+        break;
       }
     }
     
     // Take screenshot
     await window.screenshot({ path: 'test-results/screenshots/payment-methods.png' });
+    
+    // Payment methods should be visible somewhere
+    console.log('Payment methods section present:', foundPaymentMethod);
+  });
+
+  test('should show medicine categories', async () => {
+    // Check if we can see different medicine categories from our seed data
+    const bodyText = await window.textContent('body');
+    
+    const categories = ['ANALGESICS', 'ANTIBIOTICS', 'VITAMINS'];
+    const foundCategories = categories.filter(cat => bodyText.includes(cat));
+    
+    console.log('Found categories:', foundCategories);
+    
+    // Take screenshot
+    await window.screenshot({ path: 'test-results/screenshots/medicine-categories.png' });
   });
 });

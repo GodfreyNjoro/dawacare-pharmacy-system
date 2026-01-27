@@ -1,5 +1,5 @@
-import { test, expect, _electron as electron } from '@playwright/test';
-import { launchApp, completeDatabaseSetup, TEST_USERS } from './helpers/setup';
+import { test, expect } from '@playwright/test';
+import { launchApp, login, TEST_USERS } from './helpers/setup';
 
 test.describe('Authentication', () => {
   let electronApp;
@@ -17,103 +17,75 @@ test.describe('Authentication', () => {
     }
   });
 
-  test('should display database setup wizard on first launch', async () => {
-    // Check for setup wizard
-    const setupHeading = await window.locator('h1:has-text("Welcome to DawaCare POS")').isVisible().catch(() => false);
-    
-    if (setupHeading) {
-      // Verify setup wizard elements
-      await expect(window.locator('h1')).toContainText('Welcome to DawaCare POS');
-      await expect(window.locator('h2:has-text("Choose Your Database")')).toBeVisible();
-      await expect(window.locator('button:has-text("Next")')).toBeVisible();
-      
-      // Take screenshot
-      await window.screenshot({ path: 'test-results/screenshots/setup-wizard.png' });
-    } else {
-      console.log('Setup wizard already completed, app shows login screen');
-      await expect(window.locator('h1')).toContainText('DawaCare POS');
-    }
-  });
-
-  test('should complete database setup workflow', async () => {
-    await completeDatabaseSetup(window);
-    
-    // After setup, should show login screen
-    await window.waitForTimeout(2000);
-    const loginVisible = await window.locator('input[type="email"]').isVisible().catch(() => false);
-    
-    if (loginVisible) {
-      await expect(window.locator('input[type="email"]')).toBeVisible();
-      await expect(window.locator('input[type="password"]')).toBeVisible();
-    }
-    
-    // Take screenshot of final state
-    await window.screenshot({ path: 'test-results/screenshots/after-setup.png' });
-  });
-
-  test('should login successfully with valid credentials', async () => {
-    // Complete setup if needed
-    await completeDatabaseSetup(window);
+  test('should display login screen on app launch', async () => {
+    // Wait for login page
     await window.waitForTimeout(1000);
     
-    // Check if we're on login page
-    const loginVisible = await window.locator('input[type="email"]').isVisible().catch(() => false);
+    // Verify login form is displayed
+    const emailInput = await window.locator('input[type="email"]').isVisible();
+    const passwordInput = await window.locator('input[type="password"]').isVisible();
     
-    if (loginVisible) {
-      // Fill login form
-      await window.fill('input[type="email"]', TEST_USERS.admin.email);
-      await window.fill('input[type="password"]', TEST_USERS.admin.password);
-      
-      // Click login button
-      await window.click('button[type="submit"]');
-      
-      // Wait for navigation
-      await window.waitForTimeout(3000);
-      
-      // Verify user is logged in (check for any of these elements)
-      const bodyText = await window.textContent('body');
-      const isLoggedIn = bodyText.match(/(Dashboard|Point of Sale|Inventory|Medicines|Sales)/);
-      expect(isLoggedIn).toBeTruthy();
-      
-      // Take screenshot
-      await window.screenshot({ path: 'test-results/screenshots/logged-in.png' });
-    } else {
-      console.log('Login page not visible, may already be logged in');
-      test.skip();
-    }
+    expect(emailInput).toBeTruthy();
+    expect(passwordInput).toBeTruthy();
+    
+    // Take screenshot
+    await window.screenshot({ path: 'test-results/screenshots/login-screen.png' });
+  });
+
+  test('should login successfully with admin credentials', async () => {
+    await login(window, TEST_USERS.admin.email, TEST_USERS.admin.password);
+    
+    // Verify user is logged in
+    await window.waitForTimeout(2000);
+    const bodyText = await window.textContent('body');
+    const isLoggedIn = bodyText.match(/(Dashboard|Point of Sale|Inventory|Medicines|Sales|POS)/);
+    
+    expect(isLoggedIn).toBeTruthy();
+    
+    // Take screenshot
+    await window.screenshot({ path: 'test-results/screenshots/logged-in-admin.png' });
+  });
+
+  test('should login successfully with cashier credentials', async () => {
+    await login(window, TEST_USERS.cashier.email, TEST_USERS.cashier.password);
+    
+    // Verify user is logged in
+    await window.waitForTimeout(2000);
+    const bodyText = await window.textContent('body');
+    const isLoggedIn = bodyText.match(/(Dashboard|Point of Sale|Inventory|Medicines|Sales|POS)/);
+    
+    expect(isLoggedIn).toBeTruthy();
+    
+    // Take screenshot
+    await window.screenshot({ path: 'test-results/screenshots/logged-in-cashier.png' });
   });
 
   test('should show error with invalid credentials', async () => {
-    // Complete setup if needed
-    await completeDatabaseSetup(window);
+    // Fill login form with wrong credentials
+    await window.fill('input[type="email"]', 'wrong@email.com');
+    await window.fill('input[type="password"]', 'wrongpass');
+    await window.click('button[type="submit"]');
+    
+    // Wait for error message
+    await window.waitForTimeout(2000);
+    
+    // Check that we're still on login page (login failed)
+    const emailInput = await window.locator('input[type="email"]').isVisible();
+    expect(emailInput).toBeTruthy();
+    
+    // Take screenshot
+    await window.screenshot({ path: 'test-results/screenshots/login-error.png' });
+  });
+
+  test('should prevent empty login submission', async () => {
+    // Try to submit empty form
+    await window.click('button[type="submit"]');
+    
+    // Wait a bit
     await window.waitForTimeout(1000);
     
-    // Check if we're on login page
-    const loginVisible = await window.locator('input[type="email"]').isVisible().catch(() => false);
-    
-    if (loginVisible) {
-      await window.fill('input[type="email"]', 'wrong@email.com');
-      await window.fill('input[type="password"]', 'wrongpass');
-      await window.click('button[type="submit"]');
-      
-      // Wait for error message
-      await window.waitForTimeout(2000);
-      
-      // Check for error indicators
-      const pageContent = await window.textContent('body');
-      const hasError = pageContent.match(/(Invalid|Error|Failed|incorrect|wrong)/i);
-      
-      if (hasError) {
-        expect(hasError).toBeTruthy();
-      } else {
-        console.log('Error message not found in expected format');
-      }
-      
-      // Take screenshot
-      await window.screenshot({ path: 'test-results/screenshots/login-error.png' });
-    } else {
-      console.log('Login page not visible');
-      test.skip();
-    }
+    // Should still be on login page
+    const emailInput = await window.locator('input[type="email"]').isVisible();
+    expect(emailInput).toBeTruthy();
   });
 });

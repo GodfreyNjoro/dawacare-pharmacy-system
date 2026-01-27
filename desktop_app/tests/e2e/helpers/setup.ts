@@ -1,13 +1,48 @@
 import { _electron as electron, Page, ElectronApplication } from '@playwright/test';
 import path from 'path';
+import fs from 'fs';
 
 export async function launchApp(): Promise<ElectronApplication> {
+  // Ensure test database exists
+  const testDbPath = path.join(__dirname, '../../../test.db');
+  
+  if (!fs.existsSync(testDbPath)) {
+    throw new Error(
+      `Test database not found at ${testDbPath}. ` +
+      'Please run "npm run seed:test" before running tests.'
+    );
+  }
+  
+  // Set test-specific user data directory
+  const testUserDataDir = path.join(__dirname, '../../../test-user-data');
+  
+  // Create test user data directory if it doesn't exist
+  if (!fs.existsSync(testUserDataDir)) {
+    fs.mkdirSync(testUserDataDir, { recursive: true });
+  }
+  
+  // Copy test database to user data directory
+  const targetDbPath = path.join(testUserDataDir, 'dawacare.db');
+  fs.copyFileSync(testDbPath, targetDbPath);
+  
+  // Create config file to mark database as initialized
+  const configPath = path.join(testUserDataDir, 'db-config.json');
+  fs.writeFileSync(configPath, JSON.stringify({
+    type: 'sqlite',
+    initialized: true,
+    path: targetDbPath
+  }));
+  
+  console.log(`Using test database at: ${targetDbPath}`);
+  
   const electronApp = await electron.launch({
-    args: [path.join(__dirname, '../../../dist/main/src/main/main.js')],
+    args: [
+      path.join(__dirname, '../../../dist/main/src/main/main.js'),
+      `--user-data-dir=${testUserDataDir}`
+    ],
     env: {
       ...process.env,
       NODE_ENV: 'test',
-      TEST_DATABASE: 'test.db',
       AUTO_UPDATE_DISABLED: 'true'
     }
   });
@@ -55,31 +90,31 @@ export async function completeDatabaseSetup(window: Page): Promise<void> {
 }
 
 export async function login(window: Page, email: string, password: string): Promise<void> {
-  // First, check if we need to complete database setup
-  await completeDatabaseSetup(window);
-  
-  // Wait for login page
+  // Wait for page to load
   await window.waitForLoadState('domcontentloaded');
+  await window.waitForTimeout(1000);
   
   // Check if we're already logged in
-  const alreadyLoggedIn = await window.locator('text=Dashboard, text=Point of Sale').first().isVisible().catch(() => false);
-  if (alreadyLoggedIn) {
+  const bodyText = await window.textContent('body');
+  if (bodyText.match(/(Dashboard|Point of Sale|Inventory|POS)/)) {
     console.log('Already logged in, skipping login');
     return;
   }
   
+  // Wait for login form to be visible
+  await window.waitForSelector('input[type="email"]', { timeout: 5000 });
+  
   // Fill credentials
-  const emailInput = await window.locator('input[type="email"]').isVisible().catch(() => false);
-  if (emailInput) {
-    await window.fill('input[type="email"]', email);
-    await window.fill('input[type="password"]', password);
-    
-    // Submit
-    await window.click('button[type="submit"]');
-    
-    // Wait for navigation
-    await window.waitForTimeout(3000);
-  }
+  await window.fill('input[type="email"]', email);
+  await window.fill('input[type="password"]', password);
+  
+  // Submit
+  await window.click('button[type="submit"]');
+  
+  // Wait for navigation to complete
+  await window.waitForTimeout(3000);
+  
+  console.log(`Logged in as: ${email}`);
 }
 
 export async function createTestMedicine(window: Page) {
