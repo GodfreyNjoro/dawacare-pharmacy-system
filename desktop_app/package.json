@@ -22,7 +22,13 @@
     "package:linux": "electron-builder --linux",
     "package:all": "electron-builder -mwl",
     "postinstall": "npm run prisma:generate",
-    "prisma:generate": "prisma generate --schema=prisma/sqlite/schema.prisma && prisma generate --schema=prisma/postgresql/schema.prisma"
+    "prisma:generate": "prisma generate --schema=prisma/sqlite/schema.prisma && prisma generate --schema=prisma/postgresql/schema.prisma",
+    "test": "npm run test:e2e",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:debug": "playwright test --debug",
+    "test:e2e:headed": "playwright test --headed",
+    "test:report": "playwright show-report"
   },
   "dependencies": {
     "@prisma/client": "^6.7.0",
