@@ -134,7 +134,8 @@
       "owner": "GodfreyNjoro",
       "repo": "dawacare-pharmacy-system",
       "releaseType": "release"
-    }
+    },
+    "artifactName": "${productName}-Setup-${version}.${ext}"
   },
   "homepage": "https://github.com/GodfreyNjoro/dawacare-pharmacy-system"
 }
