@@ -13,6 +13,7 @@ import { registerGRNHandlers } from './grn-handlers';
 import { registerUsersHandlers } from './users-handlers';
 import { registerBranchesHandlers } from './branches-handlers';
 import { registerReportsHandlers } from './reports-handlers';
+import { registerAIHandlers } from './ai-handlers';
 
 export function registerAllIpcHandlers(): void {
   console.log('[IPC] Registering all IPC handlers...');
@@ -32,6 +33,7 @@ export function registerAllIpcHandlers(): void {
   registerUsersHandlers();
   registerBranchesHandlers();
   registerReportsHandlers();
+  registerAIHandlers();
 
   console.log('[IPC] All IPC handlers registered successfully');
 }

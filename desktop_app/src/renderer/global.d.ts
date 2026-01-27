@@ -131,6 +131,9 @@ export interface ElectronAPI {
   installUpdate: () => Promise<any>;
   getVersionInfo: () => Promise<{ version: string; name: string }>;
   onUpdateStatus: (callback: (data: { status: string; data?: any }) => void) => () => void;
+
+  // AI Pharmacist Chat
+  chatWithAI: (messages: Array<{ role: string; content: string }>) => Promise<{ success: boolean; message?: string; error?: string }>;
 }
 
 declare global {

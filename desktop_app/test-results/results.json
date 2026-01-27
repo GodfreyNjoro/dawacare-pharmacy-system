@@ -94,7 +94,7 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 4554,
+                      "duration": 3625,
                       "errors": [],
                       "stdout": [
                         {
@@ -106,7 +106,7 @@
                       ],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-01-27T20:12:27.727Z",
+                      "startTime": "2026-01-27T20:48:27.530Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -135,7 +135,7 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 8799,
+                      "duration": 8644,
                       "errors": [],
                       "stdout": [
                         {
@@ -153,7 +153,7 @@
                       ],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-01-27T20:12:32.306Z",
+                      "startTime": "2026-01-27T20:48:31.178Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -182,7 +182,7 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 8734,
+                      "duration": 8662,
                       "errors": [],
                       "stdout": [
                         {
@@ -200,7 +200,7 @@
                       ],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-01-27T20:12:41.117Z",
+                      "startTime": "2026-01-27T20:48:39.835Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -229,7 +229,7 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 5108,
+                      "duration": 5056,
                       "errors": [],
                       "stdout": [
                         {
@@ -241,7 +241,7 @@
                       ],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-01-27T20:12:49.863Z",
+                      "startTime": "2026-01-27T20:48:48.509Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -270,7 +270,7 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 4168,
+                      "duration": 3794,
                       "errors": [],
                       "stdout": [
                         {
@@ -282,7 +282,7 @@
                       ],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-01-27T20:12:54.982Z",
+                      "startTime": "2026-01-27T20:48:53.579Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -328,7 +328,7 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 8801,
+                      "duration": 8716,
                       "errors": [],
                       "stdout": [
                         {
@@ -349,7 +349,7 @@
                       ],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-01-27T20:12:59.165Z",
+                      "startTime": "2026-01-27T20:48:57.391Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -378,7 +378,7 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 9831,
+                      "duration": 9658,
                       "errors": [],
                       "stdout": [
                         {
@@ -396,7 +396,7 @@
                       ],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-01-27T20:13:07.976Z",
+                      "startTime": "2026-01-27T20:49:06.118Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -425,7 +425,7 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 8728,
+                      "duration": 8536,
                       "errors": [],
                       "stdout": [
                         {
@@ -443,7 +443,7 @@
                       ],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-01-27T20:13:17.817Z",
+                      "startTime": "2026-01-27T20:49:15.787Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -472,7 +472,7 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 8665,
+                      "duration": 8542,
                       "errors": [],
                       "stdout": [
                         {
@@ -496,7 +496,7 @@
                       ],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-01-27T20:13:26.552Z",
+                      "startTime": "2026-01-27T20:49:24.333Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -525,7 +525,7 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 8917,
+                      "duration": 8936,
                       "errors": [],
                       "stdout": [
                         {
@@ -546,7 +546,7 @@
                       ],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-01-27T20:13:35.226Z",
+                      "startTime": "2026-01-27T20:49:32.886Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -558,6 +558,71 @@
               "file": "pos.spec.ts",
               "line": 98,
               "column": 7
+            },
+            {
+              "title": "should complete a full checkout flow",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 40000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "electron",
+                  "projectName": "electron",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 12087,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "✓ Test database copied to: /home/ubuntu/pharmacy_management_system/desktop_app/test-user-data/dawacare.db\n"
+                        },
+                        {
+                          "text": "✓ Electron-store config created at: /home/ubuntu/pharmacy_management_system/desktop_app/test-user-data/config.json\n"
+                        },
+                        {
+                          "text": "Attempting login as: cashier@dawacare.local\n"
+                        },
+                        {
+                          "text": "⚠ Login may have failed for: cashier@dawacare.local\n"
+                        },
+                        {
+                          "text": "Step 1: Searched for Paracetamol\n"
+                        },
+                        {
+                          "text": "Step 2: Clicked medicine card\n"
+                        },
+                        {
+                          "text": "Step 3: Cart has items: \u001b[33mtrue\u001b[39m\n"
+                        },
+                        {
+                          "text": "Step 4: Selected Cash payment\n"
+                        },
+                        {
+                          "text": "Step 5: Complete Sale button visible: \u001b[33mtrue\u001b[39m enabled: \u001b[33mtrue\u001b[39m\n"
+                        },
+                        {
+                          "text": "✅ Checkout flow verified: Cart populated, payment selected, Complete Sale ready\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-01-27T20:49:41.835Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "8d72c8cda0dde62ea615-b000a0aab500a01215d6",
+              "file": "pos.spec.ts",
+              "line": 111,
+              "column": 7
             }
           ]
         }
@@ -566,9 +631,9 @@
   ],
   "errors": [],
   "stats": {
-    "startTime": "2026-01-27T20:12:25.761Z",
-    "duration": 78466.681,
-    "expected": 10,
+    "startTime": "2026-01-27T20:48:25.891Z",
+    "duration": 88126.994,
+    "expected": 11,
     "skipped": 0,
     "unexpected": 0,
     "flaky": 0

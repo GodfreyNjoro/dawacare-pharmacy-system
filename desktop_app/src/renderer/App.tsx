@@ -20,6 +20,7 @@ import Branches from './pages/Branches';
 import Reports from './pages/Reports';
 import Settings from './pages/Settings';
 import UpdateNotification from './components/UpdateNotification';
+import AIPharmacistChat from './components/AIPharmacistChat';
 import { AuthProvider, useAuth } from './lib/auth-context';
 import { hasPermission } from './lib/permissions';
 
@@ -161,6 +162,7 @@ function App() {
     <AuthProvider>
       <AppContent />
       <UpdateNotification />
+      <AIPharmacistChat />
     </AuthProvider>
   );
 }
