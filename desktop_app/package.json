@@ -58,7 +58,7 @@
   },
   "build": {
     "appId": "com.dawacare.pos",
-    "productName": "DawaCare POS",
+    "productName": "DawaCare-POS",
     "copyright": "Copyright © 2025 DawaCare",
     "directories": {
       "output": "release",
