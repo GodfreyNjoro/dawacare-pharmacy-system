@@ -59,7 +59,7 @@ export function registerAIHandlers() {
         };
       }
 
-      const data = await response.json();
+      const data = await response.json() as { choices?: { message?: { content?: string } }[] };
       const assistantMessage = data.choices?.[0]?.message?.content || 'I could not generate a response.';
 
       console.log('[AI] Response received successfully');
