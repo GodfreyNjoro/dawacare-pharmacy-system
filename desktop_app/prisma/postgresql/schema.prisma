@@ -70,6 +70,11 @@ model Medicine {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   saleItems     SaleItem[]
+  
+  // Controlled substance fields
+  isControlled  Boolean   @default(false)
+  scheduleClass String?   // SCHEDULE_I, SCHEDULE_II, etc.
+  controlledRegister ControlledSubstanceRegister[]
 
   @@index([name])
   @@index([category])
@@ -77,6 +82,7 @@ model Medicine {
   @@index([expiryDate])
   @@index([branchId])
   @@index([syncStatus])
+  @@index([isControlled])
 }
 
 model Customer {
@@ -384,4 +390,75 @@ model AppSettings {
   updatedAt       DateTime  @updatedAt
 
   @@index([key])
+}
+
+// Controlled Substances Register - Kenya Poisons Act Compliance
+model ControlledSubstanceRegister {
+  id                    String    @id @default(cuid())
+  entryNumber           String    @unique // Format: CSR-BRANCHCODE-YYYY-XXXXX
+  
+  // Medicine details
+  medicineId            String
+  medicine              Medicine  @relation(fields: [medicineId], references: [id])
+  medicineName          String
+  batchNumber           String
+  scheduleClass         String    // SCHEDULE_I, SCHEDULE_II, SCHEDULE_III, SCHEDULE_IV, SCHEDULE_V, PSYCHOTROPIC
+  
+  // Transaction details
+  transactionType       String    // RECEIPT, SALE, TRANSFER_IN, TRANSFER_OUT, ADJUSTMENT, DESTRUCTION, RETURN
+  transactionDate       DateTime  @default(now())
+  
+  // Quantity tracking
+  quantityIn            Int       @default(0)
+  quantityOut           Int       @default(0)
+  balanceBefore         Int
+  balanceAfter          Int
+  
+  // Reference to source document
+  referenceType         String?   // GRN, SALE, TRANSFER, ADJUSTMENT
+  referenceId           String?   // ID of related record
+  referenceNumber       String?   // Human-readable reference number
+  
+  // For SALE transactions - Patient info (Kenya PPB requirement)
+  patientName           String?
+  patientId             String?   // National ID or Passport
+  prescriptionId        String?
+  prescriberName        String?
+  prescriberRegNo       String?   // Prescriber registration number
+  
+  // For RECEIPT transactions - Supplier info
+  supplierName          String?
+  supplierLicense       String?
+  
+  // For DESTRUCTION - Witness info (Kenya PPB requirement)
+  witnessName           String?
+  witnessRole           String?
+  destructionMethod     String?
+  destructionCertificate String?
+  
+  // Audit fields
+  recordedBy            String    // User ID who recorded
+  recordedByName        String
+  recordedByRole        String
+  verifiedBy            String?   // Second pharmacist verification
+  verifiedByName        String?
+  verifiedAt            DateTime?
+  
+  // Branch tracking
+  branchId              String?
+  branchName            String?
+  
+  notes                 String?
+  attachments           String?   // JSON array of file paths
+  
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  
+  @@index([medicineId])
+  @@index([transactionType])
+  @@index([transactionDate])
+  @@index([scheduleClass])
+  @@index([branchId])
+  @@index([verifiedBy])
+  @@index([entryNumber])
 }
