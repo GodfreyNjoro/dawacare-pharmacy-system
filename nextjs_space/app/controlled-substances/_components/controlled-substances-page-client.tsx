@@ -4,7 +4,7 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { RefreshCw } from 'lucide-react';
-import { Navbar } from '@/components/ui/navbar';
+import { PageLayout } from '@/components/ui/page-nav';
 import ControlledSubstancesContent from './controlled-substances-content';
 
 export default function ControlledSubstancesPageClient() {
@@ -35,11 +35,10 @@ export default function ControlledSubstancesPageClient() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Navbar />
+    <PageLayout>
       <main>
         <ControlledSubstancesContent />
       </main>
-    </div>
+    </PageLayout>
   );
 }

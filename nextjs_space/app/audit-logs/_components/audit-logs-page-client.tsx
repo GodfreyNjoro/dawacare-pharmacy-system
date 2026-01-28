@@ -4,7 +4,7 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { RefreshCw } from "lucide-react";
-import { Navbar } from "@/components/ui/navbar";
+import { PageLayout } from "@/components/ui/page-nav";
 import AuditLogsContent from "./audit-logs-content";
 
 export default function AuditLogsPageClient() {
@@ -37,11 +37,10 @@ export default function AuditLogsPageClient() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Navbar />
+    <PageLayout>
       <main className="container mx-auto px-4 py-6">
         <AuditLogsContent />
       </main>
-    </div>
+    </PageLayout>
   );
 }

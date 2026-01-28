@@ -4,7 +4,7 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { RefreshCw } from "lucide-react";
-import { Navbar } from "@/components/ui/navbar";
+import { PageLayout } from "@/components/ui/page-nav";
 import PrescriptionsContent from "./prescriptions-content";
 
 export default function PrescriptionsPageClient() {
@@ -35,11 +35,10 @@ export default function PrescriptionsPageClient() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Navbar />
+    <PageLayout>
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <PrescriptionsContent />
       </main>
-    </div>
+    </PageLayout>
   );
 }
