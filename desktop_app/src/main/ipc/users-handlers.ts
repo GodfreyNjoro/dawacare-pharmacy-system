@@ -52,13 +52,13 @@ export function registerUsersHandlers(): void {
         params.push(status);
       }
 
-      const countResult = await prisma.$queryRawUnsafe(
+      const countResult = await prisma.$queryRaw(
         `SELECT COUNT(*) as count FROM "User" u ${whereClause}`,
         ...params
       );
       const total = Number(countResult[0]?.count || 0);
 
-      const users = await prisma.$queryRawUnsafe(
+      const users = await prisma.$queryRaw(
         `SELECT u.id, u.email, u.name, u.role, u.status, u."branchId", 
                 b.name as "branchName", b.code as "branchCode",
                 u."createdAt", u."updatedAt"
@@ -116,7 +116,7 @@ export function registerUsersHandlers(): void {
       }
 
       // Check email uniqueness
-      const existing = await prisma.$queryRawUnsafe(
+      const existing = await prisma.$queryRaw(
         'SELECT id FROM "User" WHERE email = ?',
         userData.email
       );
@@ -127,7 +127,7 @@ export function registerUsersHandlers(): void {
       // Hash password
       const hashedPassword = await bcrypt.hash(userData.password, 10);
 
-      await prisma.$queryRawUnsafe(
+      await prisma.$queryRaw(
         `INSERT INTO "User" (id, email, name, password, role, status, "branchId", "createdAt", "updatedAt")
          VALUES (?, ?, ?, ?, ?, 'ACTIVE', ?, ?, ?)`,
         id, userData.email, userData.name || null, hashedPassword, 
@@ -135,7 +135,7 @@ export function registerUsersHandlers(): void {
       );
 
       // Add to sync queue
-      await prisma.$queryRawUnsafe(
+      await prisma.$queryRaw(
         `INSERT INTO "SyncQueue" (id, "entityType", "entityId", operation, payload, status, "createdAt", "updatedAt")
          VALUES (?, 'USER', ?, 'CREATE', '{}', 'PENDING', ?, ?)`,
         randomUUID(), id, now, now
@@ -167,7 +167,7 @@ export function registerUsersHandlers(): void {
 
       if (userData.email) {
         // Check email uniqueness
-        const existing = await prisma.$queryRawUnsafe(
+        const existing = await prisma.$queryRaw(
           'SELECT id FROM "User" WHERE email = ? AND id != ?',
           userData.email, userId
         );
@@ -207,13 +207,13 @@ export function registerUsersHandlers(): void {
       params.push(now);
       params.push(userId);
 
-      await prisma.$queryRawUnsafe(
+      await prisma.$queryRaw(
         `UPDATE "User" SET ${updates.join(', ')} WHERE id = ?`,
         ...params
       );
 
       // Add to sync queue
-      await prisma.$queryRawUnsafe(
+      await prisma.$queryRaw(
         `INSERT INTO "SyncQueue" (id, "entityType", "entityId", operation, payload, status, "createdAt", "updatedAt")
          VALUES (?, 'USER', ?, 'UPDATE', '{}', 'PENDING', ?, ?)`,
         randomUUID(), userId, now, now
@@ -238,13 +238,13 @@ export function registerUsersHandlers(): void {
         return { success: false, error: 'Cannot delete your own account' };
       }
 
-      await prisma.$queryRawUnsafe(
+      await prisma.$queryRaw(
         `UPDATE "User" SET status = 'INACTIVE', "updatedAt" = ? WHERE id = ?`,
         now, userId
       );
 
       // Add to sync queue
-      await prisma.$queryRawUnsafe(
+      await prisma.$queryRaw(
         `INSERT INTO "SyncQueue" (id, "entityType", "entityId", operation, payload, status, "createdAt", "updatedAt")
          VALUES (?, 'USER', ?, 'UPDATE', '{}', 'PENDING', ?, ?)`,
         randomUUID(), userId, now, now

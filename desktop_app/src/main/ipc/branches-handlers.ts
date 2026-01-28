@@ -37,7 +37,7 @@ export function registerBranchesHandlers(): void {
     try {
       // If all=true, return all active branches for dropdowns
       if (all) {
-        const branches = await prisma.$queryRawUnsafe(
+        const branches = await prisma.$queryRaw(
           `SELECT id, name, code, address, phone, email, "isMainBranch", status, "createdAt", "updatedAt"
            FROM "Branch" WHERE status = 'ACTIVE'
            ORDER BY "isMainBranch" DESC, name ASC`
@@ -50,28 +50,28 @@ export function registerBranchesHandlers(): void {
       const params: (string | number)[] = [];
 
       if (search) {
-        whereClause += ` AND (name LIKE ? OR code LIKE ? OR address LIKE ?)`;
-        params.push(`%${search}%`, `%${search}%`, `%${search}%`);
+        whereClause += ` AND (name ILIKE $1 OR code ILIKE $1 OR address ILIKE $1)`;
+        params.push(`%${search}%`);
       }
       if (status) {
-        whereClause += ` AND status = ?`;
+        whereClause += ` AND status = $${params.length + 1}`;
         params.push(status);
       }
 
-      const countResult = await prisma.$queryRawUnsafe(
+      const countResult = await prisma.$queryRaw(
         `SELECT COUNT(*) as count FROM "Branch" ${whereClause}`,
         ...params
       );
       const total = Number(countResult[0]?.count || 0);
 
-      const branches = await prisma.$queryRawUnsafe(
+      const branches = await prisma.$queryRaw(
         `SELECT b.id, b.name, b.code, b.address, b.phone, b.email, 
                 b."isMainBranch", b.status, b."createdAt", b."updatedAt",
                 (SELECT COUNT(*) FROM "User" WHERE "branchId" = b.id) as "userCount"
          FROM "Branch" b
          ${whereClause}
          ORDER BY b."isMainBranch" DESC, b."createdAt" DESC
-         LIMIT ? OFFSET ?`,
+         LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
         ...params, limit, offset
       );
 
@@ -111,8 +111,8 @@ export function registerBranchesHandlers(): void {
       }
 
       // Check code uniqueness
-      const existing = await prisma.$queryRawUnsafe(
-        'SELECT id FROM "Branch" WHERE code = ?',
+      const existing = await prisma.$queryRaw(
+        'SELECT id FROM "Branch" WHERE code = $1',
         branchData.code.toUpperCase()
       );
       if (existing.length > 0) {
@@ -121,23 +121,23 @@ export function registerBranchesHandlers(): void {
 
       // If main branch, unset others
       if (branchData.isMainBranch) {
-        await prisma.$queryRawUnsafe(
-          `UPDATE "Branch" SET "isMainBranch" = 0 WHERE "isMainBranch" = 1`
+        await prisma.$queryRaw(
+          `UPDATE "Branch" SET "isMainBranch" = false WHERE "isMainBranch" = true`
         );
       }
 
-      await prisma.$queryRawUnsafe(
+      await prisma.$queryRaw(
         `INSERT INTO "Branch" (id, name, code, address, phone, email, "isMainBranch", status, "createdAt", "updatedAt")
-         VALUES (?, ?, ?, ?, ?, ?, ?, 'ACTIVE', ?, ?)`,
+         VALUES ($1, $2, $3, $4, $5, $6, $7, 'ACTIVE', $8, $9)`,
         id, branchData.name, branchData.code.toUpperCase(),
         branchData.address || null, branchData.phone || null, branchData.email || null,
-        branchData.isMainBranch ? 1 : 0, now, now
+        branchData.isMainBranch ? true : false, now, now
       );
 
       // Add to sync queue
-      await prisma.$queryRawUnsafe(
+      await prisma.$queryRaw(
         `INSERT INTO "SyncQueue" (id, "entityType", "entityId", operation, payload, status, "createdAt", "updatedAt")
-         VALUES (?, 'BRANCH', ?, 'CREATE', '{}', 'PENDING', ?, ?)`,
+         VALUES ($1, 'BRANCH', $2, 'CREATE', '{}', 'PENDING', $3, $4)`,
         randomUUID(), id, now, now
       );
 
@@ -165,8 +165,8 @@ export function registerBranchesHandlers(): void {
     try {
       // Check code uniqueness if changed
       if (branchData.code) {
-        const existing = await prisma.$queryRawUnsafe(
-          'SELECT id FROM "Branch" WHERE code = ? AND id != ?',
+        const existing = await prisma.$queryRaw(
+          'SELECT id FROM "Branch" WHERE code = $1 AND id != $2',
           branchData.code.toUpperCase(), branchId
         );
         if (existing.length > 0) {
@@ -176,61 +176,62 @@ export function registerBranchesHandlers(): void {
 
       // If setting as main branch, unset others
       if (branchData.isMainBranch) {
-        await prisma.$queryRawUnsafe(
-          `UPDATE "Branch" SET "isMainBranch" = 0 WHERE "isMainBranch" = 1 AND id != ?`,
+        await prisma.$queryRaw(
+          `UPDATE "Branch" SET "isMainBranch" = false WHERE "isMainBranch" = true AND id != $1`,
           branchId
         );
       }
 
       const updates: string[] = [];
-      const params: (string | number | null)[] = [];
+      const params: (string | number | boolean | null)[] = [];
+      let paramIndex = 1;
 
       if (branchData.name) {
-        updates.push('name = ?');
+        updates.push(`name = $${paramIndex++}`);
         params.push(branchData.name);
       }
       if (branchData.code) {
-        updates.push('code = ?');
+        updates.push(`code = $${paramIndex++}`);
         params.push(branchData.code.toUpperCase());
       }
       if (branchData.address !== undefined) {
-        updates.push('address = ?');
+        updates.push(`address = $${paramIndex++}`);
         params.push(branchData.address);
       }
       if (branchData.phone !== undefined) {
-        updates.push('phone = ?');
+        updates.push(`phone = $${paramIndex++}`);
         params.push(branchData.phone);
       }
       if (branchData.email !== undefined) {
-        updates.push('email = ?');
+        updates.push(`email = $${paramIndex++}`);
         params.push(branchData.email);
       }
       if (branchData.status) {
-        updates.push('status = ?');
+        updates.push(`status = $${paramIndex++}`);
         params.push(branchData.status);
       }
       if (branchData.isMainBranch !== undefined) {
-        updates.push('"isMainBranch" = ?');
-        params.push(branchData.isMainBranch ? 1 : 0);
+        updates.push(`"isMainBranch" = $${paramIndex++}`);
+        params.push(branchData.isMainBranch);
       }
 
       if (updates.length === 0) {
         return { success: false, error: 'No updates provided' };
       }
 
-      updates.push('"updatedAt" = ?');
+      updates.push(`"updatedAt" = $${paramIndex++}`);
       params.push(now);
       params.push(branchId);
 
-      await prisma.$queryRawUnsafe(
-        `UPDATE "Branch" SET ${updates.join(', ')} WHERE id = ?`,
+      await prisma.$queryRaw(
+        `UPDATE "Branch" SET ${updates.join(', ')} WHERE id = $${paramIndex}`,
         ...params
       );
 
       // Add to sync queue
-      await prisma.$queryRawUnsafe(
+      await prisma.$queryRaw(
         `INSERT INTO "SyncQueue" (id, "entityType", "entityId", operation, payload, status, "createdAt", "updatedAt")
-         VALUES (?, 'BRANCH', ?, 'UPDATE', '{}', 'PENDING', ?, ?)`,
+         VALUES ($1, 'BRANCH', $2, 'UPDATE', '{}', 'PENDING', $3, $4)`,
         randomUUID(), branchId, now, now
       );
 
@@ -249,8 +250,8 @@ export function registerBranchesHandlers(): void {
 
     try {
       // Check if it's main branch
-      const branch = await prisma.$queryRawUnsafe(
-        'SELECT id, "isMainBranch" FROM "Branch" WHERE id = ?',
+      const branch = await prisma.$queryRaw(
+        'SELECT id, "isMainBranch" FROM "Branch" WHERE id = $1',
         branchId
       );
 
@@ -262,32 +263,32 @@ export function registerBranchesHandlers(): void {
       }
 
       // Check if has users
-      const userCount = await prisma.$queryRawUnsafe(
-        'SELECT COUNT(*) as count FROM "User" WHERE "branchId" = ?',
+      const userCount = await prisma.$queryRaw(
+        'SELECT COUNT(*) as count FROM "User" WHERE "branchId" = $1',
         branchId
       );
 
       if (Number(userCount[0]?.count || 0) > 0) {
         // Soft delete
-        await prisma.$queryRawUnsafe(
-          `UPDATE "Branch" SET status = 'INACTIVE', "updatedAt" = ? WHERE id = ?`,
+        await prisma.$queryRaw(
+          `UPDATE "Branch" SET status = 'INACTIVE', "updatedAt" = $1 WHERE id = $2`,
           now, branchId
         );
         // Add to sync queue
-        await prisma.$queryRawUnsafe(
+        await prisma.$queryRaw(
           `INSERT INTO "SyncQueue" (id, "entityType", "entityId", operation, payload, status, "createdAt", "updatedAt")
-           VALUES (?, 'BRANCH', ?, 'UPDATE', '{}', 'PENDING', ?, ?)`,
+           VALUES ($1, 'BRANCH', $2, 'UPDATE', '{}', 'PENDING', $3, $4)`,
           randomUUID(), branchId, now, now
         );
         return { success: true, softDelete: true };
       }
 
       // Hard delete
-      await prisma.$queryRawUnsafe('DELETE FROM "Branch" WHERE id = ?', branchId);
+      await prisma.$queryRaw('DELETE FROM "Branch" WHERE id = $1', branchId);
       // Add to sync queue
-      await prisma.$queryRawUnsafe(
+      await prisma.$queryRaw(
         `INSERT INTO "SyncQueue" (id, "entityType", "entityId", operation, payload, status, "createdAt", "updatedAt")
-         VALUES (?, 'BRANCH', ?, 'DELETE', '{}', 'PENDING', ?, ?)`,
+         VALUES ($1, 'BRANCH', $2, 'DELETE', '{}', 'PENDING', $3, $4)`,
         randomUUID(), branchId, now, now
       );
 

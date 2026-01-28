@@ -64,7 +64,7 @@ export function registerReportsHandlers(): void {
       }
 
       // Summary
-      const summaryResult = await prisma.$queryRawUnsafe(
+      const summaryResult = await prisma.$queryRaw(
         `SELECT 
           COALESCE(SUM(s.total), 0) as "totalRevenue",
           COUNT(s.id) as "totalTransactions",
@@ -93,7 +93,7 @@ export function registerReportsHandlers(): void {
       if (groupBy === 'week') dateFormat = '%Y-W%W';
       if (groupBy === 'month') dateFormat = '%Y-%m';
 
-      const chartData = await prisma.$queryRawUnsafe(
+      const chartData = await prisma.$queryRaw(
         `SELECT 
           strftime('${dateFormat}', s."createdAt") as period,
           COALESCE(SUM(s.total), 0) as revenue,
@@ -107,7 +107,7 @@ export function registerReportsHandlers(): void {
       );
 
       // Payment breakdown
-      const paymentBreakdown = await prisma.$queryRawUnsafe(
+      const paymentBreakdown = await prisma.$queryRaw(
         `SELECT 
           s."paymentMethod" as method,
           COALESCE(SUM(s.total), 0) as total,
@@ -171,7 +171,7 @@ export function registerReportsHandlers(): void {
         whereClause += ' AND m."expiryDate" IS NOT NULL AND date(m."expiryDate") <= date("now", "+30 days")';
       }
 
-      const items = await prisma.$queryRawUnsafe(
+      const items = await prisma.$queryRaw(
         `SELECT m.id, m.name, m."genericName", m.category, m."batchNumber",
                 m.quantity, m."reorderLevel", m."unitPrice", m."expiryDate",
                 CASE 
@@ -187,7 +187,7 @@ export function registerReportsHandlers(): void {
       );
 
       // Summary stats
-      const statsResult = await prisma.$queryRawUnsafe(
+      const statsResult = await prisma.$queryRaw(
         `SELECT 
           COUNT(*) as "totalItems",
           COALESCE(SUM(m.quantity * m."unitPrice"), 0) as "totalValue",
@@ -204,7 +204,7 @@ export function registerReportsHandlers(): void {
       }[];
 
       // Categories
-      const categories = await prisma.$queryRawUnsafe(
+      const categories = await prisma.$queryRaw(
         `SELECT DISTINCT category FROM "Medicine" WHERE category IS NOT NULL ORDER BY category`
       );
 
@@ -256,7 +256,7 @@ export function registerReportsHandlers(): void {
 
       params.push(limit);
 
-      const topSellers = await prisma.$queryRawUnsafe(
+      const topSellers = await prisma.$queryRaw(
         `SELECT 
           m.id, m.name, m."genericName", m.category,
           COALESCE(SUM(si.quantity), 0) as "totalQuantity",
@@ -313,7 +313,7 @@ export function registerReportsHandlers(): void {
 
       if (type === 'sales') {
         headers = ['Date', 'Invoice', 'Customer', 'Items', 'Subtotal', 'Discount', 'Tax', 'Total', 'Payment Method', 'Status'];
-        const sales = await prisma.$queryRawUnsafe(
+        const sales = await prisma.$queryRaw(
           `SELECT s."createdAt", s."invoiceNumber", c.name as "customerName",
                   (SELECT COUNT(*) FROM "SaleItem" WHERE "saleId" = s.id) as "itemCount",
                   s.subtotal, s.discount, s.tax, s.total, s."paymentMethod", s.status
@@ -348,7 +348,7 @@ export function registerReportsHandlers(): void {
         ]));
       } else if (type === 'purchases') {
         headers = ['Date', 'PO Number', 'Supplier', 'Items', 'Subtotal', 'Tax', 'Total', 'Status'];
-        const purchases = await prisma.$queryRawUnsafe(
+        const purchases = await prisma.$queryRaw(
           `SELECT po."createdAt", po."poNumber", s.name as "supplierName",
                   (SELECT COUNT(*) FROM "PurchaseOrderItem" WHERE "purchaseOrderId" = po.id) as "itemCount",
                   po.subtotal, po.tax, po.total, po.status
@@ -379,7 +379,7 @@ export function registerReportsHandlers(): void {
         ]));
       } else if (type === 'inventory') {
         headers = ['Name', 'Generic Name', 'Category', 'Batch', 'Quantity', 'Reorder Level', 'Unit Price', 'Total Value', 'Expiry Date', 'Status'];
-        const inventory = await prisma.$queryRawUnsafe(
+        const inventory = await prisma.$queryRaw(
           `SELECT name, "genericName", category, "batchNumber", quantity, "reorderLevel", "unitPrice", "expiryDate",
                   CASE 
                     WHEN quantity = 0 THEN 'OUT_OF_STOCK'
