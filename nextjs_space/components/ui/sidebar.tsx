@@ -24,6 +24,7 @@ import {
   Download,
   Settings,
   Calculator,
+  Stethoscope,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { hasPermission } from "@/lib/permissions";
@@ -32,6 +33,9 @@ import { useBranch } from "@/lib/branch-context";
 
 export function Sidebar() {
   const [mounted, setMounted] = useState(false);
+  const [inventoryOpen, setInventoryOpen] = useState(false);
+  const [customersOpen, setCustomersOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [procurementOpen, setProcurementOpen] = useState(false);
   const [accountingOpen, setAccountingOpen] = useState(false);
   const [branchDropdownOpen, setBranchDropdownOpen] = useState(false);
@@ -54,27 +58,47 @@ export function Sidebar() {
   }, []);
 
   useEffect(() => {
-    // Auto-expand procurement dropdown if on a procurement page
+    // Auto-expand dropdowns based on current page
     if (pathname.startsWith("/procurement")) {
       setProcurementOpen(true);
     }
-    // Auto-expand accounting dropdown if on an accounting page
     if (pathname.startsWith("/accounting")) {
       setAccountingOpen(true);
     }
+    if (pathname === "/inventory" || pathname.startsWith("/inventory/") || pathname === "/controlled-substances") {
+      setInventoryOpen(true);
+    }
+    if (pathname === "/customers" || pathname.startsWith("/prescriptions") || pathname === "/prescribers") {
+      setCustomersOpen(true);
+    }
+    if (pathname === "/audit-logs" || pathname === "/users" || pathname === "/branches") {
+      setSettingsOpen(true);
+    }
   }, [pathname]);
 
-  // Define nav links with permissions
-  const allNavLinks = [
+  // Define simple nav links (no dropdowns)
+  const simpleNavLinks = [
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, permission: "VIEW_DASHBOARD" },
     { href: "/pos", label: "POS", icon: ShoppingCart, permission: "USE_POS" },
-    { href: "/inventory", label: "Inventory", icon: Package, permission: "VIEW_INVENTORY" },
     { href: "/sales", label: "Sales", icon: Receipt, permission: "VIEW_SALES" },
-    { href: "/customers", label: "Customers", icon: Users, permission: "VIEW_CUSTOMERS" },
-    { href: "/controlled-substances", label: "Controlled Substances", icon: Pill, permission: "VIEW_CONTROLLED_SUBSTANCES" },
-    { href: "/prescriptions", label: "Prescriptions", icon: FileText, permission: "VIEW_PRESCRIPTIONS" },
-    { href: "/prescribers", label: "Prescribers", icon: Users, permission: "VIEW_PRESCRIPTIONS" },
     { href: "/reports", label: "Reports", icon: BarChart3, permission: "VIEW_REPORTS" },
+  ];
+
+  // Inventory dropdown links
+  const inventoryLinks = [
+    { href: "/inventory", label: "Medicine List", icon: Package, permission: "VIEW_INVENTORY" },
+    { href: "/controlled-substances", label: "Controlled Substances", icon: Pill, permission: "VIEW_CONTROLLED_SUBSTANCES" },
+  ];
+
+  // Customers dropdown links
+  const customersLinks = [
+    { href: "/customers", label: "Customer List", icon: Users, permission: "VIEW_CUSTOMERS" },
+    { href: "/prescriptions", label: "Prescriptions", icon: FileText, permission: "VIEW_PRESCRIPTIONS" },
+    { href: "/prescribers", label: "Prescribers", icon: Stethoscope, permission: "VIEW_PRESCRIPTIONS" },
+  ];
+
+  // Settings dropdown links
+  const settingsLinks = [
     { href: "/audit-logs", label: "Audit Trail", icon: Shield, permission: "VIEW_AUDIT_LOGS" },
     { href: "/users", label: "Users", icon: UserCog, permission: "VIEW_USERS" },
     { href: "/branches", label: "Branches", icon: Building2, permission: "VIEW_BRANCHES" },
@@ -91,10 +115,27 @@ export function Sidebar() {
     { href: "/accounting/mappings", label: "Account Mappings", icon: Settings },
   ];
 
-  // Filter nav links based on permissions
-  const navLinks = allNavLinks.filter((link) =>
+  // Filter simple nav links based on permissions
+  const navLinks = simpleNavLinks.filter((link) =>
     hasPermission(userRole, link.permission as Parameters<typeof hasPermission>[1])
   );
+
+  // Check permissions for dropdowns
+  const canViewInventory = hasPermission(userRole, "VIEW_INVENTORY");
+  const canViewControlled = hasPermission(userRole, "VIEW_CONTROLLED_SUBSTANCES");
+  const showInventoryDropdown = canViewInventory || canViewControlled;
+  const isInventoryActive = pathname === "/inventory" || pathname.startsWith("/inventory/") || pathname === "/controlled-substances";
+
+  const canViewCustomers = hasPermission(userRole, "VIEW_CUSTOMERS");
+  const canViewPrescriptions = hasPermission(userRole, "VIEW_PRESCRIPTIONS");
+  const showCustomersDropdown = canViewCustomers || canViewPrescriptions;
+  const isCustomersActive = pathname === "/customers" || pathname.startsWith("/prescriptions") || pathname === "/prescribers";
+
+  const canViewAuditLogs = hasPermission(userRole, "VIEW_AUDIT_LOGS");
+  const canViewUsers = hasPermission(userRole, "VIEW_USERS");
+  const canViewBranches = hasPermission(userRole, "VIEW_BRANCHES");
+  const showSettingsDropdown = canViewAuditLogs || canViewUsers || canViewBranches;
+  const isSettingsActive = pathname === "/audit-logs" || pathname === "/users" || pathname === "/branches";
 
   const canViewProcurement = hasPermission(userRole, "VIEW_PURCHASE_ORDERS");
   const isProcurementActive = pathname.startsWith("/procurement");
@@ -216,7 +257,8 @@ export function Sidebar() {
 
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto p-4 space-y-1">
-        {navLinks.map((link) => {
+        {/* Simple nav links (Dashboard, POS, Sales) */}
+        {navLinks.slice(0, 2).map((link) => {
           const Icon = link.icon;
           const isActive = pathname === link.href;
           return (
@@ -234,6 +276,128 @@ export function Sidebar() {
             </Link>
           );
         })}
+
+        {/* Inventory Dropdown */}
+        {showInventoryDropdown && (
+          <div>
+            <button
+              onClick={() => setInventoryOpen(!inventoryOpen)}
+              className={`w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg font-medium transition-colors ${
+                isInventoryActive
+                  ? "bg-emerald-100 text-emerald-700"
+                  : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <Package className="w-5 h-5" />
+                Inventory
+              </div>
+              <ChevronRight
+                className={`w-4 h-4 transition-transform ${inventoryOpen ? "rotate-90" : ""}`}
+              />
+            </button>
+            {inventoryOpen && (
+              <div className="ml-4 mt-1 space-y-1 border-l-2 border-gray-200 pl-4">
+                {inventoryLinks.map((link) => {
+                  const Icon = link.icon;
+                  const isActive = pathname === link.href || pathname.startsWith(link.href + "/");
+                  const canView = hasPermission(userRole, link.permission as Parameters<typeof hasPermission>[1]);
+                  if (!canView) return null;
+                  return (
+                    <Link
+                      key={link.href}
+                      href={link.href}
+                      className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        isActive
+                          ? "bg-emerald-50 text-emerald-700"
+                          : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                      }`}
+                    >
+                      <Icon className="w-4 h-4" />
+                      {link.label}
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Sales link */}
+        {navLinks.find(l => l.href === "/sales") && (
+          <Link
+            href="/sales"
+            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium transition-colors ${
+              pathname === "/sales" || pathname.startsWith("/sales/")
+                ? "bg-emerald-100 text-emerald-700"
+                : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+            }`}
+          >
+            <Receipt className="w-5 h-5" />
+            Sales
+          </Link>
+        )}
+
+        {/* Customers Dropdown */}
+        {showCustomersDropdown && (
+          <div>
+            <button
+              onClick={() => setCustomersOpen(!customersOpen)}
+              className={`w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg font-medium transition-colors ${
+                isCustomersActive
+                  ? "bg-emerald-100 text-emerald-700"
+                  : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <Users className="w-5 h-5" />
+                Customers
+              </div>
+              <ChevronRight
+                className={`w-4 h-4 transition-transform ${customersOpen ? "rotate-90" : ""}`}
+              />
+            </button>
+            {customersOpen && (
+              <div className="ml-4 mt-1 space-y-1 border-l-2 border-gray-200 pl-4">
+                {customersLinks.map((link) => {
+                  const Icon = link.icon;
+                  const isActive = pathname === link.href || pathname.startsWith(link.href + "/");
+                  const canView = hasPermission(userRole, link.permission as Parameters<typeof hasPermission>[1]);
+                  if (!canView) return null;
+                  return (
+                    <Link
+                      key={link.href}
+                      href={link.href}
+                      className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        isActive
+                          ? "bg-emerald-50 text-emerald-700"
+                          : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                      }`}
+                    >
+                      <Icon className="w-4 h-4" />
+                      {link.label}
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Reports link */}
+        {navLinks.find(l => l.href === "/reports") && (
+          <Link
+            href="/reports"
+            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium transition-colors ${
+              pathname === "/reports"
+                ? "bg-emerald-100 text-emerald-700"
+                : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+            }`}
+          >
+            <BarChart3 className="w-5 h-5" />
+            Reports
+          </Link>
+        )}
 
         {/* Procurement Dropdown */}
         {canViewProcurement && (
@@ -303,6 +467,52 @@ export function Sidebar() {
                 {accountingLinks.map((link) => {
                   const Icon = link.icon;
                   const isActive = pathname === link.href;
+                  return (
+                    <Link
+                      key={link.href}
+                      href={link.href}
+                      className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        isActive
+                          ? "bg-emerald-50 text-emerald-700"
+                          : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                      }`}
+                    >
+                      <Icon className="w-4 h-4" />
+                      {link.label}
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Settings Dropdown (Audit Trail, Users, Branches) */}
+        {showSettingsDropdown && (
+          <div>
+            <button
+              onClick={() => setSettingsOpen(!settingsOpen)}
+              className={`w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg font-medium transition-colors ${
+                isSettingsActive
+                  ? "bg-emerald-100 text-emerald-700"
+                  : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <Settings className="w-5 h-5" />
+                Settings
+              </div>
+              <ChevronRight
+                className={`w-4 h-4 transition-transform ${settingsOpen ? "rotate-90" : ""}`}
+              />
+            </button>
+            {settingsOpen && (
+              <div className="ml-4 mt-1 space-y-1 border-l-2 border-gray-200 pl-4">
+                {settingsLinks.map((link) => {
+                  const Icon = link.icon;
+                  const isActive = pathname === link.href;
+                  const canView = hasPermission(userRole, link.permission as Parameters<typeof hasPermission>[1]);
+                  if (!canView) return null;
                   return (
                     <Link
                       key={link.href}
