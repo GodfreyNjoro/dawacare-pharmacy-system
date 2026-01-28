@@ -71,7 +71,11 @@ export function Sidebar() {
     { href: "/inventory", label: "Inventory", icon: Package, permission: "VIEW_INVENTORY" },
     { href: "/sales", label: "Sales", icon: Receipt, permission: "VIEW_SALES" },
     { href: "/customers", label: "Customers", icon: Users, permission: "VIEW_CUSTOMERS" },
+    { href: "/controlled-substances", label: "Controlled Substances", icon: Pill, permission: "VIEW_CONTROLLED_SUBSTANCES" },
+    { href: "/prescriptions", label: "Prescriptions", icon: FileText, permission: "VIEW_PRESCRIPTIONS" },
+    { href: "/prescribers", label: "Prescribers", icon: Users, permission: "VIEW_PRESCRIPTIONS" },
     { href: "/reports", label: "Reports", icon: BarChart3, permission: "VIEW_REPORTS" },
+    { href: "/audit-logs", label: "Audit Trail", icon: Shield, permission: "VIEW_AUDIT_LOGS" },
     { href: "/users", label: "Users", icon: UserCog, permission: "VIEW_USERS" },
     { href: "/branches", label: "Branches", icon: Building2, permission: "VIEW_BRANCHES" },
   ];
