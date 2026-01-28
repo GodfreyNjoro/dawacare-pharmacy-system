@@ -60,6 +60,11 @@ export const PERMISSIONS = {
   CREATE_PRESCRIPTIONS: ["ADMIN", "PHARMACIST"],
   DISPENSE_PRESCRIPTIONS: ["ADMIN", "PHARMACIST"],
   MANAGE_PRESCRIBERS: ["ADMIN", "PHARMACIST"],
+  
+  // Controlled Substances (Kenya Poisons Act)
+  VIEW_CONTROLLED_SUBSTANCES: ["ADMIN", "PHARMACIST"],
+  RECORD_CONTROLLED_ENTRY: ["ADMIN", "PHARMACIST"],
+  VERIFY_CONTROLLED_ENTRY: ["ADMIN", "PHARMACIST"],
 } as const;
 
 export function hasPermission(role: string | undefined, permission: keyof typeof PERMISSIONS): boolean {

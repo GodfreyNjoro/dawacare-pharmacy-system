@@ -63,17 +63,25 @@ model Medicine {
   reorderLevel  Int       @default(10)
   unitPrice     Float
   category      String
+  
+  // Controlled Substance Classification (Kenya Poisons Act)
+  isControlled  Boolean   @default(false)
+  scheduleClass String?   // SCHEDULE_I, SCHEDULE_II, SCHEDULE_III, SCHEDULE_IV, SCHEDULE_V, PSYCHOTROPIC
+  
   branchId      String?
   branch        Branch?   @relation(fields: [branchId], references: [id])
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   saleItems     SaleItem[]
+  controlledRegister ControlledSubstanceRegister[]
 
   @@index([name])
   @@index([category])
   @@index([batchNumber])
   @@index([expiryDate])
   @@index([branchId])
+  @@index([isControlled])
+  @@index([scheduleClass])
 }
 
 // Customer Management
@@ -552,4 +560,91 @@ model AuditLog {
   @@index([createdAt])
   @@index([branchId])
   @@index([severity])
+}
+
+// Controlled Substances Register - Kenya Poisons Act Compliance
+// Required for Schedule I-V drugs and psychotropic substances
+model ControlledSubstanceRegister {
+  id              String    @id @default(cuid())
+  
+  // Register Entry Number (sequential per branch per year)
+  entryNumber     String    @unique  // Format: CSR-BRANCHCODE-YYYY-XXXXX
+  
+  // Medicine Details (stored at time of entry for historical accuracy)
+  medicineId      String
+  medicine        Medicine  @relation(fields: [medicineId], references: [id])
+  medicineName    String    // Store name at time of entry
+  genericName     String?
+  batchNumber     String
+  scheduleClass   String    // SCHEDULE_I, SCHEDULE_II, SCHEDULE_III, etc.
+  
+  // Transaction Type
+  transactionType String    // RECEIPT, SALE, TRANSFER_IN, TRANSFER_OUT, ADJUSTMENT, DESTRUCTION, RETURN
+  
+  // Quantity Movement
+  quantityIn      Int       @default(0)  // Quantity received/returned
+  quantityOut     Int       @default(0)  // Quantity dispensed/transferred/destroyed
+  balanceBefore   Int                     // Balance before this transaction
+  balanceAfter    Int                     // Balance after this transaction
+  
+  // Source/Destination Details
+  referenceType   String?   // GRN, SALE, TRANSFER, MANUAL
+  referenceId     String?   // ID of GRN, Sale, Transfer, etc.
+  referenceNumber String?   // GRN number, Invoice number, Transfer number
+  
+  // For Sales - Patient/Customer Info (Kenya PPB requires this)
+  patientName     String?
+  patientId       String?   // National ID or Passport
+  patientAddress  String?
+  prescriptionId  String?   // Link to prescription
+  prescriptionNumber String?
+  prescriberName  String?
+  prescriberRegNo String?   // Prescriber's registration number
+  
+  // For Receipts - Supplier Info
+  supplierName    String?
+  supplierLicense String?   // Supplier's PPB license number
+  
+  // For Destruction - Witness Info (required by Kenya PPB)
+  witnessName     String?
+  witnessRole     String?   // e.g., "PPB Inspector", "Police Officer"
+  witnessSignature String?  // Could store path to signature image
+  destructionMethod String? // INCINERATION, CHEMICAL, etc.
+  destructionCertificate String? // Certificate number
+  
+  // User who recorded the entry
+  recordedBy      String    // User ID
+  recordedByName  String    // User name at time of entry
+  recordedByRole  String    // User role (must be PHARMACIST or ADMIN)
+  
+  // Verification (double-entry for controlled substances)
+  verifiedBy      String?   // Second pharmacist verification
+  verifiedByName  String?
+  verifiedAt      DateTime?
+  
+  // Notes and attachments
+  notes           String?
+  attachmentPath  String?   // Path to supporting document
+  
+  // Branch tracking
+  branchId        String?
+  branchName      String?
+  
+  // Timestamps
+  transactionDate DateTime  @default(now()) // Actual date of transaction
+  createdAt       DateTime  @default(now()) // Record creation time
+  updatedAt       DateTime  @updatedAt
+  
+  @@index([entryNumber])
+  @@index([medicineId])
+  @@index([scheduleClass])
+  @@index([transactionType])
+  @@index([referenceType])
+  @@index([referenceId])
+  @@index([patientName])
+  @@index([prescriptionId])
+  @@index([branchId])
+  @@index([transactionDate])
+  @@index([createdAt])
+  @@index([recordedBy])
 }

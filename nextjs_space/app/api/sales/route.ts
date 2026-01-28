@@ -364,6 +364,70 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Auto-log controlled substance sales to register
+    try {
+      for (const item of saleItems) {
+        const medicine = await prisma.medicine.findUnique({
+          where: { id: item.medicineId },
+          include: { branch: true }
+        });
+        
+        if (medicine?.isControlled) {
+          // Get current balance for this medicine
+          const lastEntry = await prisma.controlledSubstanceRegister.findFirst({
+            where: { medicineId: medicine.id },
+            orderBy: { createdAt: 'desc' }
+          });
+          
+          const balanceBefore = lastEntry?.balanceAfter ?? (medicine.quantity + item.quantity);
+          const balanceAfter = balanceBefore - item.quantity;
+          
+          // Generate entry number
+          const year = new Date().getFullYear();
+          const branchCode = medicine.branch?.code || 'MAIN';
+          const prefix = `CSR-${branchCode}-${year}-`;
+          const lastRegEntry = await prisma.controlledSubstanceRegister.findFirst({
+            where: { entryNumber: { startsWith: prefix } },
+            orderBy: { entryNumber: 'desc' }
+          });
+          let nextNumber = 1;
+          if (lastRegEntry) {
+            const lastNum = parseInt(lastRegEntry.entryNumber.split('-').pop() || '0');
+            nextNumber = lastNum + 1;
+          }
+          const entryNumber = `${prefix}${nextNumber.toString().padStart(5, '0')}`;
+          
+          await prisma.controlledSubstanceRegister.create({
+            data: {
+              entryNumber,
+              medicineId: medicine.id,
+              medicineName: medicine.name,
+              genericName: medicine.genericName,
+              batchNumber: medicine.batchNumber,
+              scheduleClass: medicine.scheduleClass || 'SCHEDULE_II',
+              transactionType: 'SALE',
+              quantityIn: 0,
+              quantityOut: item.quantity,
+              balanceBefore,
+              balanceAfter,
+              referenceType: 'SALE',
+              referenceId: sale.id,
+              referenceNumber: sale.invoiceNumber,
+              patientName: customer?.name || customerName || null,
+              recordedBy: session.user?.id || '',
+              recordedByName: session.user?.name || 'Unknown',
+              recordedByRole: session.user?.role || 'CASHIER',
+              branchId: medicine.branchId,
+              branchName: medicine.branch?.name,
+            }
+          });
+        }
+      }
+    } catch (csError) {
+      // Log but don't fail the sale
+      console.error('Error creating controlled substance register entry:', csError);
+    }
+
     return NextResponse.json(sale, { status: 201 });
   } catch (error) {
     console.error("Error creating sale:", error);
