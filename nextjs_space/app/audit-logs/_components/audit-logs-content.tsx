@@ -103,9 +103,9 @@ export default function AuditLogsContent() {
   const [stats, setStats] = useState<AuditStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [action, setAction] = useState("");
-  const [entityType, setEntityType] = useState("");
-  const [severity, setSeverity] = useState("");
+  const [action, setAction] = useState("all");
+  const [entityType, setEntityType] = useState("all");
+  const [severity, setSeverity] = useState("all");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [page, setPage] = useState(1);
@@ -121,9 +121,9 @@ export default function AuditLogsContent() {
         limit: "50",
       });
       if (search) params.append("search", search);
-      if (action) params.append("action", action);
-      if (entityType) params.append("entityType", entityType);
-      if (severity) params.append("severity", severity);
+      if (action && action !== "all") params.append("action", action);
+      if (entityType && entityType !== "all") params.append("entityType", entityType);
+      if (severity && severity !== "all") params.append("severity", severity);
       if (startDate) params.append("startDate", startDate);
       if (endDate) params.append("endDate", endDate);
 
@@ -165,9 +165,9 @@ export default function AuditLogsContent() {
     try {
       const params = new URLSearchParams({ limit: "10000" });
       if (search) params.append("search", search);
-      if (action) params.append("action", action);
-      if (entityType) params.append("entityType", entityType);
-      if (severity) params.append("severity", severity);
+      if (action && action !== "all") params.append("action", action);
+      if (entityType && entityType !== "all") params.append("entityType", entityType);
+      if (severity && severity !== "all") params.append("severity", severity);
       if (startDate) params.append("startDate", startDate);
       if (endDate) params.append("endDate", endDate);
 
@@ -310,7 +310,7 @@ export default function AuditLogsContent() {
                 <SelectValue placeholder="All Actions" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Actions</SelectItem>
+                <SelectItem value="all">All Actions</SelectItem>
                 <SelectItem value="CREATE">Create</SelectItem>
                 <SelectItem value="UPDATE">Update</SelectItem>
                 <SelectItem value="DELETE">Delete</SelectItem>
@@ -325,7 +325,7 @@ export default function AuditLogsContent() {
                 <SelectValue placeholder="All Entities" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Entities</SelectItem>
+                <SelectItem value="all">All Entities</SelectItem>
                 <SelectItem value="MEDICINE">Medicine</SelectItem>
                 <SelectItem value="SALE">Sale</SelectItem>
                 <SelectItem value="USER">User</SelectItem>
@@ -340,7 +340,7 @@ export default function AuditLogsContent() {
                 <SelectValue placeholder="All Severity" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Severity</SelectItem>
+                <SelectItem value="all">All Severity</SelectItem>
                 <SelectItem value="INFO">Info</SelectItem>
                 <SelectItem value="WARNING">Warning</SelectItem>
                 <SelectItem value="CRITICAL">Critical</SelectItem>
