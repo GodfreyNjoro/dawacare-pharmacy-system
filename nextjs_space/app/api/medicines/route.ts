@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth-options";
+import { auditMedicineChange, getAuditUserFromSession } from "@/lib/audit-logger";
 
 export async function GET(request: Request) {
   try {
@@ -146,6 +147,27 @@ export async function POST(request: Request) {
         branchId: targetBranchId || null,
       },
     });
+
+    // Audit log for medicine creation
+    const auditUser = getAuditUserFromSession(session);
+    if (auditUser) {
+      await auditMedicineChange(
+        auditUser,
+        'CREATE',
+        medicine.id,
+        medicine.name,
+        undefined,
+        {
+          name: medicine.name,
+          batchNumber: medicine.batchNumber,
+          quantity: medicine.quantity,
+          unitPrice: medicine.unitPrice,
+          category: medicine.category,
+          expiryDate: medicine.expiryDate,
+        },
+        `Added new medicine: ${medicine.name} (Batch: ${medicine.batchNumber}, Qty: ${medicine.quantity})`
+      );
+    }
 
     return NextResponse.json(medicine, { status: 201 });
   } catch (error) {

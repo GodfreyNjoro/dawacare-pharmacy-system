@@ -71,6 +71,7 @@ export function Navbar() {
     { href: "/sales", label: "Sales", icon: Receipt, permission: "VIEW_SALES" },
     { href: "/customers", label: "Customers", icon: Users, permission: "VIEW_CUSTOMERS" },
     { href: "/reports", label: "Reports", icon: BarChart3, permission: "VIEW_REPORTS" },
+    { href: "/audit-logs", label: "Audit Trail", icon: Shield, permission: "VIEW_AUDIT_LOGS" },
     { href: "/users", label: "Users", icon: UserCog, permission: "VIEW_USERS" },
     { href: "/branches", label: "Branches", icon: Building2, permission: "VIEW_BRANCHES" },
   ];

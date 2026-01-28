@@ -347,3 +347,46 @@ model ExportHistory {
   @@index([createdAt])
   @@index([branchId])
 }
+
+// Audit Trail - ALCOA+ Compliance (Kenya PPB & WHO GDP)
+model AuditLog {
+  id              String    @id @default(cuid())
+  
+  // WHO made the change (Attributable)
+  userId          String
+  userName        String    // Store name at time of action
+  userEmail       String    // Store email at time of action
+  userRole        String    // Store role at time of action
+  
+  // WHAT was changed
+  action          String    // CREATE, UPDATE, DELETE, VIEW, LOGIN, LOGOUT, EXPORT
+  entityType      String    // MEDICINE, SALE, USER, PURCHASE_ORDER, GRN, SUPPLIER, CUSTOMER, etc.
+  entityId        String?   // ID of the affected record
+  entityName      String?   // Human-readable identifier (e.g., medicine name, invoice number)
+  
+  // BEFORE and AFTER values (for updates)
+  previousValues  String?   // JSON stringified previous state
+  newValues       String?   // JSON stringified new state
+  changedFields   String?   // JSON array of field names that changed
+  
+  // Context
+  ipAddress       String?   // Client IP address
+  userAgent       String?   // Browser/device info
+  branchId        String?   // Branch where action occurred
+  branchName      String?   // Branch name at time of action
+  
+  // Additional metadata
+  description     String?   // Human-readable description of the action
+  severity        String    @default("INFO") // INFO, WARNING, CRITICAL
+  
+  // Timestamp (Contemporaneous)
+  createdAt       DateTime  @default(now())
+  
+  @@index([userId])
+  @@index([action])
+  @@index([entityType])
+  @@index([entityId])
+  @@index([createdAt])
+  @@index([branchId])
+  @@index([severity])
+}

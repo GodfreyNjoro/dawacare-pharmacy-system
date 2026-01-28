@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth-options";
 import { prisma } from "@/lib/db";
 import { Prisma } from "@prisma/client";
+import { auditSale, getAuditUserFromSession } from "@/lib/audit-logger";
 
 // Generate unique invoice number
 function generateInvoiceNumber(): string {
@@ -342,6 +343,26 @@ export async function POST(request: NextRequest) {
 
       return newSale;
     });
+
+    // Audit log for sale creation
+    const auditUser = getAuditUserFromSession(session);
+    if (auditUser) {
+      await auditSale(
+        auditUser,
+        'CREATE',
+        sale.id,
+        sale.invoiceNumber,
+        {
+          invoiceNumber: sale.invoiceNumber,
+          total: sale.total,
+          paymentMethod: sale.paymentMethod,
+          itemCount: sale.items.length,
+          customerName: sale.customerName,
+          soldBy: sale.soldBy,
+        },
+        `New sale: ${sale.invoiceNumber} - Total: KES ${sale.total.toFixed(2)} (${sale.paymentMethod})`
+      );
+    }
 
     return NextResponse.json(sale, { status: 201 });
   } catch (error) {

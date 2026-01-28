@@ -51,6 +51,9 @@ export const PERMISSIONS = {
   // Branch Management
   VIEW_BRANCHES: ["ADMIN"],
   MANAGE_BRANCHES: ["ADMIN"],
+  
+  // Audit Trail (Compliance)
+  VIEW_AUDIT_LOGS: ["ADMIN"],
 } as const;
 
 export function hasPermission(role: string | undefined, permission: keyof typeof PERMISSIONS): boolean {

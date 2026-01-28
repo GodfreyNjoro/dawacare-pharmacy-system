@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth-options";
+import { auditMedicineChange, getAuditUserFromSession } from "@/lib/audit-logger";
 
 export async function GET(
   request: Request,
@@ -81,6 +82,15 @@ export async function PUT(
       );
     }
 
+    // Fetch previous values for audit trail
+    const previousMedicine = await prisma.medicine.findUnique({
+      where: { id: params.id },
+    });
+
+    if (!previousMedicine) {
+      return NextResponse.json({ error: "Medicine not found" }, { status: 404 });
+    }
+
     const medicine = await prisma.medicine.update({
       where: { id: params.id },
       data: {
@@ -95,6 +105,45 @@ export async function PUT(
         category,
       },
     });
+
+    // Audit log for medicine update
+    const auditUser = getAuditUserFromSession(session);
+    if (auditUser) {
+      const previousValues = {
+        name: previousMedicine.name,
+        batchNumber: previousMedicine.batchNumber,
+        quantity: previousMedicine.quantity,
+        unitPrice: previousMedicine.unitPrice,
+        category: previousMedicine.category,
+        expiryDate: previousMedicine.expiryDate,
+      };
+      const newValues = {
+        name: medicine.name,
+        batchNumber: medicine.batchNumber,
+        quantity: medicine.quantity,
+        unitPrice: medicine.unitPrice,
+        category: medicine.category,
+        expiryDate: medicine.expiryDate,
+      };
+
+      // Determine if this is a stock adjustment or price change
+      let action: 'UPDATE' | 'STOCK_ADJUSTMENT' | 'PRICE_CHANGE' = 'UPDATE';
+      if (previousMedicine.quantity !== medicine.quantity && previousMedicine.unitPrice === medicine.unitPrice) {
+        action = 'STOCK_ADJUSTMENT';
+      } else if (previousMedicine.unitPrice !== medicine.unitPrice) {
+        action = 'PRICE_CHANGE';
+      }
+
+      await auditMedicineChange(
+        auditUser,
+        action,
+        medicine.id,
+        medicine.name,
+        previousValues,
+        newValues,
+        `Updated medicine: ${medicine.name} (Batch: ${medicine.batchNumber})`
+      );
+    }
 
     return NextResponse.json(medicine);
   } catch (error) {
@@ -116,9 +165,39 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    // Fetch medicine details before deletion for audit trail
+    const medicine = await prisma.medicine.findUnique({
+      where: { id: params.id },
+    });
+
+    if (!medicine) {
+      return NextResponse.json({ error: "Medicine not found" }, { status: 404 });
+    }
+
     await prisma.medicine.delete({
       where: { id: params.id },
     });
+
+    // Audit log for medicine deletion (CRITICAL)
+    const auditUser = getAuditUserFromSession(session);
+    if (auditUser) {
+      await auditMedicineChange(
+        auditUser,
+        'DELETE',
+        medicine.id,
+        medicine.name,
+        {
+          name: medicine.name,
+          batchNumber: medicine.batchNumber,
+          quantity: medicine.quantity,
+          unitPrice: medicine.unitPrice,
+          category: medicine.category,
+          expiryDate: medicine.expiryDate,
+        },
+        undefined,
+        `DELETED medicine: ${medicine.name} (Batch: ${medicine.batchNumber}, Qty: ${medicine.quantity})`
+      );
+    }
 
     return NextResponse.json({ message: "Medicine deleted successfully" });
   } catch (error) {
