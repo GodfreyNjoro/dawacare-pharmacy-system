@@ -29,6 +29,7 @@ model Branch {
   stockTransfersFrom StockTransfer[] @relation("FromBranch")
   stockTransfersTo   StockTransfer[] @relation("ToBranch")
   exportHistory ExportHistory[]
+  prescriptions Prescription[]
 
   @@index([code])
   @@index([status])
@@ -94,6 +95,7 @@ model Customer {
   sales         Sale[]
   loyaltyTransactions LoyaltyTransaction[]
   creditTransactions  CreditTransaction[]
+  prescriptions Prescription[]
 
   @@index([name])
   @@index([phone])
@@ -346,6 +348,167 @@ model ExportHistory {
   @@index([status])
   @@index([createdAt])
   @@index([branchId])
+}
+
+// Prescription Module - Kenya PPB Compliance
+model Prescriber {
+  id                String    @id @default(cuid())
+  name              String
+  registrationNumber String   @unique  // Medical/dental/nursing council registration
+  councilType       String    // KMPDC (doctors), NCK (nurses), KPHC (pharmacists), etc.
+  specialization    String?
+  facility          String?   // Hospital/clinic name
+  facilityAddress   String?
+  phone             String?
+  email             String?
+  status            String    @default("ACTIVE") // ACTIVE, INACTIVE, SUSPENDED
+  verifiedAt        DateTime?
+  verifiedBy        String?
+  notes             String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  prescriptions     Prescription[]
+
+  @@index([registrationNumber])
+  @@index([councilType])
+  @@index([status])
+  @@index([name])
+}
+
+model Prescription {
+  id                String    @id @default(cuid())
+  prescriptionNumber String   @unique  // RX-YYYYMMDD-XXXX format
+  
+  // Prescriber Info
+  prescriberId      String
+  prescriber        Prescriber @relation(fields: [prescriberId], references: [id])
+  
+  // Patient Info (link to Customer as patient)
+  customerId        String?
+  customer          Customer? @relation(fields: [customerId], references: [id])
+  patientName       String    // Store even if walk-in
+  patientPhone      String?
+  patientAge        Int?
+  patientGender     String?   // MALE, FEMALE, OTHER
+  patientAddress    String?
+  
+  // Prescription Details
+  diagnosis         String?   // ICD-10 code or description
+  status            String    @default("PENDING") // PENDING, PARTIAL, DISPENSED, EXPIRED, CANCELLED
+  priority          String    @default("NORMAL") // NORMAL, URGENT, STAT
+  
+  // Validity
+  issueDate         DateTime  @default(now())
+  expiryDate        DateTime  // Typically 30 days for regular, 7 days for controlled
+  
+  // Refills (for chronic conditions)
+  refillsAllowed    Int       @default(0)
+  refillsUsed       Int       @default(0)
+  
+  // Notes
+  prescriptionNotes String?   // Instructions from prescriber
+  pharmacistNotes   String?   // Notes from dispensing pharmacist
+  
+  // Tracking
+  receivedBy        String?   // Staff who received the prescription
+  branchId          String?
+  branch            Branch?   @relation(fields: [branchId], references: [id])
+  
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  
+  items             PrescriptionItem[]
+  dispensings       PrescriptionDispensing[]
+
+  @@index([prescriptionNumber])
+  @@index([prescriberId])
+  @@index([customerId])
+  @@index([patientName])
+  @@index([status])
+  @@index([issueDate])
+  @@index([expiryDate])
+  @@index([branchId])
+}
+
+model PrescriptionItem {
+  id                String    @id @default(cuid())
+  prescriptionId    String
+  prescription      Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+  
+  // Medicine Info
+  medicineName      String
+  genericName       String?
+  strength          String?   // e.g., "500mg", "250mg/5ml"
+  dosageForm        String?   // TABLET, CAPSULE, SYRUP, INJECTION, etc.
+  
+  // Quantity and Dosage
+  quantityPrescribed Int
+  quantityDispensed Int       @default(0)
+  dosage            String    // e.g., "1 tablet", "5ml"
+  frequency         String    // e.g., "TDS", "BD", "OD", "PRN"
+  duration          String?   // e.g., "7 days", "2 weeks"
+  route             String?   // ORAL, IV, IM, TOPICAL, etc.
+  
+  // Additional Instructions
+  instructions      String?   // Special instructions (e.g., "Take with food")
+  substitutionAllowed Boolean @default(true) // Can generic be substituted?
+  
+  // Controlled Substance Flag
+  isControlled      Boolean   @default(false) // For Poisons Act compliance
+  scheduleClass     String?   // Schedule I, II, III, etc. (Kenya Poisons Act)
+  
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  dispensings       PrescriptionItemDispensing[]
+
+  @@index([prescriptionId])
+  @@index([medicineName])
+  @@index([isControlled])
+}
+
+// Track each dispensing event (supports partial dispensing)
+model PrescriptionDispensing {
+  id                String    @id @default(cuid())
+  prescriptionId    String
+  prescription      Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+  saleId            String?   // Link to sale transaction
+  
+  dispensedBy       String    // Pharmacist who dispensed
+  dispensedByName   String    // Store name at time of dispensing
+  verifiedBy        String?   // Second pharmacist verification (if required)
+  
+  dispensingNotes   String?
+  counselingProvided Boolean  @default(false) // Patient counseling documented
+  
+  createdAt         DateTime  @default(now())
+  items             PrescriptionItemDispensing[]
+
+  @@index([prescriptionId])
+  @@index([saleId])
+  @@index([dispensedBy])
+  @@index([createdAt])
+}
+
+model PrescriptionItemDispensing {
+  id                String    @id @default(cuid())
+  dispensingId      String
+  dispensing        PrescriptionDispensing @relation(fields: [dispensingId], references: [id], onDelete: Cascade)
+  prescriptionItemId String
+  prescriptionItem  PrescriptionItem @relation(fields: [prescriptionItemId], references: [id], onDelete: Cascade)
+  
+  medicineId        String?   // Actual medicine dispensed from inventory
+  medicineName      String    // Name of actual medicine dispensed
+  batchNumber       String
+  quantityDispensed Int
+  unitPrice         Float
+  
+  isSubstitution    Boolean   @default(false) // Was generic substituted?
+  
+  createdAt         DateTime  @default(now())
+
+  @@index([dispensingId])
+  @@index([prescriptionItemId])
+  @@index([medicineId])
 }
 
 // Audit Trail - ALCOA+ Compliance (Kenya PPB & WHO GDP)

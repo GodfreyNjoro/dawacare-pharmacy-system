@@ -40,7 +40,10 @@ export type AuditEntityType =
   | 'STOCK_TRANSFER'
   | 'SETTINGS'
   | 'EXPORT'
-  | 'SESSION';
+  | 'SESSION'
+  | 'PRESCRIBER'
+  | 'PRESCRIPTION'
+  | 'PRESCRIPTION_DISPENSING';
 
 export type AuditSeverity = 'INFO' | 'WARNING' | 'CRITICAL';
 

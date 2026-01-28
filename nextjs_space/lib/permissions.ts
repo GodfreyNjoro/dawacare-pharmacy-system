@@ -54,6 +54,12 @@ export const PERMISSIONS = {
   
   // Audit Trail (Compliance)
   VIEW_AUDIT_LOGS: ["ADMIN"],
+  
+  // Prescriptions (Kenya PPB Compliance)
+  VIEW_PRESCRIPTIONS: ["ADMIN", "PHARMACIST"],
+  CREATE_PRESCRIPTIONS: ["ADMIN", "PHARMACIST"],
+  DISPENSE_PRESCRIPTIONS: ["ADMIN", "PHARMACIST"],
+  MANAGE_PRESCRIBERS: ["ADMIN", "PHARMACIST"],
 } as const;
 
 export function hasPermission(role: string | undefined, permission: keyof typeof PERMISSIONS): boolean {

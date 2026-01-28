@@ -20,6 +20,9 @@ import {
   UserCog,
   Shield,
   Globe,
+  ClipboardList,
+  Stethoscope,
+  FileCheck,
 } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { hasPermission } from "@/lib/permissions";
@@ -29,8 +32,10 @@ import { useBranch } from "@/lib/branch-context";
 export function Navbar() {
   const [mounted, setMounted] = useState(false);
   const [procurementOpen, setProcurementOpen] = useState(false);
+  const [prescriptionsOpen, setPrescriptionsOpen] = useState(false);
   const [branchDropdownOpen, setBranchDropdownOpen] = useState(false);
   const procurementRef = useRef<HTMLDivElement>(null);
+  const prescriptionsRef = useRef<HTMLDivElement>(null);
   const branchRef = useRef<HTMLDivElement>(null);
   const sessionData = useSession();
   const session = sessionData?.data;
@@ -54,6 +59,9 @@ export function Navbar() {
     function handleClickOutside(event: MouseEvent) {
       if (procurementRef.current && !procurementRef.current.contains(event.target as Node)) {
         setProcurementOpen(false);
+      }
+      if (prescriptionsRef.current && !prescriptionsRef.current.contains(event.target as Node)) {
+        setPrescriptionsOpen(false);
       }
       if (branchRef.current && !branchRef.current.contains(event.target as Node)) {
         setBranchDropdownOpen(false);
@@ -82,13 +90,21 @@ export function Navbar() {
     { href: "/procurement/grn", label: "Goods Received", icon: ClipboardCheck },
   ];
 
+  const prescriptionLinks = [
+    { href: "/prescriptions", label: "All Prescriptions", icon: ClipboardList },
+    { href: "/prescriptions/new", label: "New Prescription", icon: FileCheck },
+    { href: "/prescribers", label: "Prescribers", icon: Stethoscope },
+  ];
+
   // Filter nav links based on permissions
   const navLinks = allNavLinks.filter(link => 
     hasPermission(userRole, link.permission as Parameters<typeof hasPermission>[1])
   );
 
   const canViewProcurement = hasPermission(userRole, "VIEW_PURCHASE_ORDERS");
+  const canViewPrescriptions = hasPermission(userRole, "VIEW_PRESCRIPTIONS");
   const isProcurementActive = pathname.startsWith("/procurement");
+  const isPrescriptionsActive = pathname.startsWith("/prescription") || pathname.startsWith("/prescriber");
   const isUsersActive = pathname === "/users";
 
   const getRoleBadgeColor = (role: string | undefined) => {
@@ -165,6 +181,47 @@ export function Navbar() {
                             key={link.href}
                             href={link.href}
                             onClick={() => setProcurementOpen(false)}
+                            className={`flex items-center gap-2 px-4 py-2 transition-colors ${
+                              isActive
+                                ? "bg-emerald-50 text-emerald-700"
+                                : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                            }`}
+                          >
+                            <Icon className="w-4 h-4" />
+                            {link.label}
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Prescriptions Dropdown - Kenya PPB Compliance */}
+              {canViewPrescriptions && (
+                <div className="relative" ref={prescriptionsRef}>
+                  <button
+                    onClick={() => setPrescriptionsOpen(!prescriptionsOpen)}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+                      isPrescriptionsActive
+                        ? "bg-emerald-100 text-emerald-700"
+                        : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+                    }`}
+                  >
+                    <ClipboardList className="w-4 h-4" />
+                    Prescriptions
+                    <ChevronDown className={`w-4 h-4 transition-transform ${prescriptionsOpen ? "rotate-180" : ""}`} />
+                  </button>
+                  {prescriptionsOpen && (
+                    <div className="absolute top-full left-0 mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
+                      {prescriptionLinks.map((link) => {
+                        const Icon = link.icon;
+                        const isActive = pathname === link.href;
+                        return (
+                          <Link
+                            key={link.href}
+                            href={link.href}
+                            onClick={() => setPrescriptionsOpen(false)}
                             className={`flex items-center gap-2 px-4 py-2 transition-colors ${
                               isActive
                                 ? "bg-emerald-50 text-emerald-700"
