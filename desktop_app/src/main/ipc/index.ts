@@ -14,6 +14,7 @@ import { registerUsersHandlers } from './users-handlers';
 import { registerBranchesHandlers } from './branches-handlers';
 import { registerReportsHandlers } from './reports-handlers';
 import { registerAIHandlers } from './ai-handlers';
+import { registerControlledSubstancesHandlers } from './controlled-substances-handlers';
 
 export function registerAllIpcHandlers(): void {
   console.log('[IPC] Registering all IPC handlers...');
@@ -34,6 +35,7 @@ export function registerAllIpcHandlers(): void {
   registerBranchesHandlers();
   registerReportsHandlers();
   registerAIHandlers();
+  registerControlledSubstancesHandlers();
 
   console.log('[IPC] All IPC handlers registered successfully');
 }

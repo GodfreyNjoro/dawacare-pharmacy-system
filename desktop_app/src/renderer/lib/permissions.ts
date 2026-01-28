@@ -18,6 +18,10 @@ export const PERMISSIONS = {
   EDIT_MEDICINE: ['ADMIN', 'PHARMACIST'],
   DELETE_MEDICINE: ['ADMIN'],
   
+  // Controlled Substances (Kenya Poisons Act)
+  VIEW_CONTROLLED_SUBSTANCES: ['ADMIN', 'PHARMACIST'],
+  MANAGE_CONTROLLED_SUBSTANCES: ['ADMIN', 'PHARMACIST'],
+  
   // POS
   USE_POS: ['ADMIN', 'PHARMACIST', 'CASHIER'],
   
@@ -87,6 +91,7 @@ export const NAV_ITEMS: NavItem[] = [
   { path: '/dashboard', label: 'Dashboard', permission: 'VIEW_DASHBOARD' },
   { path: '/pos', label: 'POS', permission: 'USE_POS' },
   { path: '/inventory', label: 'Inventory', permission: 'VIEW_INVENTORY' },
+  { path: '/controlled-substances', label: 'Controlled', permission: 'VIEW_CONTROLLED_SUBSTANCES' },
   { path: '/sales', label: 'Sales', permission: 'VIEW_SALES' },
   { path: '/customers', label: 'Customers', permission: 'VIEW_CUSTOMERS' },
 ];

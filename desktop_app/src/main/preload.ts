@@ -92,6 +92,13 @@ const IPC_CHANNELS = {
   REPORT_STOCK: 'getStockReport',
   REPORT_TOP_SELLERS: 'getTopSellersReport',
   EXPORT_ACCOUNTING: 'exportAccountingData',
+  // Controlled Substances
+  CONTROLLED_GET_DASHBOARD: 'controlled:get-dashboard',
+  CONTROLLED_GET_REGISTER: 'controlled:get-register',
+  CONTROLLED_GET_MEDICINES: 'controlled:get-medicines',
+  CONTROLLED_CREATE_ENTRY: 'controlled:create-entry',
+  CONTROLLED_VERIFY_ENTRY: 'controlled:verify-entry',
+  CONTROLLED_UPDATE_MEDICINE: 'controlled:update-medicine',
 } as const;
 
 // Type definitions inlined
@@ -253,6 +260,29 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // AI Pharmacist Chat
   chatWithAI: (messages: Array<{ role: string; content: string }>) =>
     ipcRenderer.invoke('ai:chat', messages),
+
+  // Controlled Substances APIs
+  getControlledDashboard: () => ipcRenderer.invoke(IPC_CHANNELS.CONTROLLED_GET_DASHBOARD),
+  getControlledRegister: (options?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    scheduleClass?: string;
+    transactionType?: string;
+    startDate?: string;
+    endDate?: string;
+  }) => ipcRenderer.invoke(IPC_CHANNELS.CONTROLLED_GET_REGISTER, options),
+  getControlledMedicines: (options?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    scheduleClass?: string;
+  }) => ipcRenderer.invoke(IPC_CHANNELS.CONTROLLED_GET_MEDICINES, options),
+  createControlledEntry: (data: any) => ipcRenderer.invoke(IPC_CHANNELS.CONTROLLED_CREATE_ENTRY, data),
+  verifyControlledEntry: (data: { entryId: string; verifiedBy: string; verifiedByName: string }) =>
+    ipcRenderer.invoke(IPC_CHANNELS.CONTROLLED_VERIFY_ENTRY, data),
+  updateMedicineControlled: (data: { medicineId: string; isControlled: boolean; scheduleClass?: string }) =>
+    ipcRenderer.invoke(IPC_CHANNELS.CONTROLLED_UPDATE_MEDICINE, data),
 });
 
 // Type definitions for TypeScript
@@ -379,6 +409,27 @@ export interface ElectronAPI {
 
   // AI Pharmacist Chat
   chatWithAI: (messages: Array<{ role: string; content: string }>) => Promise<{ success: boolean; message?: string; error?: string }>;
+
+  // Controlled Substances
+  getControlledDashboard: () => Promise<any>;
+  getControlledRegister: (options?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    scheduleClass?: string;
+    transactionType?: string;
+    startDate?: string;
+    endDate?: string;
+  }) => Promise<any>;
+  getControlledMedicines: (options?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    scheduleClass?: string;
+  }) => Promise<any>;
+  createControlledEntry: (data: any) => Promise<any>;
+  verifyControlledEntry: (data: { entryId: string; verifiedBy: string; verifiedByName: string }) => Promise<any>;
+  updateMedicineControlled: (data: { medicineId: string; isControlled: boolean; scheduleClass?: string }) => Promise<any>;
 }
 
 declare global {

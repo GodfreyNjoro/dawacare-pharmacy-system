@@ -19,6 +19,7 @@ import Users from './pages/Users';
 import Branches from './pages/Branches';
 import Reports from './pages/Reports';
 import Settings from './pages/Settings';
+import ControlledSubstances from './pages/ControlledSubstances';
 import UpdateNotification from './components/UpdateNotification';
 import AIPharmacistChat from './components/AIPharmacistChat';
 import { AuthProvider, useAuth } from './lib/auth-context';
@@ -116,6 +117,11 @@ function AppContent() {
       } />
       <Route path="/inventory/edit/:id" element={
         <ProtectedRoute element={<MedicineForm />} permission="EDIT_MEDICINE" role={userRole} />
+      } />
+      
+      {/* Controlled Substances - Admin & Pharmacist Only (Kenya Poisons Act) */}
+      <Route path="/controlled-substances" element={
+        <ProtectedRoute element={<ControlledSubstances />} permission="VIEW_CONTROLLED_SUBSTANCES" role={userRole} />
       } />
       
       {/* Procurement Routes - Admin & Pharmacist Only */}
