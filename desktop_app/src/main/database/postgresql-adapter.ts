@@ -101,6 +101,7 @@ export class PostgreSQLAdapter implements DatabaseAdapter {
     try {
       console.log('[PostgreSQL] Initializing database...');
       await this.createTablesIfNotExist();
+      await this.runMigrations();  // Run migrations to add new columns/tables
       await this.seedDefaultData();
       console.log('[PostgreSQL] Database initialized successfully');
     } catch (error) {
@@ -110,7 +111,115 @@ export class PostgreSQLAdapter implements DatabaseAdapter {
   }
 
   async runMigrations(): Promise<void> {
-    // Migrations handled in createTablesIfNotExist
+    console.log('[PostgreSQL] Running schema migrations...');
+    
+    try {
+      // Migration 1: Add controlled substance fields to Medicine table
+      await this.migrateControlledSubstances();
+      
+      console.log('[PostgreSQL] All migrations completed successfully');
+    } catch (error) {
+      console.error('[PostgreSQL] Migration error:', error);
+      throw error;
+    }
+  }
+
+  private async migrateControlledSubstances(): Promise<void> {
+    if (!this.pool) throw new Error('Database not connected');
+
+    try {
+      // Check if isControlled column exists in Medicine table
+      const columnCheck = await this.query(`
+        SELECT column_name FROM information_schema.columns 
+        WHERE table_name = 'Medicine' AND column_name = 'isControlled'
+      `);
+
+      if (columnCheck.rows.length === 0) {
+        console.log('[PostgreSQL] Adding controlled substance fields to Medicine table...');
+        
+        // Add isControlled column
+        await this.query(`ALTER TABLE "Medicine" ADD COLUMN IF NOT EXISTS "isControlled" BOOLEAN DEFAULT false`);
+        
+        // Add scheduleClass column
+        await this.query(`ALTER TABLE "Medicine" ADD COLUMN IF NOT EXISTS "scheduleClass" TEXT`);
+        
+        // Create index
+        await this.query(`CREATE INDEX IF NOT EXISTS "idx_medicine_isControlled" ON "Medicine"("isControlled")`);
+        
+        console.log('[PostgreSQL] Added isControlled and scheduleClass to Medicine');
+      }
+
+      // Check if ControlledSubstanceRegister table exists
+      const tableCheck = await this.query(`
+        SELECT EXISTS (
+          SELECT FROM information_schema.tables 
+          WHERE table_schema = 'public' AND table_name = 'ControlledSubstanceRegister'
+        )
+      `);
+
+      if (!tableCheck.rows[0].exists) {
+        console.log('[PostgreSQL] Creating ControlledSubstanceRegister table...');
+        
+        await this.query(`
+          CREATE TABLE "ControlledSubstanceRegister" (
+            "id" TEXT PRIMARY KEY,
+            "entryNumber" TEXT UNIQUE NOT NULL,
+            "medicineId" TEXT NOT NULL REFERENCES "Medicine"("id"),
+            "medicineName" TEXT NOT NULL,
+            "batchNumber" TEXT NOT NULL,
+            "scheduleClass" TEXT NOT NULL,
+            "transactionType" TEXT NOT NULL,
+            "transactionDate" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            "quantityIn" INTEGER DEFAULT 0,
+            "quantityOut" INTEGER DEFAULT 0,
+            "balanceBefore" INTEGER NOT NULL,
+            "balanceAfter" INTEGER NOT NULL,
+            "referenceType" TEXT,
+            "referenceId" TEXT,
+            "referenceNumber" TEXT,
+            "patientName" TEXT,
+            "patientId" TEXT,
+            "prescriptionId" TEXT,
+            "prescriberName" TEXT,
+            "prescriberRegNo" TEXT,
+            "supplierName" TEXT,
+            "supplierLicense" TEXT,
+            "witnessName" TEXT,
+            "witnessRole" TEXT,
+            "destructionMethod" TEXT,
+            "destructionCertificate" TEXT,
+            "recordedBy" TEXT NOT NULL,
+            "recordedByName" TEXT NOT NULL,
+            "recordedByRole" TEXT NOT NULL,
+            "verifiedBy" TEXT,
+            "verifiedByName" TEXT,
+            "verifiedAt" TIMESTAMP,
+            "branchId" TEXT,
+            "branchName" TEXT,
+            "notes" TEXT,
+            "attachments" TEXT,
+            "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            "updatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          )
+        `);
+
+        // Create indexes for ControlledSubstanceRegister
+        await this.query(`CREATE INDEX IF NOT EXISTS "idx_csr_medicineId" ON "ControlledSubstanceRegister"("medicineId")`);
+        await this.query(`CREATE INDEX IF NOT EXISTS "idx_csr_transactionType" ON "ControlledSubstanceRegister"("transactionType")`);
+        await this.query(`CREATE INDEX IF NOT EXISTS "idx_csr_transactionDate" ON "ControlledSubstanceRegister"("transactionDate")`);
+        await this.query(`CREATE INDEX IF NOT EXISTS "idx_csr_scheduleClass" ON "ControlledSubstanceRegister"("scheduleClass")`);
+        await this.query(`CREATE INDEX IF NOT EXISTS "idx_csr_branchId" ON "ControlledSubstanceRegister"("branchId")`);
+        await this.query(`CREATE INDEX IF NOT EXISTS "idx_csr_entryNumber" ON "ControlledSubstanceRegister"("entryNumber")`);
+        await this.query(`CREATE INDEX IF NOT EXISTS "idx_csr_verifiedBy" ON "ControlledSubstanceRegister"("verifiedBy")`);
+
+        console.log('[PostgreSQL] Created ControlledSubstanceRegister table with indexes');
+      }
+
+      console.log('[PostgreSQL] Controlled substances migration complete');
+    } catch (error) {
+      console.error('[PostgreSQL] Error in controlled substances migration:', error);
+      throw error;
+    }
   }
 
   private async query(sql: string, params?: any[]): Promise<any> {
@@ -616,6 +725,11 @@ export class PostgreSQLQueryInterface {
     return new PostgreSQLModel(this.pool, 'SyncQueue');
   }
 
+  // ControlledSubstanceRegister model
+  get controlledSubstanceRegister() {
+    return new PostgreSQLModel(this.pool, 'ControlledSubstanceRegister');
+  }
+
   // Transaction support
   async $transaction<T>(
     callback: (tx: PostgreSQLQueryInterface) => Promise<T>
@@ -729,6 +843,11 @@ class PostgreSQLTransactionClient {
   // SyncQueue model
   get syncQueue() {
     return new PostgreSQLTransactionModel(this.client, 'SyncQueue');
+  }
+
+  // ControlledSubstanceRegister model
+  get controlledSubstanceRegister() {
+    return new PostgreSQLTransactionModel(this.client, 'ControlledSubstanceRegister');
   }
 }
 
