@@ -129,9 +129,7 @@ export function Navbar() {
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center gap-8">
             <Link href="/dashboard" className="flex items-center gap-2">
-              <div className="p-2 bg-emerald-100 rounded-lg">
-                <Pill className="w-6 h-6 text-emerald-600" />
-              </div>
+              <img src="/logo.png" alt="DawaCare Logo" className="w-10 h-10" />
               <span className="font-bold text-xl text-gray-900">
                 DawaCare
               </span>

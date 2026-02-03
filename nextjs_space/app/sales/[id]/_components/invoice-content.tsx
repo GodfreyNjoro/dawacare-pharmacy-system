@@ -162,7 +162,7 @@ export default function InvoiceContent({ saleId }: InvoiceContentProps) {
               {/* Header */}
               <div className="invoice-header text-center mb-8">
                 <div className="flex items-center justify-center gap-2 mb-2">
-                  <Building2 className="w-8 h-8 text-emerald-600" />
+                  <img src="/logo.png" alt="DawaCare Logo" className="w-12 h-12" />
                   <h1 className="text-2xl font-bold text-emerald-700">
                     DawaCare Pharmacy
                   </h1>

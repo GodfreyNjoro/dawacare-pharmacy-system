@@ -47,8 +47,8 @@ export default function LoginForm() {
     >
       <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-8">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center p-3 bg-emerald-100 rounded-2xl mb-4">
-            <Pill className="w-10 h-10 text-emerald-600" />
+          <div className="inline-flex items-center justify-center mb-4">
+            <img src="/logo.png" alt="DawaCare Logo" className="w-16 h-16" />
           </div>
           <h1 className="text-2xl font-bold text-gray-900">DawaCare</h1>
           <p className="text-gray-500 mt-2">Sign in to manage your pharmacy</p>

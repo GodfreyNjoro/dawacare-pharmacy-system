@@ -12,8 +12,8 @@ export const metadata: Metadata = {
   title: "DawaCare - Pharmacy Management System",
   description: "Comprehensive pharmacy inventory management system for healthcare professionals",
   icons: {
-    icon: "/favicon.svg",
-    shortcut: "/favicon.svg",
+    icon: "/favicon.png",
+    shortcut: "/favicon.png",
   },
   openGraph: {
     title: "DawaCare - Pharmacy Management System",

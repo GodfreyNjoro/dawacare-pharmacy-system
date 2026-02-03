@@ -82,6 +82,9 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
       <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full p-8 animate-slide-in">
         {/* Header */}
         <div className="text-center mb-8">
+          <div className="flex items-center justify-center mb-4">
+            <img src={new URL('../assets/logo.png', import.meta.url).href} alt="DawaCare Logo" className="w-16 h-16" />
+          </div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Welcome to DawaCare POS</h1>
           <p className="text-gray-600">Let's set up your database to get started</p>
         </div>
