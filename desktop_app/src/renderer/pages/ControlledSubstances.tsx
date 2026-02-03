@@ -104,6 +104,7 @@ export default function ControlledSubstances() {
   const [dashboardStats, setDashboardStats] = useState<DashboardStats | null>(null);
   const [registerEntries, setRegisterEntries] = useState<RegisterEntry[]>([]);
   const [controlledMedicines, setControlledMedicines] = useState<ControlledMedicine[]>([]);
+  const [modalMedicines, setModalMedicines] = useState<ControlledMedicine[]>([]); // For modal dropdown
   const [searchQuery, setSearchQuery] = useState('');
   const [scheduleFilter, setScheduleFilter] = useState('all');
   const [transactionFilter, setTransactionFilter] = useState('all');
@@ -113,6 +114,7 @@ export default function ControlledSubstances() {
   // New Entry Modal
   const [showNewEntryModal, setShowNewEntryModal] = useState(false);
   const [selectedMedicine, setSelectedMedicine] = useState<ControlledMedicine | null>(null);
+  const [isLoadingModalMedicines, setIsLoadingModalMedicines] = useState(false);
   const [entryForm, setEntryForm] = useState({
     transactionType: 'SALE',
     quantityOut: 0,
@@ -186,6 +188,26 @@ export default function ControlledSubstances() {
     }
   }, [currentPage, searchQuery, scheduleFilter]);
 
+  // Fetch all controlled medicines for modal dropdown
+  const fetchModalMedicines = useCallback(async () => {
+    setIsLoadingModalMedicines(true);
+    try {
+      const result = await window.electronAPI.getControlledMedicines({
+        page: 1,
+        limit: 1000, // Get all controlled medicines for dropdown
+        search: '',
+        scheduleClass: 'all',
+      });
+      if (result.success) {
+        setModalMedicines(result.medicines);
+      }
+    } catch (error) {
+      console.error('Error fetching modal medicines:', error);
+    } finally {
+      setIsLoadingModalMedicines(false);
+    }
+  }, []);
+
   useEffect(() => {
     fetchDashboard();
   }, [fetchDashboard]);
@@ -197,6 +219,13 @@ export default function ControlledSubstances() {
       fetchMedicines();
     }
   }, [activeTab, fetchRegister, fetchMedicines]);
+
+  // Fetch medicines when modal opens
+  useEffect(() => {
+    if (showNewEntryModal && modalMedicines.length === 0) {
+      fetchModalMedicines();
+    }
+  }, [showNewEntryModal, modalMedicines.length, fetchModalMedicines]);
 
   const handleNewEntry = async () => {
     if (!selectedMedicine) {
@@ -786,21 +815,33 @@ export default function ControlledSubstances() {
           {/* Medicine Selection */}
           {!selectedMedicine ? (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Select Medicine</label>
-              <select
-                onChange={(e) => {
-                  const med = controlledMedicines.find((m) => m.id === e.target.value);
-                  setSelectedMedicine(med || null);
-                }}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
-              >
-                <option value="">-- Select a controlled medicine --</option>
-                {controlledMedicines.map((med) => (
-                  <option key={med.id} value={med.id}>
-                    {med.name} - {med.batchNumber} (Qty: {med.quantity})
-                  </option>
-                ))}
-              </select>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Select Controlled Medicine</label>
+              {isLoadingModalMedicines ? (
+                <div className="flex items-center justify-center py-4">
+                  <RefreshCw className="w-5 h-5 text-purple-600 animate-spin mr-2" />
+                  <span className="text-gray-500">Loading medicines...</span>
+                </div>
+              ) : modalMedicines.length === 0 ? (
+                <div className="text-center py-4 text-gray-500">
+                  <p>No controlled medicines found.</p>
+                  <p className="text-sm mt-1">Please add controlled medicines in the Medicines tab first.</p>
+                </div>
+              ) : (
+                <select
+                  onChange={(e) => {
+                    const med = modalMedicines.find((m) => m.id === e.target.value);
+                    setSelectedMedicine(med || null);
+                  }}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                >
+                  <option value="">-- Select a controlled medicine --</option>
+                  {modalMedicines.map((med) => (
+                    <option key={med.id} value={med.id}>
+                      {med.name} - {med.batchNumber} (Qty: {med.quantity})
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
           ) : (
             <div className="bg-purple-50 p-4 rounded-lg">

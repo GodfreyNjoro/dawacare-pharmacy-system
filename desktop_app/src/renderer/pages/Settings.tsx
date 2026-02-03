@@ -14,6 +14,7 @@ import {
   Download,
   RotateCcw,
   Upload,
+  Sparkles,
 } from 'lucide-react';
 import { Button, Input, Card, CardContent, CardHeader, Badge } from '../components/ui';
 import { useAuth } from '../lib/auth-context';
@@ -71,9 +72,22 @@ export default function Settings() {
   const [showRestartWarning, setShowRestartWarning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  
+  // Update check state (admin only)
+  const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
+  const [updateCheckResult, setUpdateCheckResult] = useState<{ status: string; message: string } | null>(null);
+  const [currentVersion, setCurrentVersion] = useState<string>('');
+  
+  // Check if user is admin
+  const isAdmin = user?.role === 'ADMIN';
 
   useEffect(() => {
     loadCurrentConfig();
+    
+    // Get current version
+    window.electronAPI.getVersionInfo().then((info) => {
+      setCurrentVersion(info.version);
+    });
     
     // Listen for sync progress updates
     const unsubscribe = window.electronAPI.onSyncProgress?.((data: SyncProgress) => {
@@ -83,7 +97,31 @@ export default function Settings() {
       }
     });
     
-    return () => unsubscribe?.();
+    // Listen for update status changes
+    const unsubscribeUpdate = window.electronAPI.onUpdateStatus?.((data: { status: string; data?: any }) => {
+      setIsCheckingUpdate(false);
+      if (data.status === 'available') {
+        setUpdateCheckResult({ 
+          status: 'available', 
+          message: `Update available: v${data.data?.version}` 
+        });
+      } else if (data.status === 'not-available') {
+        setUpdateCheckResult({ 
+          status: 'not-available', 
+          message: 'You are running the latest version!' 
+        });
+      } else if (data.status === 'error') {
+        setUpdateCheckResult({ 
+          status: 'error', 
+          message: data.data?.message || 'Failed to check for updates' 
+        });
+      }
+    });
+    
+    return () => {
+      unsubscribe?.();
+      unsubscribeUpdate?.();
+    };
   }, []);
 
   const loadCurrentConfig = async () => {
@@ -268,6 +306,21 @@ export default function Settings() {
       setError(err.message || 'Failed to save sync config');
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  // Handle manual update check (admin only)
+  const handleCheckForUpdates = async () => {
+    setIsCheckingUpdate(true);
+    setUpdateCheckResult(null);
+    try {
+      await window.electronAPI.checkForUpdates();
+    } catch (err: any) {
+      setIsCheckingUpdate(false);
+      setUpdateCheckResult({ 
+        status: 'error', 
+        message: err.message || 'Failed to check for updates' 
+      });
     }
   };
 
@@ -634,6 +687,74 @@ export default function Settings() {
             </div>
           </CardContent>
         </Card>
+
+        {/* App Updates Section - Admin Only */}
+        {isAdmin && (
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-purple-600" />
+                <h2 className="text-lg font-semibold">App Updates</h2>
+                <Badge variant="info">Admin Only</Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 flex items-start gap-3">
+                <Info className="w-5 h-5 text-purple-600 mt-0.5" />
+                <div>
+                  <p className="text-sm text-purple-800">
+                    Check for new versions of DawaCare POS. Updates include bug fixes, new features, and security improvements.
+                  </p>
+                  <p className="text-sm text-purple-600 mt-1 font-medium">
+                    Current version: v{currentVersion}
+                  </p>
+                </div>
+              </div>
+              
+              {/* Update Check Result */}
+              {updateCheckResult && (
+                <div className={`p-4 rounded-lg flex items-center gap-3 ${
+                  updateCheckResult.status === 'available' 
+                    ? 'bg-emerald-50 border border-emerald-200'
+                    : updateCheckResult.status === 'not-available'
+                    ? 'bg-blue-50 border border-blue-200'
+                    : 'bg-red-50 border border-red-200'
+                }`}>
+                  {updateCheckResult.status === 'available' ? (
+                    <Sparkles className="w-5 h-5 text-emerald-600" />
+                  ) : updateCheckResult.status === 'not-available' ? (
+                    <CheckCircle className="w-5 h-5 text-blue-600" />
+                  ) : (
+                    <AlertTriangle className="w-5 h-5 text-red-600" />
+                  )}
+                  <span className={
+                    updateCheckResult.status === 'available' 
+                      ? 'text-emerald-800'
+                      : updateCheckResult.status === 'not-available'
+                      ? 'text-blue-800'
+                      : 'text-red-800'
+                  }>
+                    {updateCheckResult.message}
+                  </span>
+                </div>
+              )}
+
+              <div className="flex items-center gap-3 pt-4 border-t">
+                <Button 
+                  variant="primary" 
+                  onClick={handleCheckForUpdates} 
+                  disabled={isCheckingUpdate}
+                >
+                  {isCheckingUpdate ? (
+                    <><RefreshCw className="w-4 h-4 animate-spin mr-2" /> Checking...</>
+                  ) : (
+                    <><Sparkles className="w-4 h-4 mr-2" /> Check for Updates</>
+                  )}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Restart Warning Modal */}
         {showRestartWarning && (

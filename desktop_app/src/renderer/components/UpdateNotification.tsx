@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Download, RefreshCw, CheckCircle, XCircle, AlertCircle, X } from 'lucide-react';
+import { useAuth } from '../lib/auth-context';
 
 interface UpdateInfo {
   version?: string;
@@ -12,10 +13,14 @@ interface UpdateInfo {
 type UpdateStatus = 'idle' | 'checking' | 'available' | 'not-available' | 'downloading' | 'downloaded' | 'error';
 
 export default function UpdateNotification() {
+  const { user } = useAuth();
   const [status, setStatus] = useState<UpdateStatus>('idle');
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
   const [currentVersion, setCurrentVersion] = useState<string>('');
   const [showBanner, setShowBanner] = useState(false);
+
+  // Only show for admin users
+  const isAdmin = user?.role === 'ADMIN';
 
   useEffect(() => {
     // Get current version
@@ -29,7 +34,7 @@ export default function UpdateNotification() {
       setStatus(data.status as UpdateStatus);
       setUpdateInfo(data.data || null);
 
-      // Show banner for important statuses
+      // Show banner for important statuses (only for admin)
       if (['available', 'downloaded', 'error'].includes(data.status)) {
         setShowBanner(true);
       }
@@ -58,15 +63,15 @@ export default function UpdateNotification() {
     setShowBanner(false);
   };
 
-  // Don't show anything if idle and no banner
-  if (status === 'idle' && !showBanner) {
+  // Don't show anything if not admin, idle, or no banner
+  if (!isAdmin || (status === 'idle' && !showBanner)) {
     return null;
   }
 
   // Update available banner
   if (status === 'available' && showBanner) {
     return (
-      <div className="fixed bottom-4 right-4 bg-emerald-600 text-white rounded-lg shadow-lg p-4 max-w-sm z-50 animate-slide-up">
+      <div className="fixed bottom-4 left-4 bg-emerald-600 text-white rounded-lg shadow-lg p-4 max-w-sm z-50 animate-slide-up">
         <div className="flex items-start justify-between">
           <div className="flex items-start gap-3">
             <Download className="w-5 h-5 mt-0.5 flex-shrink-0" />
@@ -106,7 +111,7 @@ export default function UpdateNotification() {
   if (status === 'downloading') {
     const percent = updateInfo?.percent || 0;
     return (
-      <div className="fixed bottom-4 right-4 bg-blue-600 text-white rounded-lg shadow-lg p-4 max-w-sm z-50">
+      <div className="fixed bottom-4 left-4 bg-blue-600 text-white rounded-lg shadow-lg p-4 max-w-sm z-50">
         <div className="flex items-center gap-3">
           <RefreshCw className="w-5 h-5 animate-spin flex-shrink-0" />
           <div className="flex-1">
@@ -127,7 +132,7 @@ export default function UpdateNotification() {
   // Downloaded - ready to install
   if (status === 'downloaded' && showBanner) {
     return (
-      <div className="fixed bottom-4 right-4 bg-green-600 text-white rounded-lg shadow-lg p-4 max-w-sm z-50 animate-slide-up">
+      <div className="fixed bottom-4 left-4 bg-green-600 text-white rounded-lg shadow-lg p-4 max-w-sm z-50 animate-slide-up">
         <div className="flex items-start justify-between">
           <div className="flex items-start gap-3">
             <CheckCircle className="w-5 h-5 mt-0.5 flex-shrink-0" />
@@ -166,7 +171,7 @@ export default function UpdateNotification() {
   // Error
   if (status === 'error' && showBanner) {
     return (
-      <div className="fixed bottom-4 right-4 bg-red-600 text-white rounded-lg shadow-lg p-4 max-w-sm z-50 animate-slide-up">
+      <div className="fixed bottom-4 left-4 bg-red-600 text-white rounded-lg shadow-lg p-4 max-w-sm z-50 animate-slide-up">
         <div className="flex items-start justify-between">
           <div className="flex items-start gap-3">
             <XCircle className="w-5 h-5 mt-0.5 flex-shrink-0" />
@@ -194,7 +199,7 @@ export default function UpdateNotification() {
   // Checking status (subtle indicator)
   if (status === 'checking') {
     return (
-      <div className="fixed bottom-4 right-4 bg-gray-800 text-white rounded-lg shadow-lg px-4 py-2 z-50">
+      <div className="fixed bottom-4 left-4 bg-gray-800 text-white rounded-lg shadow-lg px-4 py-2 z-50">
         <div className="flex items-center gap-2 text-sm">
           <RefreshCw className="w-4 h-4 animate-spin" />
           <span>Checking for updates...</span>
