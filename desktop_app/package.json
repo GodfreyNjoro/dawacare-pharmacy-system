@@ -1,6 +1,6 @@
 {
   "name": "dawacare-pos",
-  "version": "1.0.64",
+  "version": "1.0.65",
   "description": "DawaCare POS - Offline-First Pharmacy Management Desktop Application",
   "main": "dist/main/src/main/main.js",
   "author": {
@@ -138,6 +138,13 @@
       {
         "from": "node_modules/@prisma/engines",
         "to": "app.asar.unpacked/node_modules/@prisma/engines",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "build/icons",
+        "to": "build/icons",
         "filter": [
           "**/*"
         ]
