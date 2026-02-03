@@ -516,8 +516,10 @@ async function addToSyncQueue(
   payload: any
 ): Promise<void> {
   try {
+    const { randomUUID } = await import('crypto');
     await prisma.syncQueue.create({
       data: {
+        id: randomUUID(),
         entityType,
         entityId,
         operation,
