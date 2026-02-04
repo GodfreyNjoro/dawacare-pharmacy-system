@@ -117,10 +117,34 @@ export class PostgreSQLAdapter implements DatabaseAdapter {
       // Migration 1: Add controlled substance fields to Medicine table
       await this.migrateControlledSubstances();
       
+      // Migration 2: Add description field to Medicine table
+      await this.migrateMedicineDescription();
+      
       console.log('[PostgreSQL] All migrations completed successfully');
     } catch (error) {
       console.error('[PostgreSQL] Migration error:', error);
       throw error;
+    }
+  }
+
+  private async migrateMedicineDescription(): Promise<void> {
+    if (!this.pool) throw new Error('Database not connected');
+
+    try {
+      // Check if description column exists in Medicine table
+      const columnCheck = await this.query(`
+        SELECT column_name FROM information_schema.columns 
+        WHERE table_name = 'Medicine' AND column_name = 'description'
+      `);
+
+      if (columnCheck.rows.length === 0) {
+        console.log('[PostgreSQL] Adding description field to Medicine table...');
+        await this.query(`ALTER TABLE "Medicine" ADD COLUMN IF NOT EXISTS "description" TEXT`);
+        console.log('[PostgreSQL] Added description to Medicine');
+      }
+    } catch (error) {
+      console.error('[PostgreSQL] Error migrating Medicine description:', error);
+      // Non-fatal - continue with other migrations
     }
   }
 
