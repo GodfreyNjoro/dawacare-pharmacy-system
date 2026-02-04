@@ -27,6 +27,8 @@ export function registerInventoryHandlers(): void {
     category: string;
     description?: string;
     branchId?: string;
+    isControlled?: boolean;
+    scheduleClass?: string | null;
   }) => {
     try {
       const prisma = dbManager.getPrismaClient();
@@ -37,6 +39,11 @@ export function registerInventoryHandlers(): void {
       // Validate required fields
       if (!data.name || !data.batchNumber || !data.expiryDate || data.unitPrice === undefined) {
         return { success: false, error: 'Missing required fields' };
+      }
+
+      // Validate controlled substance must have schedule class
+      if (data.isControlled && !data.scheduleClass) {
+        return { success: false, error: 'Controlled substances require a schedule class' };
       }
 
       // Check if batch number already exists
@@ -66,6 +73,8 @@ export function registerInventoryHandlers(): void {
           category: data.category || 'Other',
           description: data.description || null,
           branchId: data.branchId || null,
+          isControlled: data.isControlled || false,
+          scheduleClass: data.isControlled ? (data.scheduleClass || null) : null,
           syncStatus: 'PENDING_SYNC',
         },
       });
@@ -92,6 +101,8 @@ export function registerInventoryHandlers(): void {
     unitPrice?: number;
     category?: string;
     description?: string;
+    isControlled?: boolean;
+    scheduleClass?: string | null;
   }) => {
     try {
       const prisma = dbManager.getPrismaClient();
@@ -117,9 +128,19 @@ export function registerInventoryHandlers(): void {
         }
       }
 
+      // Validate controlled substance must have schedule class
+      const isControlled = data.isControlled !== undefined ? data.isControlled : existing.isControlled;
+      if (isControlled && data.isControlled !== undefined && data.isControlled && !data.scheduleClass) {
+        return { success: false, error: 'Controlled substances require a schedule class' };
+      }
+
       const updateData: any = { ...data, syncStatus: 'PENDING_SYNC' };
       if (data.expiryDate) {
         updateData.expiryDate = new Date(data.expiryDate);
+      }
+      // Handle controlled substance fields
+      if (data.isControlled === false) {
+        updateData.scheduleClass = null;
       }
 
       const medicine = await prisma.medicine.update({

@@ -4,6 +4,7 @@ import {
   Save,
   RefreshCw,
   Package,
+  AlertTriangle,
 } from 'lucide-react';
 import { Button, Input, Card, CardContent, CardHeader } from '../components/ui';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -21,6 +22,17 @@ const CATEGORIES = [
   'Other',
 ];
 
+const SCHEDULE_CLASSES = [
+  { value: '', label: 'Select Schedule Class' },
+  { value: 'SCHEDULE_I', label: 'Schedule I (Highest Control)' },
+  { value: 'SCHEDULE_II', label: 'Schedule II' },
+  { value: 'SCHEDULE_III', label: 'Schedule III' },
+  { value: 'SCHEDULE_IV', label: 'Schedule IV' },
+  { value: 'SCHEDULE_V', label: 'Schedule V (Lowest Control)' },
+  { value: 'PSYCHOTROPIC', label: 'Psychotropic Substance' },
+  { value: 'PRECURSOR', label: 'Precursor Chemical' },
+];
+
 interface MedicineFormData {
   name: string;
   genericName: string;
@@ -33,6 +45,8 @@ interface MedicineFormData {
   costPrice: string;
   category: string;
   description: string;
+  isControlled: boolean;
+  scheduleClass: string;
 }
 
 export default function MedicineForm() {
@@ -54,6 +68,8 @@ export default function MedicineForm() {
     costPrice: '',
     category: 'Tablets',
     description: '',
+    isControlled: false,
+    scheduleClass: '',
   });
   const [errors, setErrors] = useState<Partial<MedicineFormData>>({});
 
@@ -80,6 +96,8 @@ export default function MedicineForm() {
           costPrice: m.costPrice?.toString() || '',
           category: m.category || 'Tablets',
           description: m.description || '',
+          isControlled: m.isControlled || false,
+          scheduleClass: m.scheduleClass || '',
         });
       } else {
         alert('Medicine not found');
@@ -117,6 +135,10 @@ export default function MedicineForm() {
     if (!formData.quantity || parseInt(formData.quantity) < 0) {
       newErrors.quantity = 'Valid quantity is required';
     }
+    // Controlled substance validation
+    if (formData.isControlled && !formData.scheduleClass) {
+      newErrors.scheduleClass = 'Schedule class is required for controlled substances';
+    }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -144,6 +166,8 @@ export default function MedicineForm() {
         costPrice: formData.costPrice ? parseFloat(formData.costPrice) : undefined,
         category: formData.category,
         description: formData.description.trim() || undefined,
+        isControlled: formData.isControlled,
+        scheduleClass: formData.isControlled ? formData.scheduleClass : null,
       };
 
       let result;
@@ -264,6 +288,66 @@ export default function MedicineForm() {
                       </option>
                     ))}
                   </select>
+                </div>
+              </div>
+
+              {/* Controlled Substance Section */}
+              <div className="border border-amber-200 rounded-lg p-4 bg-amber-50">
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <AlertTriangle className="w-5 h-5 text-amber-600" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3 mb-3">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={formData.isControlled}
+                          onChange={(e) => {
+                            setFormData(prev => ({
+                              ...prev,
+                              isControlled: e.target.checked,
+                              scheduleClass: e.target.checked ? prev.scheduleClass : '',
+                            }));
+                            if (errors.scheduleClass) {
+                              setErrors(prev => ({ ...prev, scheduleClass: undefined }));
+                            }
+                          }}
+                          className="w-4 h-4 text-amber-600 border-gray-300 rounded focus:ring-amber-500"
+                        />
+                        <span className="font-medium text-gray-900">
+                          Controlled Substance
+                        </span>
+                      </label>
+                    </div>
+                    <p className="text-sm text-gray-600 mb-3">
+                      Mark this if the medicine is a controlled substance under the Kenya Poisons Act. 
+                      Controlled substances require additional tracking in the register.
+                    </p>
+                    {formData.isControlled && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Schedule Class *
+                        </label>
+                        <select
+                          value={formData.scheduleClass}
+                          onChange={(e) => handleChange('scheduleClass', e.target.value)}
+                          className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent ${
+                            errors.scheduleClass ? 'border-red-500' : 'border-gray-300'
+                          }`}
+                        >
+                          {SCHEDULE_CLASSES.map((sc) => (
+                            <option key={sc.value} value={sc.value}>
+                              {sc.label}
+                            </option>
+                          ))}
+                        </select>
+                        {errors.scheduleClass && (
+                          <p className="text-red-500 text-xs mt-1">{errors.scheduleClass}</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
 
