@@ -20,6 +20,7 @@ import Branches from './pages/Branches';
 import Reports from './pages/Reports';
 import Settings from './pages/Settings';
 import ControlledSubstances from './pages/ControlledSubstances';
+import AuditLogs from './pages/AuditLogs';
 import UpdateNotification from './components/UpdateNotification';
 import AIPharmacistChat from './components/AIPharmacistChat';
 import { AuthProvider, useAuth } from './lib/auth-context';
@@ -156,6 +157,9 @@ function AppContent() {
       } />
       <Route path="/admin/settings" element={
         <ProtectedRoute element={<Settings />} permission="VIEW_SETTINGS" role={userRole} />
+      } />
+      <Route path="/admin/audit-logs" element={
+        <ProtectedRoute element={<AuditLogs />} permission="VIEW_AUDIT_LOGS" role={userRole} />
       } />
       
       <Route path="*" element={<Navigate to="/pos" replace />} />

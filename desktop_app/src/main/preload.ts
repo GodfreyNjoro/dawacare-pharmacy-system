@@ -99,6 +99,15 @@ const IPC_CHANNELS = {
   CONTROLLED_CREATE_ENTRY: 'controlled:create-entry',
   CONTROLLED_VERIFY_ENTRY: 'controlled:verify-entry',
   CONTROLLED_UPDATE_MEDICINE: 'controlled:update-medicine',
+  // Audit Logs
+  AUDIT_GET_LOGS: 'audit:get-logs',
+  AUDIT_GET_DETAIL: 'audit:get-detail',
+  AUDIT_GET_STATS: 'audit:get-stats',
+  AUDIT_CREATE: 'audit:create',
+  // Tax
+  TAX_GET_SETTINGS: 'tax:get-settings',
+  TAX_SAVE_SETTINGS: 'tax:save-settings',
+  TAX_GET_REPORT: 'tax:get-report',
 } as const;
 
 // Type definitions inlined
@@ -283,6 +292,28 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke(IPC_CHANNELS.CONTROLLED_VERIFY_ENTRY, data),
   updateMedicineControlled: (data: { medicineId: string; isControlled: boolean; scheduleClass?: string }) =>
     ipcRenderer.invoke(IPC_CHANNELS.CONTROLLED_UPDATE_MEDICINE, data),
+
+  // Audit Log APIs
+  getAuditLogs: (options?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    action?: string;
+    entityType?: string;
+    severity?: string;
+    userId?: string;
+    startDate?: string;
+    endDate?: string;
+  }) => ipcRenderer.invoke(IPC_CHANNELS.AUDIT_GET_LOGS, options),
+  getAuditLogDetail: (id: string) => ipcRenderer.invoke(IPC_CHANNELS.AUDIT_GET_DETAIL, id),
+  getAuditStats: () => ipcRenderer.invoke(IPC_CHANNELS.AUDIT_GET_STATS),
+  createAuditLog: (data: any) => ipcRenderer.invoke(IPC_CHANNELS.AUDIT_CREATE, data),
+
+  // Tax APIs
+  getTaxSettings: () => ipcRenderer.invoke(IPC_CHANNELS.TAX_GET_SETTINGS),
+  saveTaxSettings: (data: { settings: any; user: any }) => ipcRenderer.invoke(IPC_CHANNELS.TAX_SAVE_SETTINGS, data),
+  getTaxReport: (options?: { startDate?: string; endDate?: string; branchId?: string }) =>
+    ipcRenderer.invoke(IPC_CHANNELS.TAX_GET_REPORT, options),
 });
 
 // Type definitions for TypeScript
@@ -430,6 +461,27 @@ export interface ElectronAPI {
   createControlledEntry: (data: any) => Promise<any>;
   verifyControlledEntry: (data: { entryId: string; verifiedBy: string; verifiedByName: string }) => Promise<any>;
   updateMedicineControlled: (data: { medicineId: string; isControlled: boolean; scheduleClass?: string }) => Promise<any>;
+
+  // Audit Logs
+  getAuditLogs: (options?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    action?: string;
+    entityType?: string;
+    severity?: string;
+    userId?: string;
+    startDate?: string;
+    endDate?: string;
+  }) => Promise<any>;
+  getAuditLogDetail: (id: string) => Promise<any>;
+  getAuditStats: () => Promise<any>;
+  createAuditLog: (data: any) => Promise<any>;
+
+  // Tax
+  getTaxSettings: () => Promise<any>;
+  saveTaxSettings: (data: { settings: any; user: any }) => Promise<any>;
+  getTaxReport: (options?: { startDate?: string; endDate?: string; branchId?: string }) => Promise<any>;
 }
 
 declare global {

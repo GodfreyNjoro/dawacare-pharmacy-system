@@ -15,6 +15,8 @@ import {
   RotateCcw,
   Upload,
   Sparkles,
+  Receipt,
+  Building,
 } from 'lucide-react';
 import { Button, Input, Card, CardContent, CardHeader, Badge } from '../components/ui';
 import { useAuth } from '../lib/auth-context';
@@ -78,11 +80,27 @@ export default function Settings() {
   const [updateCheckResult, setUpdateCheckResult] = useState<{ status: string; message: string } | null>(null);
   const [currentVersion, setCurrentVersion] = useState<string>('');
   
+  // Tax settings state (admin/pharmacist)
+  const [taxSettings, setTaxSettings] = useState({
+    vatEnabled: true,
+    standardVatRate: 16,
+    companyKraPin: '',
+    companyName: '',
+    companyAddress: '',
+    defaultTaxExempt: true,
+  });
+  const [isSavingTax, setIsSavingTax] = useState(false);
+  const [taxSuccess, setTaxSuccess] = useState<string | null>(null);
+  const [taxError, setTaxError] = useState<string | null>(null);
+  
   // Check if user is admin
   const isAdmin = user?.role === 'ADMIN';
+  const isPharmacist = user?.role === 'PHARMACIST';
+  const canManageTax = isAdmin || isPharmacist;
 
   useEffect(() => {
     loadCurrentConfig();
+    loadTaxSettings();
     
     // Get current version
     window.electronAPI.getVersionInfo().then((info) => {
@@ -306,6 +324,50 @@ export default function Settings() {
       setError(err.message || 'Failed to save sync config');
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  // Load tax settings
+  const loadTaxSettings = async () => {
+    try {
+      const result = await window.electronAPI.getTaxSettings();
+      if (result.success) {
+        setTaxSettings(result.settings);
+      }
+    } catch (err: any) {
+      console.error('Error loading tax settings:', err);
+    }
+  };
+
+  // Save tax settings
+  const saveTaxSettings = async () => {
+    if (!user) return;
+    
+    setIsSavingTax(true);
+    setTaxSuccess(null);
+    setTaxError(null);
+    
+    try {
+      const result = await window.electronAPI.saveTaxSettings({
+        settings: taxSettings,
+        user: {
+          id: user.id,
+          name: user.name || user.email,
+          email: user.email,
+          role: user.role,
+        },
+      });
+      
+      if (result.success) {
+        setTaxSuccess('Tax settings saved successfully!');
+        setTimeout(() => setTaxSuccess(null), 3000);
+      } else {
+        setTaxError(result.error || 'Failed to save tax settings');
+      }
+    } catch (err: any) {
+      setTaxError(err.message || 'Failed to save tax settings');
+    } finally {
+      setIsSavingTax(false);
     }
   };
 
@@ -749,6 +811,139 @@ export default function Settings() {
                     <><RefreshCw className="w-4 h-4 animate-spin mr-2" /> Checking...</>
                   ) : (
                     <><Sparkles className="w-4 h-4 mr-2" /> Check for Updates</>
+                  )}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Tax Configuration Section - Admin & Pharmacist Only */}
+        {canManageTax && (
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <Receipt className="w-5 h-5 text-emerald-600" />
+                <h2 className="text-lg font-semibold">Tax Configuration (KRA)</h2>
+                <Badge variant="info">Admin/Pharmacist</Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 flex items-start gap-3">
+                <Info className="w-5 h-5 text-emerald-600 mt-0.5" />
+                <div>
+                  <p className="text-sm text-emerald-800">
+                    Configure VAT settings for Kenya Revenue Authority (KRA) compliance. 
+                    Most pharmaceutical products are VAT-exempt in Kenya.
+                  </p>
+                </div>
+              </div>
+
+              {/* Success/Error Messages */}
+              {taxSuccess && (
+                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg flex items-center gap-2 text-emerald-700">
+                  <CheckCircle className="w-5 h-5" />
+                  {taxSuccess}
+                </div>
+              )}
+              {taxError && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-red-700">
+                  <AlertTriangle className="w-5 h-5" />
+                  {taxError}
+                </div>
+              )}
+
+              {/* VAT Toggle */}
+              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Enable VAT Calculation</label>
+                  <p className="text-sm text-gray-500">Include VAT in sales calculations</p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={taxSettings.vatEnabled}
+                    onChange={(e) => setTaxSettings({ ...taxSettings, vatEnabled: e.target.checked })}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-emerald-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                </label>
+              </div>
+
+              {/* VAT Rate */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Standard VAT Rate (%)</label>
+                  <Input
+                    type="number"
+                    value={taxSettings.standardVatRate}
+                    onChange={(e) => setTaxSettings({ ...taxSettings, standardVatRate: parseFloat(e.target.value) || 0 })}
+                    min={0}
+                    max={100}
+                    disabled={!taxSettings.vatEnabled}
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Kenya standard VAT is 16%</p>
+                </div>
+                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Default Tax Exempt</label>
+                    <p className="text-sm text-gray-500">New medicines are VAT-exempt by default</p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={taxSettings.defaultTaxExempt}
+                      onChange={(e) => setTaxSettings({ ...taxSettings, defaultTaxExempt: e.target.checked })}
+                      className="sr-only peer"
+                      disabled={!taxSettings.vatEnabled}
+                    />
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-emerald-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                  </label>
+                </div>
+              </div>
+
+              {/* Company Info for Tax Invoices */}
+              <div className="pt-4 border-t">
+                <div className="flex items-center gap-2 mb-4">
+                  <Building className="w-4 h-4 text-gray-600" />
+                  <h3 className="text-sm font-semibold text-gray-700">Company Information (for Tax Invoices)</h3>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Company Name</label>
+                    <Input
+                      value={taxSettings.companyName}
+                      onChange={(e) => setTaxSettings({ ...taxSettings, companyName: e.target.value })}
+                      placeholder="e.g., DawaCare Pharmacy Ltd"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">KRA PIN</label>
+                    <Input
+                      value={taxSettings.companyKraPin}
+                      onChange={(e) => setTaxSettings({ ...taxSettings, companyKraPin: e.target.value.toUpperCase() })}
+                      placeholder="e.g., P051234567X"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Required for tax invoices</p>
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Business Address</label>
+                    <Input
+                      value={taxSettings.companyAddress}
+                      onChange={(e) => setTaxSettings({ ...taxSettings, companyAddress: e.target.value })}
+                      placeholder="e.g., Kimathi Street, Nairobi"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Save Button */}
+              <div className="flex justify-end pt-4 border-t">
+                <Button variant="primary" onClick={saveTaxSettings} disabled={isSavingTax}>
+                  {isSavingTax ? (
+                    <><RefreshCw className="w-4 h-4 animate-spin mr-2" /> Saving...</>
+                  ) : (
+                    <><Save className="w-4 h-4 mr-2" /> Save Tax Settings</>
                   )}
                 </Button>
               </div>

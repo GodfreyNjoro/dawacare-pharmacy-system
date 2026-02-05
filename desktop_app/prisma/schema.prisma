@@ -75,6 +75,11 @@ model Medicine {
   isControlled  Boolean   @default(false)
   scheduleClass String?   // SCHEDULE_I, SCHEDULE_II, SCHEDULE_III, SCHEDULE_IV, SCHEDULE_V, PSYCHOTROPIC
   
+  // Tax Classification (Kenya VAT)
+  isTaxable     Boolean   @default(true)  // Most medicines are VAT-exempt in Kenya
+  taxRate       Float     @default(0)     // VAT rate (0 for exempt, 16 for standard)
+  description   String?                   // Medicine description
+  
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   saleItems     SaleItem[]
@@ -160,6 +165,9 @@ model Sale {
   customerPhone String?   // Keep for walk-in customers
   subtotal      Float
   discount      Float     @default(0)
+  taxAmount     Float     @default(0)    // Total VAT amount
+  taxableAmount Float     @default(0)    // Amount subject to tax
+  exemptAmount  Float     @default(0)    // VAT-exempt amount
   loyaltyPointsUsed Int   @default(0)
   loyaltyPointsEarned Int @default(0)
   total         Float
@@ -192,6 +200,9 @@ model SaleItem {
   quantity      Int
   unitPrice     Float     // Store price at time of sale
   total         Float
+  isTaxable     Boolean   @default(false)  // Was this item taxed
+  taxRate       Float     @default(0)      // Tax rate at time of sale
+  taxAmount     Float     @default(0)      // Tax amount for this item
   sale          Sale      @relation(fields: [saleId], references: [id], onDelete: Cascade)
   medicine      Medicine  @relation(fields: [medicineId], references: [id])
 
@@ -489,4 +500,47 @@ model ControlledSubstanceRegister {
   @@index([transactionDate])
   @@index([createdAt])
   @@index([recordedBy])
+}
+
+// Audit Trail - ALCOA+ Compliance for Kenya PPB and WHO GDP
+model AuditLog {
+  id              String    @id @default(cuid())
+  
+  // WHO made the change (Attributable)
+  userId          String
+  userName        String    // Store name at time of action
+  userEmail       String    // Store email at time of action
+  userRole        String    // Store role at time of action
+  
+  // WHAT was changed
+  action          String    // CREATE, UPDATE, DELETE, VIEW, LOGIN, LOGOUT, EXPORT
+  entityType      String    // MEDICINE, SALE, USER, PURCHASE_ORDER, GRN, SUPPLIER, CUSTOMER, etc.
+  entityId        String?   // ID of the affected record
+  entityName      String?   // Human-readable identifier (e.g., medicine name, invoice number)
+  
+  // BEFORE and AFTER values (for updates)
+  previousValues  String?   // JSON stringified previous state
+  newValues       String?   // JSON stringified new state
+  changedFields   String?   // JSON array of field names that changed
+  
+  // Context
+  ipAddress       String?   // Client IP address
+  userAgent       String?   // Browser/device info
+  branchId        String?   // Branch where action occurred
+  branchName      String?   // Branch name at time of action
+  
+  // Additional metadata
+  description     String?   // Human-readable description of the action
+  severity        String    @default("INFO") // INFO, WARNING, CRITICAL
+  
+  // Timestamp (Contemporaneous)
+  createdAt       DateTime  @default(now())
+  
+  @@index([userId])
+  @@index([action])
+  @@index([entityType])
+  @@index([entityId])
+  @@index([severity])
+  @@index([createdAt])
+  @@index([branchId])
 }

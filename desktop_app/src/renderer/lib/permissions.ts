@@ -59,6 +59,12 @@ export const PERMISSIONS = {
   // Settings
   VIEW_SETTINGS: ['ADMIN'],
   MANAGE_SETTINGS: ['ADMIN'],
+  
+  // Audit Logs (ALCOA+ Compliance - Admin Only)
+  VIEW_AUDIT_LOGS: ['ADMIN'],
+  
+  // Tax Management
+  MANAGE_TAX_SETTINGS: ['ADMIN', 'PHARMACIST'],
 } as const;
 
 export function hasPermission(role: string | undefined, permission: keyof typeof PERMISSIONS): boolean {
@@ -106,6 +112,7 @@ export const ADMIN_ITEMS: NavItem[] = [
   { path: '/admin/users', label: 'Users', permission: 'VIEW_USERS' },
   { path: '/admin/branches', label: 'Branches', permission: 'VIEW_BRANCHES' },
   { path: '/admin/reports', label: 'Reports', permission: 'VIEW_REPORTS' },
+  { path: '/admin/audit-logs', label: 'Audit Trail', permission: 'VIEW_AUDIT_LOGS' },
   { path: '/admin/settings', label: 'Settings', permission: 'VIEW_SETTINGS' },
 ];
 

@@ -15,6 +15,8 @@ import { registerBranchesHandlers } from './branches-handlers';
 import { registerReportsHandlers } from './reports-handlers';
 import { registerAIHandlers } from './ai-handlers';
 import { registerControlledSubstancesHandlers } from './controlled-substances-handlers';
+import { registerAuditLogHandlers } from './audit-log-handlers';
+import { registerTaxHandlers } from './tax-handlers';
 
 export function registerAllIpcHandlers(): void {
   console.log('[IPC] Registering all IPC handlers...');
@@ -36,6 +38,8 @@ export function registerAllIpcHandlers(): void {
   registerReportsHandlers();
   registerAIHandlers();
   registerControlledSubstancesHandlers();
+  registerAuditLogHandlers();
+  registerTaxHandlers();
 
   console.log('[IPC] All IPC handlers registered successfully');
 }

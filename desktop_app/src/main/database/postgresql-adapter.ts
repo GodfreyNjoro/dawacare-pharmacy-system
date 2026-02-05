@@ -120,10 +120,120 @@ export class PostgreSQLAdapter implements DatabaseAdapter {
       // Migration 2: Add description field to Medicine table
       await this.migrateMedicineDescription();
       
+      // Migration 3: Add tax fields to Medicine table
+      await this.migrateTaxFields();
+      
+      // Migration 4: Create AuditLog table
+      await this.migrateAuditLog();
+      
       console.log('[PostgreSQL] All migrations completed successfully');
     } catch (error) {
       console.error('[PostgreSQL] Migration error:', error);
       throw error;
+    }
+  }
+
+  private async migrateTaxFields(): Promise<void> {
+    if (!this.pool) throw new Error('Database not connected');
+
+    try {
+      // Add tax fields to Medicine table
+      const medicineTaxCheck = await this.query(`
+        SELECT column_name FROM information_schema.columns 
+        WHERE table_name = 'Medicine' AND column_name = 'isTaxable'
+      `);
+
+      if (medicineTaxCheck.rows.length === 0) {
+        console.log('[PostgreSQL] Adding tax fields to Medicine table...');
+        await this.query(`ALTER TABLE "Medicine" ADD COLUMN IF NOT EXISTS "isTaxable" BOOLEAN DEFAULT true`);
+        await this.query(`ALTER TABLE "Medicine" ADD COLUMN IF NOT EXISTS "taxRate" FLOAT DEFAULT 0`);
+        console.log('[PostgreSQL] Added tax fields to Medicine');
+      }
+
+      // Add tax fields to Sale table
+      const saleTaxCheck = await this.query(`
+        SELECT column_name FROM information_schema.columns 
+        WHERE table_name = 'Sale' AND column_name = 'taxAmount'
+      `);
+
+      if (saleTaxCheck.rows.length === 0) {
+        console.log('[PostgreSQL] Adding tax fields to Sale table...');
+        await this.query(`ALTER TABLE "Sale" ADD COLUMN IF NOT EXISTS "taxAmount" FLOAT DEFAULT 0`);
+        await this.query(`ALTER TABLE "Sale" ADD COLUMN IF NOT EXISTS "taxableAmount" FLOAT DEFAULT 0`);
+        await this.query(`ALTER TABLE "Sale" ADD COLUMN IF NOT EXISTS "exemptAmount" FLOAT DEFAULT 0`);
+        console.log('[PostgreSQL] Added tax fields to Sale');
+      }
+
+      // Add tax fields to SaleItem table
+      const saleItemTaxCheck = await this.query(`
+        SELECT column_name FROM information_schema.columns 
+        WHERE table_name = 'SaleItem' AND column_name = 'isTaxable'
+      `);
+
+      if (saleItemTaxCheck.rows.length === 0) {
+        console.log('[PostgreSQL] Adding tax fields to SaleItem table...');
+        await this.query(`ALTER TABLE "SaleItem" ADD COLUMN IF NOT EXISTS "isTaxable" BOOLEAN DEFAULT false`);
+        await this.query(`ALTER TABLE "SaleItem" ADD COLUMN IF NOT EXISTS "taxRate" FLOAT DEFAULT 0`);
+        await this.query(`ALTER TABLE "SaleItem" ADD COLUMN IF NOT EXISTS "taxAmount" FLOAT DEFAULT 0`);
+        console.log('[PostgreSQL] Added tax fields to SaleItem');
+      }
+    } catch (error) {
+      console.error('[PostgreSQL] Error migrating tax fields:', error);
+      // Non-fatal - continue with other migrations
+    }
+  }
+
+  private async migrateAuditLog(): Promise<void> {
+    if (!this.pool) throw new Error('Database not connected');
+
+    try {
+      // Check if AuditLog table exists
+      const tableCheck = await this.query(`
+        SELECT EXISTS (
+          SELECT FROM information_schema.tables 
+          WHERE table_schema = 'public' AND table_name = 'AuditLog'
+        )
+      `);
+
+      if (!tableCheck.rows[0].exists) {
+        console.log('[PostgreSQL] Creating AuditLog table...');
+        
+        await this.query(`
+          CREATE TABLE "AuditLog" (
+            "id" TEXT PRIMARY KEY,
+            "userId" TEXT NOT NULL,
+            "userName" TEXT NOT NULL,
+            "userEmail" TEXT NOT NULL,
+            "userRole" TEXT NOT NULL,
+            "action" TEXT NOT NULL,
+            "entityType" TEXT NOT NULL,
+            "entityId" TEXT,
+            "entityName" TEXT,
+            "previousValues" TEXT,
+            "newValues" TEXT,
+            "changedFields" TEXT,
+            "ipAddress" TEXT,
+            "userAgent" TEXT,
+            "branchId" TEXT,
+            "branchName" TEXT,
+            "description" TEXT,
+            "severity" TEXT DEFAULT 'INFO',
+            "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          )
+        `);
+        
+        // Create indexes
+        await this.query(`CREATE INDEX IF NOT EXISTS "idx_auditlog_userId" ON "AuditLog"("userId")`);
+        await this.query(`CREATE INDEX IF NOT EXISTS "idx_auditlog_action" ON "AuditLog"("action")`);
+        await this.query(`CREATE INDEX IF NOT EXISTS "idx_auditlog_entityType" ON "AuditLog"("entityType")`);
+        await this.query(`CREATE INDEX IF NOT EXISTS "idx_auditlog_createdAt" ON "AuditLog"("createdAt")`);
+        await this.query(`CREATE INDEX IF NOT EXISTS "idx_auditlog_severity" ON "AuditLog"("severity")`);
+        
+        console.log('[PostgreSQL] Created AuditLog table');
+      }
+    } catch (error) {
+      console.error('[PostgreSQL] Error creating AuditLog table:', error);
+      // Non-fatal - continue with other migrations
     }
   }
 
@@ -754,6 +864,10 @@ export class PostgreSQLQueryInterface {
     return new PostgreSQLModel(this.pool, 'ControlledSubstanceRegister');
   }
 
+  get auditLog() {
+    return new PostgreSQLModel(this.pool, 'AuditLog');
+  }
+
   // Transaction support
   async $transaction<T>(
     callback: (tx: PostgreSQLQueryInterface) => Promise<T>
@@ -872,6 +986,11 @@ class PostgreSQLTransactionClient {
   // ControlledSubstanceRegister model
   get controlledSubstanceRegister() {
     return new PostgreSQLTransactionModel(this.client, 'ControlledSubstanceRegister');
+  }
+
+  // AuditLog model
+  get auditLog() {
+    return new PostgreSQLTransactionModel(this.client, 'AuditLog');
   }
 }
 
