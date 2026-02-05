@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { RefreshCw } from 'lucide-react';
-import { Navbar } from '@/components/ui/navbar';
+import { PageLayout } from '@/components/ui/page-nav';
 import TaxSettingsContent from './tax-settings-content';
 
 export default function TaxPageClient() {
@@ -35,11 +35,10 @@ export default function TaxPageClient() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Navbar />
-      <main className="max-w-6xl mx-auto px-4 py-6">
+    <PageLayout>
+      <main className="container mx-auto px-4 py-6">
         <TaxSettingsContent />
       </main>
-    </div>
+    </PageLayout>
   );
 }
