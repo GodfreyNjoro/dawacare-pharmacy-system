@@ -76,14 +76,14 @@ export function registerControlledSubstancesHandlers(): void {
         success: true,
         stats: {
           totalControlled,
-          totalQuantity: totalQuantity._sum.quantity || 0,
+          totalQuantity: totalQuantity._sum?.quantity || 0,
           recentTransactions,
           pendingVerifications,
           lowStockControlled,
-          bySchedule: bySchedule.map((s: { scheduleClass: string | null; _count: { id: number }; _sum: { quantity: number | null } }) => ({
-            scheduleClass: s.scheduleClass,
-            count: s._count.id,
-            quantity: s._sum.quantity || 0,
+          bySchedule: (bySchedule || []).map((s: any) => ({
+            scheduleClass: s.scheduleClass || 'Unknown',
+            count: s._count?.id || s._count || 0,
+            quantity: s._sum?.quantity || 0,
           })),
         },
       };
