@@ -71,7 +71,7 @@ export function Sidebar() {
     if (pathname === "/customers" || pathname.startsWith("/prescriptions") || pathname === "/prescribers") {
       setCustomersOpen(true);
     }
-    if (pathname === "/audit-logs" || pathname === "/users" || pathname === "/branches") {
+    if (pathname === "/audit-logs" || pathname === "/users" || pathname === "/branches" || pathname.startsWith("/settings/tax")) {
       setSettingsOpen(true);
     }
   }, [pathname]);
@@ -102,6 +102,7 @@ export function Sidebar() {
     { href: "/audit-logs", label: "Audit Trail", icon: Shield, permission: "VIEW_AUDIT_LOGS" },
     { href: "/users", label: "Users", icon: UserCog, permission: "VIEW_USERS" },
     { href: "/branches", label: "Branches", icon: Building2, permission: "VIEW_BRANCHES" },
+    { href: "/settings/tax", label: "Tax Settings", icon: Calculator, permission: "MANAGE_TAX_SETTINGS" },
   ];
 
   const procurementLinks = [
@@ -134,8 +135,9 @@ export function Sidebar() {
   const canViewAuditLogs = hasPermission(userRole, "VIEW_AUDIT_LOGS");
   const canViewUsers = hasPermission(userRole, "VIEW_USERS");
   const canViewBranches = hasPermission(userRole, "VIEW_BRANCHES");
-  const showSettingsDropdown = canViewAuditLogs || canViewUsers || canViewBranches;
-  const isSettingsActive = pathname === "/audit-logs" || pathname === "/users" || pathname === "/branches";
+  const canManageTax = hasPermission(userRole, "MANAGE_TAX_SETTINGS");
+  const showSettingsDropdown = canViewAuditLogs || canViewUsers || canViewBranches || canManageTax;
+  const isSettingsActive = pathname === "/audit-logs" || pathname === "/users" || pathname === "/branches" || pathname.startsWith("/settings/tax");
 
   const canViewProcurement = hasPermission(userRole, "VIEW_PURCHASE_ORDERS");
   const isProcurementActive = pathname.startsWith("/procurement");
