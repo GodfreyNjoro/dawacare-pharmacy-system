@@ -648,3 +648,19 @@ model ControlledSubstanceRegister {
   @@index([createdAt])
   @@index([recordedBy])
 }
+
+// Application Settings (including Tax Configuration)
+model AppSettings {
+  id            String    @id @default(cuid())
+  key           String    @unique
+  value         String
+  category      String    @default("general") // general, tax, company, system
+  description   String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  updatedBy     String?   // User ID who last updated
+  updatedByName String?   // User name for audit trail
+
+  @@index([key])
+  @@index([category])
+}

@@ -65,6 +65,9 @@ export const PERMISSIONS = {
   VIEW_CONTROLLED_SUBSTANCES: ["ADMIN", "PHARMACIST"],
   RECORD_CONTROLLED_ENTRY: ["ADMIN", "PHARMACIST"],
   VERIFY_CONTROLLED_ENTRY: ["ADMIN", "PHARMACIST"],
+  
+  // Tax Settings (KRA Compliance)
+  MANAGE_TAX_SETTINGS: ["ADMIN", "PHARMACIST"],
 } as const;
 
 export function hasPermission(role: string | undefined, permission: keyof typeof PERMISSIONS): boolean {

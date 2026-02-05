@@ -1,15 +1,25 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
-import { BarChart3, Package, TrendingUp, FileSpreadsheet } from "lucide-react";
+import { BarChart3, Package, TrendingUp, Receipt } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import SalesReport from "./sales-report";
 import StockReport from "./stock-report";
 import TopSellersReport from "./top-sellers-report";
+import TaxReport from "./tax-report";
 
 export default function ReportsContent() {
-  const [activeTab, setActiveTab] = useState("sales");
+  const searchParams = useSearchParams();
+  const tabFromUrl = searchParams.get("tab");
+  const [activeTab, setActiveTab] = useState(tabFromUrl || "sales");
+
+  useEffect(() => {
+    if (tabFromUrl) {
+      setActiveTab(tabFromUrl);
+    }
+  }, [tabFromUrl]);
 
   return (
     <motion.div
@@ -25,21 +35,22 @@ export default function ReportsContent() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full max-w-xl grid-cols-3 mb-6">
+        <TabsList className="grid w-full max-w-2xl grid-cols-4 mb-6">
           <TabsTrigger value="sales" className="flex items-center gap-2">
             <BarChart3 className="h-4 w-4" />
-            <span className="hidden sm:inline">Sales Report</span>
-            <span className="sm:hidden">Sales</span>
+            <span className="hidden sm:inline">Sales</span>
           </TabsTrigger>
           <TabsTrigger value="stock" className="flex items-center gap-2">
             <Package className="h-4 w-4" />
-            <span className="hidden sm:inline">Stock Report</span>
-            <span className="sm:hidden">Stock</span>
+            <span className="hidden sm:inline">Stock</span>
           </TabsTrigger>
           <TabsTrigger value="top-sellers" className="flex items-center gap-2">
             <TrendingUp className="h-4 w-4" />
             <span className="hidden sm:inline">Top Sellers</span>
-            <span className="sm:hidden">Top</span>
+          </TabsTrigger>
+          <TabsTrigger value="tax" className="flex items-center gap-2">
+            <Receipt className="h-4 w-4" />
+            <span className="hidden sm:inline">Tax (KRA)</span>
           </TabsTrigger>
         </TabsList>
 
@@ -53,6 +64,10 @@ export default function ReportsContent() {
 
         <TabsContent value="top-sellers">
           <TopSellersReport />
+        </TabsContent>
+
+        <TabsContent value="tax">
+          <TaxReport />
         </TabsContent>
       </Tabs>
     </motion.div>

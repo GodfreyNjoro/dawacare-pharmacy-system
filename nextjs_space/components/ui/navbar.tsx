@@ -23,6 +23,7 @@ import {
   ClipboardList,
   Stethoscope,
   FileCheck,
+  Settings,
 } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { hasPermission } from "@/lib/permissions";
@@ -83,6 +84,7 @@ export function Navbar() {
     { href: "/audit-logs", label: "Audit Trail", icon: Shield, permission: "VIEW_AUDIT_LOGS" },
     { href: "/users", label: "Users", icon: UserCog, permission: "VIEW_USERS" },
     { href: "/branches", label: "Branches", icon: Building2, permission: "VIEW_BRANCHES" },
+    { href: "/settings/tax", label: "Tax Settings", icon: Settings, permission: "MANAGE_TAX_SETTINGS" },
   ];
 
   const procurementLinks = [
