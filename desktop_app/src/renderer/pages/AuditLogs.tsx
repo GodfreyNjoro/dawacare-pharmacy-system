@@ -16,9 +16,10 @@ import {
   FileText,
   Eye,
   X,
+  ArrowLeft,
 } from 'lucide-react';
 import { useAuth } from '../lib/auth-context';
-import DashboardLayout from '../components/DashboardLayout';
+import { useNavigate } from 'react-router-dom';
 
 interface AuditLog {
   id: string;
@@ -55,6 +56,7 @@ const SEVERITIES = ['INFO', 'WARNING', 'CRITICAL'];
 
 export default function AuditLogs() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [stats, setStats] = useState<AuditStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -78,13 +80,18 @@ export default function AuditLogs() {
   // Check if user is admin
   if (user?.role !== 'ADMIN') {
     return (
-      <DashboardLayout>
-        <div className="flex flex-col items-center justify-center h-full">
-          <Shield className="w-16 h-16 text-red-500 mb-4" />
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">Access Denied</h2>
-          <p className="text-gray-600">You need Admin privileges to view Audit Logs.</p>
-        </div>
-      </DashboardLayout>
+      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center">
+        <Shield className="w-16 h-16 text-red-500 mb-4" />
+        <h2 className="text-2xl font-bold text-gray-800 mb-2">Access Denied</h2>
+        <p className="text-gray-600 mb-4">You need Admin privileges to view Audit Logs.</p>
+        <button
+          onClick={() => navigate('/dashboard')}
+          className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Back to Dashboard
+        </button>
+      </div>
     );
   }
 
@@ -214,11 +221,17 @@ export default function AuditLogs() {
   };
 
   return (
-    <DashboardLayout>
-      <div className="space-y-6">
+    <div className="min-h-screen bg-gray-50 p-6">
+      <div className="space-y-6 max-w-7xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
+            <button
+              onClick={() => navigate('/dashboard')}
+              className="p-2 hover:bg-gray-200 rounded-lg transition-colors"
+            >
+              <ArrowLeft className="w-5 h-5 text-gray-600" />
+            </button>
             <div className="p-3 bg-indigo-100 rounded-xl">
               <Shield className="w-8 h-8 text-indigo-600" />
             </div>
@@ -629,6 +642,6 @@ export default function AuditLogs() {
           </div>
         )}
       </div>
-    </DashboardLayout>
+    </div>
   );
 }
