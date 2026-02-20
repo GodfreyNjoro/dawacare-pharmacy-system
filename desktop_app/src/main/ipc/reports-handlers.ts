@@ -38,7 +38,8 @@ interface TopSeller {
 
 // Helper to detect database type
 function isPostgreSQL(dbManager: DatabaseManager): boolean {
-  return dbManager.isOnlineMode();
+  const config = dbManager.getConfig();
+  return config?.type === 'postgresql';
 }
 
 export function registerReportsHandlers(): void {
