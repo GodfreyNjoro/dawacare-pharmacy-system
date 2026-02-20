@@ -78,7 +78,7 @@ export function registerReportsHandlers(): void {
           COUNT(s.id) as "totalTransactions",
           COALESCE(SUM((SELECT COALESCE(SUM(si.quantity), 0) FROM "SaleItem" si WHERE si."saleId" = s.id)), 0) as "totalItems"
         FROM "Sale" s
-        WHERE s.status = 'COMPLETED' ${dateFilter}`;
+        WHERE s."paymentStatus" = 'PAID' ${dateFilter}`;
 
       const summaryResult = await dbManager.executeRawQuery(summaryQuery) as {
         totalRevenue: number;
@@ -117,7 +117,7 @@ export function registerReportsHandlers(): void {
           COUNT(s.id) as transactions,
           COALESCE(SUM((SELECT COALESCE(SUM(si.quantity), 0) FROM "SaleItem" si WHERE si."saleId" = s.id)), 0) as items
         FROM "Sale" s
-        WHERE s.status = 'COMPLETED' ${dateFilter}
+        WHERE s."paymentStatus" = 'PAID' ${dateFilter}
         GROUP BY ${dateFormatExpr}
         ORDER BY period ASC`;
 
@@ -130,7 +130,7 @@ export function registerReportsHandlers(): void {
           COALESCE(SUM(s.total), 0) as total,
           COUNT(s.id) as count
         FROM "Sale" s
-        WHERE s.status = 'COMPLETED' ${dateFilter}
+        WHERE s."paymentStatus" = 'PAID' ${dateFilter}
         GROUP BY s."paymentMethod"`;
 
       const paymentBreakdown = await dbManager.executeRawQuery(paymentQuery);
@@ -302,7 +302,7 @@ export function registerReportsHandlers(): void {
         FROM "SaleItem" si
         JOIN "Sale" s ON si."saleId" = s.id
         JOIN "Medicine" m ON si."medicineId" = m.id
-        WHERE s.status = 'COMPLETED' ${dateFilter}
+        WHERE s."paymentStatus" = 'PAID' ${dateFilter}
         GROUP BY m.id, m.name, m."genericName", m.category
         ORDER BY "totalQuantity" DESC
         LIMIT ${limit}`;
@@ -357,7 +357,7 @@ export function registerReportsHandlers(): void {
         const salesQuery = `
           SELECT s."createdAt", s."invoiceNumber", c.name as "customerName",
                  (SELECT COUNT(*) FROM "SaleItem" WHERE "saleId" = s.id) as "itemCount",
-                 s.subtotal, s.discount, s.tax, s.total, s."paymentMethod", s.status
+                 s.subtotal, s.discount, s."taxAmount" as tax, s.total, s."paymentMethod", s."paymentStatus" as status
           FROM "Sale" s
           LEFT JOIN "Customer" c ON s."customerId" = c.id
           WHERE 1=1 ${salesDateFilter}

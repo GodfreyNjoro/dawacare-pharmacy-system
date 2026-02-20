@@ -330,7 +330,7 @@ export function registerPosHandlers(): void {
       }
       
       const discount = data.discount || 0;
-      const tax = data.tax || 0;
+      const taxAmount = data.tax || 0;
       const loyaltyPointsUsed = data.loyaltyPointsUsed || 0;
       const pointsDiscount = loyaltyPointsUsed; // 1 point = 1 KES
       const total = Math.max(0, subtotal - discount - pointsDiscount);
@@ -349,7 +349,7 @@ export function registerPosHandlers(): void {
             customerPhone: data.customerPhone || null,
             subtotal,
             discount,
-            tax,
+            taxAmount,
             loyaltyPointsUsed,
             loyaltyPointsEarned,
             total,
