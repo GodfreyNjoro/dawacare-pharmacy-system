@@ -532,4 +532,18 @@ export class SQLiteAdapter implements DatabaseAdapter {
     }
     return this.prisma;
   }
+
+  async executeRawQuery(sql: string, params?: any[]): Promise<any[]> {
+    if (!this.prisma) {
+      throw new Error('Database not connected. Call connect() first.');
+    }
+    try {
+      // For SQLite, use $queryRawUnsafe
+      const result = await this.prisma.$queryRawUnsafe(sql, ...(params || []));
+      return result;
+    } catch (error) {
+      console.error('[SQLite] Raw query error:', error);
+      throw error;
+    }
+  }
 }

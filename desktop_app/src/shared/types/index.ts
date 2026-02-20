@@ -14,6 +14,7 @@ export interface DatabaseAdapter {
   getConnectionString(): string;
   initialize(): Promise<void>;
   runMigrations(): Promise<void>;
+  executeRawQuery(sql: string, params?: any[]): Promise<any[]>;
 }
 
 // User Types

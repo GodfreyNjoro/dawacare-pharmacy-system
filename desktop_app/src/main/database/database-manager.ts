@@ -129,6 +129,13 @@ class DatabaseManager {
     return this.store.get(STORAGE_KEYS.DATABASE_CONFIG) as DatabaseConfig | null;
   }
 
+  async executeRawQuery(sql: string, params?: any[]): Promise<any[]> {
+    if (!this.adapter) {
+      throw new Error('Database not initialized. Call initialize() first.');
+    }
+    return this.adapter.executeRawQuery(sql, params);
+  }
+
   async setConfig(config: DatabaseConfig): Promise<void> {
     await this.initialize(config);
   }

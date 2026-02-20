@@ -52,8 +52,7 @@ export function registerReportsHandlers(): void {
     endDate?: string;
     groupBy?: 'day' | 'week' | 'month';
   } = {}) => {
-    const prisma = dbManager.getPrismaClient();
-    if (!prisma) return { success: false, error: 'Database not initialized' };
+    if (!dbManager.isInitialized()) return { success: false, error: 'Database not initialized' };
     const { startDate, endDate, groupBy = 'day' } = filters;
     const usePostgres = isPostgreSQL(dbManager);
 
@@ -81,7 +80,7 @@ export function registerReportsHandlers(): void {
         FROM "Sale" s
         WHERE s.status = 'COMPLETED' ${dateFilter}`;
 
-      const summaryResult = await prisma.$queryRawUnsafe(summaryQuery) as {
+      const summaryResult = await dbManager.executeRawQuery(summaryQuery) as {
         totalRevenue: number;
         totalTransactions: number;
         totalItems: number;
@@ -122,7 +121,7 @@ export function registerReportsHandlers(): void {
         GROUP BY ${dateFormatExpr}
         ORDER BY period ASC`;
 
-      const chartData = await prisma.$queryRawUnsafe(chartQuery);
+      const chartData = await dbManager.executeRawQuery(chartQuery);
 
       // Payment breakdown
       const paymentQuery = `
@@ -134,7 +133,7 @@ export function registerReportsHandlers(): void {
         WHERE s.status = 'COMPLETED' ${dateFilter}
         GROUP BY s."paymentMethod"`;
 
-      const paymentBreakdown = await prisma.$queryRawUnsafe(paymentQuery);
+      const paymentBreakdown = await dbManager.executeRawQuery(paymentQuery);
 
       return {
         success: true,
@@ -163,8 +162,7 @@ export function registerReportsHandlers(): void {
     category?: string;
     search?: string;
   } = {}) => {
-    const prisma = dbManager.getPrismaClient();
-    if (!prisma) return { success: false, error: 'Database not initialized' };
+    if (!dbManager.isInitialized()) return { success: false, error: 'Database not initialized' };
     const { status = 'all', category = '', search = '' } = filters;
     const usePostgres = isPostgreSQL(dbManager);
 
@@ -219,7 +217,7 @@ export function registerReportsHandlers(): void {
         ${whereClause}
         ORDER BY m.quantity ASC, m.name ASC`;
 
-      const items = await prisma.$queryRawUnsafe(itemsQuery);
+      const items = await dbManager.executeRawQuery(itemsQuery);
 
       // Summary stats with database-specific date handling
       const expiringCountExpr = usePostgres
@@ -235,7 +233,7 @@ export function registerReportsHandlers(): void {
           ${expiringCountExpr} as "expiringCount"
         FROM "Medicine" m`;
 
-      const statsResult = await prisma.$queryRawUnsafe(statsQuery) as {
+      const statsResult = await dbManager.executeRawQuery(statsQuery) as {
         totalItems: number;
         totalValue: number;
         lowStockCount: number;
@@ -244,7 +242,7 @@ export function registerReportsHandlers(): void {
       }[];
 
       // Categories
-      const categories = await prisma.$queryRawUnsafe(
+      const categories = await dbManager.executeRawQuery(
         `SELECT DISTINCT category FROM "Medicine" WHERE category IS NOT NULL ORDER BY category`
       );
 
@@ -277,8 +275,7 @@ export function registerReportsHandlers(): void {
     endDate?: string;
     limit?: number;
   } = {}) => {
-    const prisma = dbManager.getPrismaClient();
-    if (!prisma) return { success: false, error: 'Database not initialized' };
+    if (!dbManager.isInitialized()) return { success: false, error: 'Database not initialized' };
     const { startDate, endDate, limit = 10 } = filters;
     const usePostgres = isPostgreSQL(dbManager);
 
@@ -310,7 +307,7 @@ export function registerReportsHandlers(): void {
         ORDER BY "totalQuantity" DESC
         LIMIT ${limit}`;
 
-      const topSellers = await prisma.$queryRawUnsafe(query);
+      const topSellers = await dbManager.executeRawQuery(query);
 
       return {
         success: true,
@@ -332,8 +329,7 @@ export function registerReportsHandlers(): void {
     startDate?: string;
     endDate?: string;
   }) => {
-    const prisma = dbManager.getPrismaClient();
-    if (!prisma) return { success: false, error: 'Database not initialized' };
+    if (!dbManager.isInitialized()) return { success: false, error: 'Database not initialized' };
     const { type, startDate, endDate } = filters;
     const usePostgres = isPostgreSQL(dbManager);
 
@@ -367,7 +363,7 @@ export function registerReportsHandlers(): void {
           WHERE 1=1 ${salesDateFilter}
           ORDER BY s."createdAt" DESC`;
         
-        const sales = await prisma.$queryRawUnsafe(salesQuery) as {
+        const sales = await dbManager.executeRawQuery(salesQuery) as {
           createdAt: string;
           invoiceNumber: string | null;
           customerName: string | null;
@@ -403,7 +399,7 @@ export function registerReportsHandlers(): void {
           WHERE 1=1 ${poDateFilter}
           ORDER BY po."createdAt" DESC`;
 
-        const purchases = await prisma.$queryRawUnsafe(purchasesQuery) as {
+        const purchases = await dbManager.executeRawQuery(purchasesQuery) as {
           createdAt: string;
           poNumber: string;
           supplierName: string;
@@ -446,7 +442,7 @@ export function registerReportsHandlers(): void {
           FROM "Medicine"
           ORDER BY name ASC`;
 
-        const inventory = await prisma.$queryRawUnsafe(inventoryQuery);
+        const inventory = await dbManager.executeRawQuery(inventoryQuery);
         data = (inventory as StockItem[]).map((i) => ([
           i.name,
           i.genericName || '-',

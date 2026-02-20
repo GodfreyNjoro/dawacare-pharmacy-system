@@ -773,6 +773,19 @@ export class PostgreSQLAdapter implements DatabaseAdapter {
     }
     return new PostgreSQLQueryInterface(this.pool);
   }
+
+  async executeRawQuery(sql: string, params?: any[]): Promise<any[]> {
+    if (!this.pool) {
+      throw new Error('Database not connected. Call connect() first.');
+    }
+    try {
+      const result = await this.pool.query(sql, params || []);
+      return result.rows;
+    } catch (error) {
+      console.error('[PostgreSQL] Raw query error:', error);
+      throw error;
+    }
+  }
 }
 
 // Prisma-like query interface for PostgreSQL
