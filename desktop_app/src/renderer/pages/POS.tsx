@@ -59,12 +59,18 @@ interface Sale {
   invoiceNumber: string;
   subtotal: number;
   discount: number;
+  tax: number;
   total: number;
   loyaltyPointsEarned: number;
   customerName: string | null;
   customerPhone: string | null;
   paymentMethod: string;
   createdAt: string;
+  companyName?: string;
+  companyKraPin?: string;
+  companyAddress?: string;
+  companyPhone?: string;
+  vatRate?: number;
   items: Array<{
     medicineName: string;
     batchNumber: string;
@@ -85,6 +91,17 @@ const PAYMENT_METHODS = [
 const POINTS_RATE = 100;
 const POINTS_VALUE = 1;
 
+// Tax settings interface
+interface TaxSettings {
+  vatEnabled: boolean;
+  standardVatRate: number;
+  companyName: string;
+  companyKraPin: string;
+  companyAddress: string;
+  companyPhone: string;
+  defaultTaxExempt: boolean;
+}
+
 export default function POS() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -99,6 +116,17 @@ export default function POS() {
   const [isLoading, setIsLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [lastSale, setLastSale] = useState<Sale | null>(null);
+  
+  // Tax settings state
+  const [taxSettings, setTaxSettings] = useState<TaxSettings>({
+    vatEnabled: false,
+    standardVatRate: 16,
+    companyName: 'DawaCare Pharmacy',
+    companyKraPin: '',
+    companyAddress: 'Nairobi, Kenya',
+    companyPhone: '+254 700 000 000',
+    defaultTaxExempt: true,
+  });
   
   // Customer state
   const [showCustomerSection, setShowCustomerSection] = useState(false);
@@ -181,10 +209,32 @@ export default function POS() {
     }
   }, []);
 
+  // Fetch tax settings
+  const fetchTaxSettings = useCallback(async () => {
+    try {
+      // @ts-ignore - getTaxSettings exists in preload
+      const result = await window.electronAPI.getTaxSettings();
+      if (result.success && result.settings) {
+        setTaxSettings({
+          vatEnabled: result.settings.vatEnabled ?? false,
+          standardVatRate: result.settings.standardVatRate ?? 16,
+          companyName: result.settings.companyName || 'DawaCare Pharmacy',
+          companyKraPin: result.settings.companyKraPin || '',
+          companyAddress: result.settings.companyAddress || 'Nairobi, Kenya',
+          companyPhone: result.settings.companyPhone || '+254 700 000 000',
+          defaultTaxExempt: result.settings.defaultTaxExempt ?? true,
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching tax settings:', error);
+    }
+  }, []);
+
   useEffect(() => {
     fetchCustomers();
     fetchTodayStats();
-  }, [fetchCustomers, fetchTodayStats]);
+    fetchTaxSettings();
+  }, [fetchCustomers, fetchTodayStats, fetchTaxSettings]);
 
   useEffect(() => {
     const debounce = setTimeout(fetchMedicines, 300);
@@ -247,7 +297,15 @@ export default function POS() {
     0
   );
   const pointsDiscount = usePoints ? pointsToUse * POINTS_VALUE : 0;
-  const total = Math.max(0, subtotal - discount - pointsDiscount);
+  const netAmount = Math.max(0, subtotal - discount - pointsDiscount);
+  
+  // Calculate VAT if enabled (VAT is inclusive in Kenya - calculate from net amount)
+  // VAT formula: VAT = Net Amount * (VAT Rate / (100 + VAT Rate))
+  const vatAmount = taxSettings.vatEnabled && !taxSettings.defaultTaxExempt
+    ? netAmount * (taxSettings.standardVatRate / (100 + taxSettings.standardVatRate))
+    : 0;
+  const total = netAmount; // Total includes VAT (inclusive pricing)
+  
   const pointsToEarn = Math.floor(total / POINTS_RATE);
   const maxPointsToUse = selectedCustomer
     ? Math.min(selectedCustomer.loyaltyPoints, Math.floor(subtotal - discount))
@@ -354,10 +412,11 @@ export default function POS() {
             <div style="text-align: center; margin-bottom: 10px;">
               <img src="data:image/png;base64,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" style="width: 60px; height: 60px;" alt="DawaCare Logo" />
             </div>
-            <h1>DawaCare Pharmacy</h1>
+            <h1>${sale.companyName || 'DawaCare Pharmacy'}</h1>
             <p>Your Trusted Healthcare Partner</p>
-            <p>Tel: +254 700 000 000</p>
-            <p>Nairobi, Kenya</p>
+            <p>Tel: ${sale.companyPhone || '+254 700 000 000'}</p>
+            <p>${sale.companyAddress || 'Nairobi, Kenya'}</p>
+            ${sale.companyKraPin ? `<p style="font-weight: bold;">KRA PIN: ${sale.companyKraPin}</p>` : ''}
           </div>
           
           <div class="info">
@@ -383,6 +442,7 @@ export default function POS() {
           <div class="totals">
             <p><span>Subtotal:</span><span>KES ${sale.subtotal.toFixed(2)}</span></p>
             ${sale.discount > 0 ? `<p><span>Discount:</span><span>- KES ${sale.discount.toFixed(2)}</span></p>` : ''}
+            ${sale.tax > 0 ? `<p><span>VAT (${sale.vatRate || 16}% Incl.):</span><span>KES ${sale.tax.toFixed(2)}</span></p>` : ''}
             <p class="total"><span>TOTAL:</span><span>KES ${sale.total.toFixed(2)}</span></p>
           </div>
           
@@ -393,7 +453,7 @@ export default function POS() {
           ` : ''}
           
           <div class="footer">
-            <p>Thank you for choosing DawaCare!</p>
+            <p>Thank you for choosing ${sale.companyName || 'DawaCare'}!</p>
             <p>Get well soon!</p>
             <p style="margin-top: 10px;">Served by: ${user?.name || user?.email || 'Staff'}</p>
           </div>
@@ -438,6 +498,7 @@ export default function POS() {
         customerName: selectedCustomer?.name || walkInName || undefined,
         customerPhone: selectedCustomer?.phone || walkInPhone || undefined,
         discount,
+        tax: vatAmount, // Include calculated VAT
         loyaltyPointsUsed: usePoints ? pointsToUse : 0,
         paymentMethod,
         notes: notes || undefined,
@@ -450,12 +511,19 @@ export default function POS() {
           invoiceNumber: result.sale.invoiceNumber,
           subtotal: result.sale.subtotal,
           discount: result.sale.discount || 0,
+          tax: result.sale.tax || vatAmount || 0,
           total: result.sale.total,
           loyaltyPointsEarned: result.sale.loyaltyPointsEarned,
           customerName: result.sale.customerName,
           customerPhone: result.sale.customerPhone,
           paymentMethod: result.sale.paymentMethod,
           createdAt: result.sale.createdAt || new Date().toISOString(),
+          // Include company info for receipt
+          companyName: taxSettings.companyName,
+          companyKraPin: taxSettings.companyKraPin,
+          companyAddress: taxSettings.companyAddress,
+          companyPhone: taxSettings.companyPhone,
+          vatRate: taxSettings.vatEnabled ? taxSettings.standardVatRate : 0,
           items: result.sale.items.map((item: any) => ({
             medicineName: item.medicineName,
             batchNumber: item.batchNumber || '',
@@ -576,6 +644,12 @@ export default function POS() {
                 <div className="border-t mt-2 pt-2 flex justify-between text-sm text-red-600">
                   <span>Discount</span>
                   <span>- KES {lastSale.discount.toFixed(2)}</span>
+                </div>
+              )}
+              {lastSale.tax > 0 && (
+                <div className="flex justify-between text-sm text-blue-600 mt-1">
+                  <span>VAT ({lastSale.vatRate || 16}% Incl.)</span>
+                  <span>KES {lastSale.tax.toFixed(2)}</span>
                 </div>
               )}
               <div className="border-t mt-2 pt-2 font-bold flex justify-between">
@@ -1028,6 +1102,12 @@ export default function POS() {
                         <div className="flex justify-between text-sm text-amber-600">
                           <span>Points Discount ({pointsToUse} pts)</span>
                           <span>- KES {pointsDiscount.toFixed(2)}</span>
+                        </div>
+                      )}
+                      {taxSettings.vatEnabled && vatAmount > 0 && (
+                        <div className="flex justify-between text-sm text-blue-600">
+                          <span>VAT ({taxSettings.standardVatRate}% Incl.)</span>
+                          <span>KES {vatAmount.toFixed(2)}</span>
                         </div>
                       )}
                       <div className="flex justify-between text-lg font-bold">
