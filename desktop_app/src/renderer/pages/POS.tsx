@@ -511,7 +511,7 @@ export default function POS() {
           invoiceNumber: result.sale.invoiceNumber,
           subtotal: result.sale.subtotal,
           discount: result.sale.discount || 0,
-          tax: result.sale.tax || vatAmount || 0,
+          tax: result.sale.taxAmount || vatAmount || 0,
           total: result.sale.total,
           loyaltyPointsEarned: result.sale.loyaltyPointsEarned,
           customerName: result.sale.customerName,
