@@ -14,7 +14,6 @@ import {
   BarChart3,
   Package,
   Bot,
-  Receipt,
   ChevronRight,
   Check,
   Github,
@@ -47,7 +46,7 @@ const features = [
     description: 'Intelligent assistant for drug interactions and dosage guidance.',
   },
   {
-    icon: Receipt,
+    icon: FileText,
     title: 'VAT Compliant',
     description: '16% VAT calculation with KRA PIN display on all receipts.',
   },
@@ -62,7 +61,7 @@ const screenshots = [
   { src: '/download/pos.png', alt: 'Point of Sale', label: 'Fast POS Checkout' },
   { src: '/download/inventory.png', alt: 'Inventory', label: 'Inventory Management' },
   { src: '/download/dashboard.png', alt: 'Dashboard', label: 'Analytics Dashboard' },
-  { src: '/download/receipt.png', alt: 'Receipt', label: 'Professional Receipts' },
+  { src: '/download/ai-assist.png', alt: 'AI Pharmacist', label: 'AI Pharmacist Assistant' },
 ];
 
 export default function DownloadPage() {
