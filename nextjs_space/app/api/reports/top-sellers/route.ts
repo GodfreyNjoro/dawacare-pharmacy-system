@@ -2,9 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth-options";
 import { prisma } from "@/lib/db";
-import { SaleItem, Medicine, Sale } from "@prisma/client";
-
-type SaleItemWithRelations = SaleItem & { sale: Sale; medicine: Medicine };
 
 export async function GET(request: NextRequest) {
   try {
@@ -40,6 +37,9 @@ export async function GET(request: NextRequest) {
       },
     });
 
+    // Type definition based on query result
+    type SaleItemType = typeof saleItems[number];
+
     // Aggregate by medicine
     const medicineStats: Record<
       string,
@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
       }
     > = {};
 
-    saleItems.forEach((item: SaleItemWithRelations) => {
+    saleItems.forEach((item: SaleItemType) => {
       const key = item.medicineId;
       if (!medicineStats[key]) {
         medicineStats[key] = {

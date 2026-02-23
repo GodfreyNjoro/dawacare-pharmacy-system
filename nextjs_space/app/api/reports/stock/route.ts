@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth-options";
 import { prisma } from "@/lib/db";
-import { Medicine } from "@prisma/client";
 
 export async function GET(request: NextRequest) {
   try {
@@ -27,12 +26,15 @@ export async function GET(request: NextRequest) {
       orderBy: { name: "asc" },
     });
 
+    // Type definition based on query result
+    type MedicineType = typeof medicines[number];
+
     const now = new Date();
     const thirtyDaysFromNow = new Date();
     thirtyDaysFromNow.setDate(now.getDate() + 30);
 
     // Categorize medicines
-    let filteredMedicines = medicines.map((med: Medicine) => {
+    let filteredMedicines = medicines.map((med: MedicineType) => {
       const isLowStock = med.quantity <= med.reorderLevel && med.quantity > 0;
       const isOutOfStock = med.quantity === 0;
       const isExpiringSoon = new Date(med.expiryDate) <= thirtyDaysFromNow && new Date(med.expiryDate) > now;
@@ -85,23 +87,23 @@ export async function GET(request: NextRequest) {
 
     // Summary statistics
     const totalProducts = medicines.length;
-    const totalValue = medicines.reduce((sum: number, med: Medicine) => sum + med.quantity * med.unitPrice, 0);
-    const lowStockCount = medicines.filter((med: Medicine) => med.quantity <= med.reorderLevel && med.quantity > 0).length;
-    const outOfStockCount = medicines.filter((med: Medicine) => med.quantity === 0).length;
-    const expiringSoonCount = medicines.filter((med: Medicine) => {
+    const totalValue = medicines.reduce((sum: number, med: MedicineType) => sum + med.quantity * med.unitPrice, 0);
+    const lowStockCount = medicines.filter((med: MedicineType) => med.quantity <= med.reorderLevel && med.quantity > 0).length;
+    const outOfStockCount = medicines.filter((med: MedicineType) => med.quantity === 0).length;
+    const expiringSoonCount = medicines.filter((med: MedicineType) => {
       const expiry = new Date(med.expiryDate);
       return expiry <= thirtyDaysFromNow && expiry > now;
     }).length;
-    const expiredCount = medicines.filter((med: Medicine) => new Date(med.expiryDate) <= now).length;
+    const expiredCount = medicines.filter((med: MedicineType) => new Date(med.expiryDate) <= now).length;
 
     // Stock by category
     const stockByCategory = categories.map((cat: { category: string; _count: number }) => {
-      const categoryMeds = medicines.filter((med: Medicine) => med.category === cat.category);
+      const categoryMeds = medicines.filter((med: MedicineType) => med.category === cat.category);
       return {
         category: cat.category,
         count: cat._count,
-        totalQuantity: categoryMeds.reduce((sum: number, med: Medicine) => sum + med.quantity, 0),
-        totalValue: categoryMeds.reduce((sum: number, med: Medicine) => sum + med.quantity * med.unitPrice, 0),
+        totalQuantity: categoryMeds.reduce((sum: number, med: MedicineType) => sum + med.quantity, 0),
+        totalValue: categoryMeds.reduce((sum: number, med: MedicineType) => sum + med.quantity * med.unitPrice, 0),
       };
     });
 
