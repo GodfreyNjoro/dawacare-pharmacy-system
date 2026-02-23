@@ -1,6 +1,6 @@
 {
-  "buildCommand": "cd nextjs_space && npx prisma generate && npm run build",
-  "installCommand": "cd nextjs_space && npm install --legacy-peer-deps",
+  "buildCommand": "cd nextjs_space && rm -rf .next && npx prisma generate && npm run build",
+  "installCommand": "cd nextjs_space && npm install --legacy-peer-deps && npx prisma generate",
   "outputDirectory": "nextjs_space/.next",
   "framework": "nextjs"
 }
