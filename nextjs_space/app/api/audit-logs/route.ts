@@ -81,7 +81,7 @@ export async function GET(request: NextRequest) {
     ]);
 
     // Parse JSON fields for display
-    const parsedLogs = logs.map(log => ({
+    const parsedLogs = logs.map((log: { previousValues: string | null; newValues: string | null; changedFields: string | null; [key: string]: unknown }) => ({
       ...log,
       previousValues: log.previousValues ? JSON.parse(log.previousValues) : null,
       newValues: log.newValues ? JSON.parse(log.newValues) : null,
