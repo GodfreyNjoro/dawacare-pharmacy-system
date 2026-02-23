@@ -219,11 +219,12 @@ export async function POST(request: NextRequest) {
       });
 
       if (updatedPO) {
+        type UpdatedPOItemType = typeof updatedPO.items[number];
         const allReceived = updatedPO.items.every(
-          (item) => item.receivedQty >= item.quantity
+          (item: UpdatedPOItemType) => item.receivedQty >= item.quantity
         );
         const partiallyReceived = updatedPO.items.some(
-          (item) => item.receivedQty > 0
+          (item: UpdatedPOItemType) => item.receivedQty > 0
         );
 
         let newStatus = updatedPO.status;
