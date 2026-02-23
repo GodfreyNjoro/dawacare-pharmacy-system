@@ -194,7 +194,7 @@ export async function POST(request: NextRequest) {
           } else {
             // Create new medicine entry
             const poItem = po.items.find(
-              (pi) => pi.medicineName === item.medicineName
+              (pi: POItemType) => pi.medicineName === item.medicineName
             );
             await tx.medicine.create({
               data: {
