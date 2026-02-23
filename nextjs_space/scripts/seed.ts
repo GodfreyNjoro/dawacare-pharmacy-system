@@ -543,6 +543,9 @@ async function main() {
     include: { items: true },
   });
 
+  type ReceivedPOType = typeof receivedPOs[number];
+  type POItemType = ReceivedPOType["items"][number];
+
   for (const po of receivedPOs) {
     const existingGRN = await prisma.goodsReceivedNote.findFirst({
       where: { purchaseOrderId: po.id },
@@ -560,7 +563,7 @@ async function main() {
           status: "RECEIVED",
           branchId: po.branchId,
           items: {
-            create: po.items.map(item => ({
+            create: po.items.map((item: POItemType) => ({
               medicineName: item.medicineName,
               batchNumber: `BATCH-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
               expiryDate: addMonths(18),
