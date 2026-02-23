@@ -1,6 +1,6 @@
 {
-  "buildCommand": "rm -rf .next && npx prisma generate && npm run build",
-  "installCommand": "npm install --legacy-peer-deps && npx prisma generate",
+  "buildCommand": "rm -rf .next node_modules/.prisma && npx prisma generate && npm run build",
+  "installCommand": "npm install --legacy-peer-deps",
   "outputDirectory": ".next",
   "framework": "nextjs"
 }
