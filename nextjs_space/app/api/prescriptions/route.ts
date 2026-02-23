@@ -115,7 +115,7 @@ export async function GET(request: NextRequest) {
     ]);
 
     // Transform stats
-    const statusCounts = stats.reduce((acc: Record<string, number>, item) => {
+    const statusCounts = stats.reduce((acc: Record<string, number>, item: { status: string; _count: { id: number } }) => {
       acc[item.status] = item._count.id;
       return acc;
     }, {});

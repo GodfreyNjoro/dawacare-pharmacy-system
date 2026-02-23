@@ -94,11 +94,11 @@ export async function GET(request: NextRequest) {
 
     // Summary
     const totalMedicinesSold = Object.values(medicineStats).reduce(
-      (sum, stat) => sum + stat.totalQuantity,
+      (sum: number, stat: { totalQuantity: number; totalRevenue: number }) => sum + stat.totalQuantity,
       0
     );
     const totalRevenue = Object.values(medicineStats).reduce(
-      (sum, stat) => sum + stat.totalRevenue,
+      (sum: number, stat: { totalQuantity: number; totalRevenue: number }) => sum + stat.totalRevenue,
       0
     );
     const uniqueMedicinesSold = Object.keys(medicineStats).length;

@@ -125,11 +125,11 @@ export async function GET(request: NextRequest) {
         pendingVerifications
       },
       controlledMedicines,
-      transactionsByType: transactionsByType.map((t) => ({
+      transactionsByType: transactionsByType.map((t: { transactionType: string; _count: number }) => ({
         type: t.transactionType,
         count: t._count
       })),
-      bySchedule: bySchedule.map((s) => ({
+      bySchedule: bySchedule.map((s: { scheduleClass: string | null; _count: number; _sum: { quantity: number | null } }) => ({
         schedule: s.scheduleClass,
         count: s._count,
         totalQuantity: s._sum.quantity || 0

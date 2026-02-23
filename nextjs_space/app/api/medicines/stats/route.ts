@@ -48,7 +48,7 @@ export async function GET() {
     // Total inventory value
     const medicines = await prisma.medicine.findMany();
     const totalInventoryValue = medicines.reduce(
-      (sum, med) => sum + med.quantity * med.unitPrice,
+      (sum: number, med: { quantity: number; unitPrice: number }) => sum + med.quantity * med.unitPrice,
       0
     );
 
