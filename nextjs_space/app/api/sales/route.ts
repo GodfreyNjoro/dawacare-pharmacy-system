@@ -4,9 +4,6 @@ import { authOptions } from "@/lib/auth-options";
 import { prisma } from "@/lib/db";
 import { auditSale, getAuditUserFromSession } from "@/lib/audit-logger";
 
-// Type for Prisma transaction client
-type TransactionClient = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
-
 // Generate unique invoice number
 function generateInvoiceNumber(): string {
   const date = new Date();
@@ -244,7 +241,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create sale with items and update inventory in a transaction
-    const sale = await prisma.$transaction(async (tx: TransactionClient) => {
+    const sale = await prisma.$transaction(async (tx) => {
       // Create the sale
       const newSale = await tx.sale.create({
         data: {

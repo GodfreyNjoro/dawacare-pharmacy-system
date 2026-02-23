@@ -119,7 +119,7 @@ export async function POST(
     }
 
     // Create dispensing record in transaction
-    const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+    const result = await prisma.$transaction(async (tx) => {
       // Create dispensing record
       const dispensing = await tx.prescriptionDispensing.create({
         data: {

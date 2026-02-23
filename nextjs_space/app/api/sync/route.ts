@@ -140,7 +140,7 @@ export async function POST(req: NextRequest) {
 
         if (!existingSale) {
           // Create sale in cloud database
-          await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+          await prisma.$transaction(async (tx) => {
             // Create sale record
             const newSale = await tx.sale.create({
               data: {

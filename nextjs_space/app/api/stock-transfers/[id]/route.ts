@@ -3,9 +3,6 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth-options";
 import { prisma } from "@/lib/db";
 
-// Type for Prisma transaction client
-type TransactionClient = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
-
 type RouteContext = { params: Promise<{ id: string }> };
 
 // GET - Fetch a single stock transfer
@@ -91,7 +88,7 @@ export async function PUT(
 
     if (status === "COMPLETED") {
       // Complete the transfer: deduct from source, add to destination
-      await prisma.$transaction(async (tx: TransactionClient) => {
+      await prisma.$transaction(async (tx) => {
         for (const item of transfer.items) {
           // Find source medicine and deduct
           const sourceMedicine = await tx.medicine.findFirst({
