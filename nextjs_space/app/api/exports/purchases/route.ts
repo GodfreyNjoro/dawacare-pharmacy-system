@@ -51,8 +51,10 @@ export async function GET(request: NextRequest) {
     });
 
     // Flatten purchase order data for export
-    const exportData = purchaseOrders.flatMap((po) =>
-      po.items.map((item) => ({
+    type POWithRelations = typeof purchaseOrders[number];
+    type POItemType = POWithRelations['items'][number];
+    const exportData = purchaseOrders.flatMap((po: POWithRelations) =>
+      po.items.map((item: POItemType) => ({
         Date: new Date(po.createdAt).toLocaleDateString(),
         PONumber: po.poNumber,
         Branch: po.branch?.name || "N/A",

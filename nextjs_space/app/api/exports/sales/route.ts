@@ -55,8 +55,10 @@ export async function GET(request: NextRequest) {
     });
 
     // Flatten sales data for export
-    const exportData = sales.flatMap((sale) =>
-      sale.items.map((item) => ({
+    type SaleWithRelations = typeof sales[number];
+    type SaleItemType = SaleWithRelations['items'][number];
+    const exportData = sales.flatMap((sale: SaleWithRelations) =>
+      sale.items.map((item: SaleItemType) => ({
         Date: new Date(sale.createdAt).toLocaleDateString(),
         Time: new Date(sale.createdAt).toLocaleTimeString(),
         InvoiceNumber: sale.invoiceNumber,

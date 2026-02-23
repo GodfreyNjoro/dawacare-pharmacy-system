@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
     });
 
     // Format inventory data for export
-    const exportData = medicines.map((medicine) => ({
+    const exportData = medicines.map((medicine: { branch?: { name: string } | null; name: string; genericName: string | null; category: string; batchNumber: string; manufacturer: string | null; quantity: number; reorderLevel: number; unitPrice: number; expiryDate: Date }) => ({
       Branch: medicine.branch?.name || "N/A",
       MedicineName: medicine.name,
       GenericName: medicine.genericName || "",
