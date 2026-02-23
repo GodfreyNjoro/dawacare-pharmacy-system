@@ -2,9 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth-options";
 import { prisma } from "@/lib/db";
-import { Sale, SaleItem } from "@prisma/client";
-
-type SaleWithItems = Sale & { items: SaleItem[] };
 
 export async function GET(request: NextRequest) {
   try {
@@ -51,10 +48,14 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: "asc" },
     });
 
+    // Type definitions based on query result
+    type SaleType = typeof sales[number];
+    type SaleItemType = SaleType["items"][number];
+
     // Aggregate by period
     const salesByPeriod: Record<string, { revenue: number; transactions: number; items: number }> = {};
     
-    sales.forEach((sale: SaleWithItems) => {
+    sales.forEach((sale: SaleType) => {
       const date = new Date(sale.createdAt);
       let periodKey: string;
       
@@ -74,7 +75,7 @@ export async function GET(request: NextRequest) {
       
       salesByPeriod[periodKey].revenue += sale.total;
       salesByPeriod[periodKey].transactions += 1;
-      salesByPeriod[periodKey].items += sale.items.reduce((sum: number, item: SaleItem) => sum + item.quantity, 0);
+      salesByPeriod[periodKey].items += sale.items.reduce((sum: number, item: SaleItemType) => sum + item.quantity, 0);
     });
 
     // Payment method breakdown
@@ -86,10 +87,10 @@ export async function GET(request: NextRequest) {
     });
 
     // Summary statistics
-    const totalRevenue = sales.reduce((sum: number, sale: SaleWithItems) => sum + sale.total, 0);
+    const totalRevenue = sales.reduce((sum: number, sale: SaleType) => sum + sale.total, 0);
     const totalTransactions = sales.length;
     const totalItems = sales.reduce(
-      (sum: number, sale: SaleWithItems) => sum + sale.items.reduce((itemSum: number, item: SaleItem) => itemSum + item.quantity, 0),
+      (sum: number, sale: SaleType) => sum + sale.items.reduce((itemSum: number, item: SaleItemType) => itemSum + item.quantity, 0),
       0
     );
     const averageTransaction = totalTransactions > 0 ? totalRevenue / totalTransactions : 0;
