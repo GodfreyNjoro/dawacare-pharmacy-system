@@ -52,11 +52,11 @@ export async function GET(request: NextRequest) {
     const registerBalance = lastEntry?.balanceAfter ?? medicine.quantity;
     
     // Summary calculations
-    const totalIn = entries.reduce((sum, e) => sum + e.quantityIn, 0);
-    const totalOut = entries.reduce((sum, e) => sum + e.quantityOut, 0);
+    const totalIn = entries.reduce((sum: number, e: { quantityIn: number }) => sum + e.quantityIn, 0);
+    const totalOut = entries.reduce((sum: number, e: { quantityOut: number }) => sum + e.quantityOut, 0);
     
     // Get entries by transaction type
-    const byType = entries.reduce((acc, entry) => {
+    const byType = entries.reduce((acc: Record<string, { count: number; in: number; out: number }>, entry: { transactionType: string; quantityIn: number; quantityOut: number }) => {
       const type = entry.transactionType;
       if (!acc[type]) {
         acc[type] = { count: 0, in: 0, out: 0 };
