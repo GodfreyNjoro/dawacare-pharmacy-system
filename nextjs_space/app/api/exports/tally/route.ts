@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
     });
 
     const mappings: Record<string, string> = {};
-    accountMappings.forEach((m) => {
+    accountMappings.forEach((m: { accountType: string; tallyLedger: string | null }) => {
       if (m.tallyLedger) {
         mappings[m.accountType] = m.tallyLedger;
       }
@@ -76,7 +76,8 @@ export async function GET(request: NextRequest) {
     xml += '      </REQUESTDESC>\n';
     xml += '      <REQUESTDATA>\n';
 
-    sales.forEach((sale) => {
+    type SaleWithRelations = typeof sales[number];
+    sales.forEach((sale: SaleWithRelations) => {
       xml += '        <TALLYMESSAGE xmlns:UDF="TallyUDF">\n';
       xml += '          <VOUCHER VCHTYPE="Sales" ACTION="Create">\n';
       xml += `            <DATE>${new Date(sale.createdAt).toISOString().split("T")[0].split("-").reverse().join("")}</DATE>\n`;

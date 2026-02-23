@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
     });
 
     const mappings: Record<string, string> = {};
-    accountMappings.forEach((m) => {
+    accountMappings.forEach((m: { accountType: string; sageLedger: string | null }) => {
       if (m.sageLedger) {
         mappings[m.accountType] = m.sageLedger;
       }
