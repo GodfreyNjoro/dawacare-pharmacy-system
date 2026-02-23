@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
     });
     
     const settingsObj: Record<string, string> = {};
-    taxSettings.forEach((s) => (settingsObj[s.key] = s.value));
+    taxSettings.forEach((s: { key: string; value: string }) => (settingsObj[s.key] = s.value));
     const vatEnabled = settingsObj.vat_enabled !== 'false';
     const vatRate = parseFloat(settingsObj.standard_vat_rate || '16');
 
@@ -58,7 +58,8 @@ export async function GET(request: NextRequest) {
     let exemptSales = 0;
     let totalVat = 0;
 
-    const salesWithTax = sales.map((sale) => {
+    type SaleWithRelations = typeof sales[number];
+    const salesWithTax = sales.map((sale: SaleWithRelations) => {
       // Calculate VAT based on items
       // For simplicity, we'll treat the entire sale as either taxable or exempt
       // based on whether VAT is enabled in settings

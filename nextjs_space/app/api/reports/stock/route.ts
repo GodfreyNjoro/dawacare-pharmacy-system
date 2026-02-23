@@ -59,8 +59,9 @@ export async function GET(request: NextRequest) {
     });
 
     // Apply stock status filter
+    type FilteredMedicine = typeof filteredMedicines[number];
     if (stockStatus && stockStatus !== "all") {
-      filteredMedicines = filteredMedicines.filter((med) => {
+      filteredMedicines = filteredMedicines.filter((med: FilteredMedicine) => {
         switch (stockStatus) {
           case "low":
             return med.isLowStock;

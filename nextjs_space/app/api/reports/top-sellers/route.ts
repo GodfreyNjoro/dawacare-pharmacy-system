@@ -80,8 +80,9 @@ export async function GET(request: NextRequest) {
       .slice(0, limit);
 
     // Category breakdown
+    type MedicineStatType = { medicineName: string; category: string; totalQuantity: number; totalRevenue: number };
     const categoryStats: Record<string, { category: string; quantity: number; revenue: number }> = {};
-    Object.values(medicineStats).forEach((stat) => {
+    Object.values(medicineStats).forEach((stat: MedicineStatType) => {
       if (!categoryStats[stat.category]) {
         categoryStats[stat.category] = { category: stat.category, quantity: 0, revenue: 0 };
       }

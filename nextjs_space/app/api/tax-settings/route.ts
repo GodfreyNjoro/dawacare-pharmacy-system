@@ -43,7 +43,7 @@ export async function GET() {
 
     // Convert to key-value object, using defaults for missing values
     const settingsObj: Record<string, string> = { ...DEFAULT_TAX_SETTINGS };
-    settings.forEach((setting) => {
+    settings.forEach((setting: { key: string; value: string }) => {
       settingsObj[setting.key] = setting.value;
     });
 
@@ -112,7 +112,7 @@ export async function POST(request: NextRequest) {
     const userId = (session.user as { id?: string }).id || 'unknown';
 
     await prisma.$transaction(
-      settingsToSave.map((setting) =>
+      settingsToSave.map((setting: { key: string; value: string; description: string }) =>
         prisma.appSettings.upsert({
           where: { key: setting.key },
           update: {

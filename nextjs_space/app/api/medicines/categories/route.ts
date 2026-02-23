@@ -17,7 +17,7 @@ export async function GET() {
     });
 
     return NextResponse.json(
-      categories?.map((c) => c?.category)?.filter(Boolean) ?? []
+      categories?.map((c: { category: string }) => c?.category)?.filter(Boolean) ?? []
     );
   } catch (error) {
     console.error("Error fetching categories:", error);
