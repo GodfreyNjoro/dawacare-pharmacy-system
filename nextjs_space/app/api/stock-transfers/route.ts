@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth-options";
 import { prisma } from "@/lib/db";
-import { Prisma } from "@prisma/client";
 
 // Generate unique transfer number
 function generateTransferNumber(): string {
