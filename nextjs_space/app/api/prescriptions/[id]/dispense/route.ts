@@ -200,7 +200,7 @@ export async function POST(
     });
 
     // Check for controlled substances
-    const hasControlled = prescription.items.some(item => item.isControlled);
+    const hasControlled = prescription.items.some((item: PrescriptionItemType) => item.isControlled);
 
     // Audit log
     await createAuditLog({
