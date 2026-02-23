@@ -170,11 +170,12 @@ export async function POST(
         where: { prescriptionId },
       });
 
+      type UpdatedItemType = typeof updatedItems[number];
       const allDispensed = updatedItems.every(
-        item => item.quantityDispensed >= item.quantityPrescribed
+        (item: UpdatedItemType) => item.quantityDispensed >= item.quantityPrescribed
       );
       const someDispensed = updatedItems.some(
-        item => item.quantityDispensed > 0
+        (item: UpdatedItemType) => item.quantityDispensed > 0
       );
 
       // Update prescription status
