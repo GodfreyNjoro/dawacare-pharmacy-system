@@ -1,15 +1,18 @@
-import { PrismaClient } from '@prisma/client'
+// Dynamic import to avoid Vercel build issues with @prisma/client exports
+// eslint-disable-next-line @typescript-eslint/no-var-requires, @typescript-eslint/no-require-imports
+const PrismaClientModule = require('@prisma/client')
+const PrismaClient = PrismaClientModule.PrismaClient
 
 const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  prisma: any
 }
 
-export const prisma = globalForPrisma.prisma ?? new PrismaClient()
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const prisma: any = globalForPrisma.prisma ?? new PrismaClient()
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
 
-// Export the PrismaClient type for use in transaction callbacks
-export type PrismaTransactionClient = Omit<
-  PrismaClient,
-  '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'
->
+// Transaction client type - use 'any' to avoid Prisma type export issues on Vercel
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type PrismaTransactionClient = any
