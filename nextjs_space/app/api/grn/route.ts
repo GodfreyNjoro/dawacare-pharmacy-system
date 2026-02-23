@@ -153,9 +153,10 @@ export async function POST(request: NextRequest) {
       });
 
       // Update PO item received quantities
+      type POItemType = typeof po.items[number];
       for (const item of items) {
         const poItem = po.items.find(
-          (pi) => pi.medicineName === item.medicineName
+          (pi: POItemType) => pi.medicineName === item.medicineName
         );
         if (poItem) {
           await tx.purchaseOrderItem.update({
