@@ -80,7 +80,7 @@ export async function GET(request: NextRequest) {
       .slice(0, limit);
 
     // Category breakdown
-    type MedicineStatType = { medicineName: string; category: string; totalQuantity: number; totalRevenue: number };
+    type MedicineStatType = typeof medicineStats[keyof typeof medicineStats];
     const categoryStats: Record<string, { category: string; quantity: number; revenue: number }> = {};
     Object.values(medicineStats).forEach((stat: MedicineStatType) => {
       if (!categoryStats[stat.category]) {
