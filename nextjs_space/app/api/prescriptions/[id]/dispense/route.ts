@@ -80,8 +80,9 @@ export async function POST(
     }
 
     // Validate each item
+    type PrescriptionItemType = typeof prescription.items[number];
     for (const item of items as DispenseItem[]) {
-      const prescriptionItem = prescription.items.find(pi => pi.id === item.prescriptionItemId);
+      const prescriptionItem = prescription.items.find((pi: PrescriptionItemType) => pi.id === item.prescriptionItemId);
       if (!prescriptionItem) {
         return NextResponse.json(
           { error: `Invalid prescription item: ${item.prescriptionItemId}` },
