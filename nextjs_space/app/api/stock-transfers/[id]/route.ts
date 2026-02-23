@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth-options";
-import { prisma } from "@/lib/db";
+import { prisma, PrismaTransactionClient } from "@/lib/db";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -88,7 +88,7 @@ export async function PUT(
 
     if (status === "COMPLETED") {
       // Complete the transfer: deduct from source, add to destination
-      await prisma.$transaction(async (tx) => {
+      await prisma.$transaction(async (tx: PrismaTransactionClient) => {
         for (const item of transfer.items) {
           // Find source medicine and deduct
           const sourceMedicine = await tx.medicine.findFirst({

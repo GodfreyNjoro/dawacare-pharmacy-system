@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
-import { prisma } from '@/lib/db';
-import { Prisma } from '@prisma/client';
+import { prisma, PrismaTransactionClient } from '@/lib/db';
 import jwt from 'jsonwebtoken';
 
 const JWT_SECRET = process.env.NEXTAUTH_SECRET || 'dawacare-desktop-sync-secret';
@@ -140,7 +139,7 @@ export async function POST(req: NextRequest) {
 
         if (!existingSale) {
           // Create sale in cloud database
-          await prisma.$transaction(async (tx) => {
+          await prisma.$transaction(async (tx: PrismaTransactionClient) => {
             // Create sale record
             const newSale = await tx.sale.create({
               data: {

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth-options";
-import { prisma } from "@/lib/db";
+import { prisma, PrismaTransactionClient } from "@/lib/db";
 
 // Generate unique GRN number
 function generateGRNNumber(): string {
@@ -115,7 +115,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create GRN and update inventory in a transaction
-    const grn = await prisma.$transaction(async (tx) => {
+    const grn = await prisma.$transaction(async (tx: PrismaTransactionClient) => {
       // Create the GRN
       const newGrn = await tx.goodsReceivedNote.create({
         data: {

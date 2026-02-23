@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth-options";
-import { prisma } from "@/lib/db";
+import { prisma, PrismaTransactionClient } from "@/lib/db";
 import { auditSale, getAuditUserFromSession } from "@/lib/audit-logger";
 
 // Generate unique invoice number
@@ -241,7 +241,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create sale with items and update inventory in a transaction
-    const sale = await prisma.$transaction(async (tx) => {
+    const sale = await prisma.$transaction(async (tx: PrismaTransactionClient) => {
       // Create the sale
       const newSale = await tx.sale.create({
         data: {

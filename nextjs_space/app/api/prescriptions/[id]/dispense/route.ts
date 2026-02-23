@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
-import { prisma } from '@/lib/db';
-import { Prisma } from '@prisma/client';
+import { prisma, PrismaTransactionClient } from '@/lib/db';
 import { createAuditLog, AuditUser } from '@/lib/audit-logger';
 
 function getAuditUser(session: { user?: { id?: string; name?: string | null; email?: string | null; role?: string } }): AuditUser {
@@ -119,7 +118,7 @@ export async function POST(
     }
 
     // Create dispensing record in transaction
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx: PrismaTransactionClient) => {
       // Create dispensing record
       const dispensing = await tx.prescriptionDispensing.create({
         data: {
