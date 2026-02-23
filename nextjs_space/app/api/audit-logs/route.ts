@@ -149,8 +149,8 @@ export async function POST(request: NextRequest) {
         todayCount,
         weekCount,
         criticalCount,
-        byAction: byAction.map(a => ({ action: a.action, count: a._count })),
-        byEntity: byEntity.map(e => ({ entityType: e.entityType, count: e._count })),
+        byAction: byAction.map((a: { action: string; _count: number }) => ({ action: a.action, count: a._count })),
+        byEntity: byEntity.map((e: { entityType: string; _count: number }) => ({ entityType: e.entityType, count: e._count })),
       });
     }
 
