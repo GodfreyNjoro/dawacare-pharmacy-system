@@ -65,7 +65,8 @@ export async function GET(request: NextRequest) {
     });
 
     // Format data for Sage (specific columns required by Sage)
-    const exportData = sales.flatMap((sale) => {
+    type SaleWithRelations = typeof sales[number];
+    const exportData = sales.flatMap((sale: SaleWithRelations) => {
       const rows = [];
       
       // Sales Revenue line
